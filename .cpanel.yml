@@ -1,0 +1,18 @@
+---
+# ============================================================================
+#  Despliegue automático de cPanel (Git Version Control → "Deploy HEAD Commit")
+# ----------------------------------------------------------------------------
+#  Copia el contenido del repositorio al DocumentRoot del sitio y ELIMINA del
+#  servidor los archivos que ya no existen en el repo (obsoletos, backups...),
+#  pero SIN tocar los archivos/carpetas de entorno y ejecución:
+#    - config.php               (credenciales del landing)
+#    - admin/config/config.php  (credenciales del admin + claves de Google)
+#    - php.ini / .user.ini      (config de PHP del hosting)
+#    - uploads/, video/, respaldos/  (subidas y respaldos, no versionados)
+#
+#  ⚠️ Verifica que DEPLOYPATH apunte EXACTAMENTE a la carpeta de tu sitio.
+# ============================================================================
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/dianamontes/public_html/
+    - /usr/bin/rsync -a --delete --exclude='.git' --exclude='.cpanel.yml' --exclude='config.php' --exclude='admin/config/config.php' --exclude='php.ini' --exclude='.user.ini' --exclude='uploads/' --exclude='video/' --exclude='respaldos/' ./ "$DEPLOYPATH"
