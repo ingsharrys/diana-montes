@@ -129,6 +129,24 @@ tr:hover td{background:#F8FAFD}
 .cat-del:hover{background:var(--bad);color:#fff}
 @media(max-width:1020px){.cat-grid{grid-template-columns:1fr}}
 
+/* ---------- Red de Súper Promotores y mapa ---------- */
+.g4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:1020px){.g4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.g4{grid-template-columns:1fr}}
+.kpi.violet{border-top-color:#7C3AED}
+.activar-red{display:flex;align-items:center;gap:14px;background:linear-gradient(100deg,var(--gold-soft),#fff);border:1.5px solid #F2D79A;border-radius:var(--r);padding:14px 18px;margin-bottom:16px;flex-wrap:wrap}
+.activar-red .ar-ico{font-size:28px}
+.activar-red .ar-txt{flex:1;min-width:240px;font-size:12.5px;color:var(--muted);line-height:1.5}
+.activar-red .ar-txt b{display:block;color:var(--navy);font-size:14px;margin-bottom:2px}
+.progreso{height:12px;background:#EEF1F6;border-radius:99px;overflow:hidden;margin:4px 0 6px}
+.progreso i{display:block;height:100%;background:linear-gradient(90deg,var(--navy2),#7C3AED);border-radius:99px}
+.progreso.mini{height:7px;margin:2px 0}
+.progreso-txt{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);flex-wrap:wrap;gap:6px}
+.leyenda{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.leyenda i{width:12px;height:12px;border-radius:50%;display:inline-block;border:2px solid #fff;box-shadow:0 0 0 1px var(--line)}
+.leyenda i.aro{background:#fff;border:3px solid #E0186C;box-shadow:none}
+.mapa{height:calc(100vh - 230px);min-height:420px;width:100%}
+
 /* ---------- Acceso con Google ---------- */
 .btn-google{display:flex;align-items:center;justify-content:center;gap:10px;
   background:#fff;color:var(--ink);border:1.5px solid var(--line);border-radius:11px;

@@ -106,6 +106,54 @@ class Usuario extends Model
             ['h' => $hash, 'id' => $id]);
     }
 
+    /* ================= Avance y ranking del equipo (dashboard) ================= */
+
+    /**
+     * "Mi avance": vinculados, meta y puesto entre los miembros del equipo
+     * con enlace de invitación (la dirección no compite: es la red raíz).
+     */
+    public function avance(int $id): array
+    {
+        $vinculados = (int)($this->consultarUno(
+            'SELECT COUNT(*) c FROM simpatizantes WHERE lider_id = :id', ['id' => $id]
+        )['c'] ?? 0);
+
+        $meta = (int)($this->consultarUno(
+            "SELECT cantidad FROM metas WHERE usuario_id = :id AND periodo = 'campana' LIMIT 1", ['id' => $id]
+        )['cantidad'] ?? 0);
+
+        $equipo = $this->consultarUno(
+            "SELECT COUNT(*) AS total,
+                    SUM(t.vinculados > :v) AS por_encima
+             FROM (SELECT (SELECT COUNT(*) FROM simpatizantes s WHERE s.lider_id = u.id) AS vinculados
+                   FROM usuarios u
+                   WHERE u.activo = 1 AND u.codigo_ref IS NOT NULL AND u.rol <> 'direccion') t",
+            ['v' => $vinculados]
+        );
+
+        return [
+            'vinculados' => $vinculados,
+            'meta'       => $meta,
+            'progreso'   => $meta > 0 ? min(100, (int)round($vinculados * 100 / $meta)) : null,
+            'puesto'     => (int)($equipo['por_encima'] ?? 0) + 1,
+            'equipo'     => (int)($equipo['total'] ?? 0),
+        ];
+    }
+
+    /** Top del equipo por simpatizantes vinculados (sin la dirección). */
+    public function rankingEquipo(int $limite = 5): array
+    {
+        return $this->consultar(
+            "SELECT u.nombre, u.rol,
+                    (SELECT COUNT(*) FROM simpatizantes s WHERE s.lider_id = u.id) AS vinculados,
+                    (SELECT m.cantidad FROM metas m WHERE m.usuario_id = u.id AND m.periodo = 'campana' LIMIT 1) AS meta
+             FROM usuarios u
+             WHERE u.activo = 1 AND u.codigo_ref IS NOT NULL AND u.rol <> 'direccion'
+             ORDER BY vinculados DESC, u.nombre
+             LIMIT " . (int)$limite
+        );
+    }
+
     public function porId(int $id): ?array
     {
         return $this->consultarUno('SELECT * FROM usuarios WHERE id = :id', ['id' => $id]);

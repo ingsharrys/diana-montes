@@ -15,6 +15,7 @@
       <a class="nav-item" href="<?= url('dashboard') ?>">📊 Panel</a>
       <a class="nav-item" href="<?= url('simpatizantes') ?>">🗂 Simpatizantes</a>
       <a class="nav-item" href="<?= url('simpatizantes/crear') ?>">＋ Nuevo registro</a>
+      <a class="nav-item" href="<?= url('mapa') ?>">🗺 Mapa</a>
       <?php if (Auth::tieneRol('direccion')): ?>
       <a class="nav-item" href="<?= url('usuarios') ?>">👥 Equipo</a>
       <a class="nav-item" href="<?= url('catalogos') ?>">🏘 Catálogos</a>
