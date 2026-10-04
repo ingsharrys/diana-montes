@@ -1,0 +1,2 @@
+# Solo se ejecuta desde la línea de comandos (cron de cPanel)
+Require all denied

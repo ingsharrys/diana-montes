@@ -71,6 +71,82 @@ function esquema_pasos(): array
         ['simpatizantes', 'verificado_por',  'ALTER TABLE simpatizantes ADD COLUMN verificado_por INT NULL', 'verificación por llamada'],
         ['puestos_votacion', 'mesas',        'ALTER TABLE puestos_votacion ADD COLUMN mesas SMALLINT UNSIGNED NULL', 'mesas y potencial de cada puesto'],
         ['puestos_votacion', 'potencial',    'ALTER TABLE puestos_votacion ADD COLUMN potencial INT UNSIGNED NULL', 'mesas y potencial de cada puesto'],
+
+        // ---------- WhatsApp: plantillas, ocasiones, cola de mensajes y respuestas ----------
+        ['simpatizantes', 'wa_baja_at', 'ALTER TABLE simpatizantes ADD COLUMN wa_baja_at DATETIME NULL', 'bajas de WhatsApp'],
+        ['wa_plantillas', null, "CREATE TABLE IF NOT EXISTS wa_plantillas (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              nombre VARCHAR(120) NOT NULL,
+              idioma VARCHAR(10) NOT NULL DEFAULT 'es',
+              categoria VARCHAR(20) NULL,
+              estado_meta VARCHAR(20) NULL,
+              cuerpo TEXT NULL,
+              num_variables TINYINT UNSIGNED NOT NULL DEFAULT 0,
+              variables VARCHAR(255) NULL,
+              compatible TINYINT(1) NOT NULL DEFAULT 1,
+              actualizado DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              UNIQUE KEY uq_wa_plantilla (nombre, idioma)
+            ) DEFAULT CHARSET=utf8mb4", 'plantillas de WhatsApp'],
+        ['wa_ocasiones', null, [
+            "CREATE TABLE IF NOT EXISTS wa_ocasiones (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              clave VARCHAR(40) NOT NULL,
+              nombre VARCHAR(80) NOT NULL,
+              tipo ENUM('cumpleanos','profesion','fecha','evento') NOT NULL,
+              regla VARCHAR(20) NULL,
+              genero ENUM('mujer','hombre') NULL,
+              plantilla_id INT NULL,
+              activa TINYINT(1) NOT NULL DEFAULT 0,
+              UNIQUE KEY uq_wa_ocasion (clave)
+            ) DEFAULT CHARSET=utf8mb4",
+            // regla: 'MM-DD' fecha fija, o 'n-d-MM' = n-ésimo día d de la semana (0 = domingo) del mes MM
+            "INSERT IGNORE INTO wa_ocasiones (clave, nombre, tipo, regla, genero) VALUES
+              ('cumpleanos',     'Cumpleaños',                      'cumpleanos', NULL,     NULL),
+              ('profesion',      'Día de su profesión u oficio',    'profesion',  NULL,     NULL),
+              ('mujer',          'Día de la Mujer',                 'fecha',      '03-08',  'mujer'),
+              ('hombre',         'Día del Hombre',                  'fecha',      '03-19',  'hombre'),
+              ('madre',          'Día de la Madre',                 'fecha',      '2-0-05', 'mujer'),
+              ('padre',          'Día del Padre',                   'fecha',      '3-0-06', 'hombre'),
+              ('amor_amistad',   'Amor y Amistad',                  'fecha',      '3-6-09', NULL),
+              ('navidad',        'Navidad',                         'fecha',      '12-24',  NULL),
+              ('anio_nuevo',     'Año nuevo',                       'fecha',      '12-31',  NULL),
+              ('bienvenida',     'Bienvenida al registrarse',       'evento',     NULL,     NULL),
+              ('nuevo_invitado', 'Alguien se unió a tu red',        'evento',     NULL,     NULL),
+              ('sube_nivel',     'Subiste de nivel como promotor',  'evento',     NULL,     NULL)",
+        ], 'ocasiones de saludo de WhatsApp'],
+        ['wa_mensajes', null, "CREATE TABLE IF NOT EXISTS wa_mensajes (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              simpatizante_id INT NOT NULL,
+              ocasion_id INT NOT NULL,
+              clave VARCHAR(60) NOT NULL,
+              telefono VARCHAR(15) NULL,
+              plantilla VARCHAR(120) NULL,
+              estado ENUM('pendiente','enviado','entregado','leido','error','omitido') NOT NULL DEFAULT 'pendiente',
+              wamid VARCHAR(128) NULL,
+              error_codigo VARCHAR(20) NULL,
+              error_detalle VARCHAR(255) NULL,
+              intentos TINYINT UNSIGNED NOT NULL DEFAULT 0,
+              creado_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              enviado_at DATETIME NULL,
+              entregado_at DATETIME NULL,
+              leido_at DATETIME NULL,
+              error_at DATETIME NULL,
+              UNIQUE KEY uq_wa_msg (simpatizante_id, ocasion_id, clave),
+              UNIQUE KEY uq_wa_wamid (wamid),
+              KEY idx_wa_estado (estado),
+              KEY idx_wa_creado (creado_at)
+            ) DEFAULT CHARSET=utf8mb4", 'cola y métricas de WhatsApp'],
+        ['wa_entrantes', null, "CREATE TABLE IF NOT EXISTS wa_entrantes (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              telefono VARCHAR(15) NOT NULL,
+              simpatizante_id INT NULL,
+              tipo VARCHAR(20) NOT NULL,
+              texto TEXT NULL,
+              wamid VARCHAR(128) NULL,
+              recibido_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              UNIQUE KEY uq_wa_ent_wamid (wamid),
+              KEY idx_wa_ent_tel (telefono)
+            ) DEFAULT CHARSET=utf8mb4", 'respuestas recibidas por WhatsApp'],
     ];
 }
 
@@ -235,9 +311,16 @@ function simpatizante_insertar(PDO $db, array $d): array
         'INSERT INTO simpatizantes (' . implode(', ', $campos) . ')
          VALUES (:' . implode(', :', $campos) . ')'
     )->execute($d);
+    $id = (int)$db->lastInsertId();
+
+    // WhatsApp: bienvenida, aviso a quien lo invitó y su posible subida de nivel
+    // (solo se encolan; el envío lo hace el cron, nunca frena el registro)
+    try {
+        wa_eventos_registro($db, $id, isset($d['referido_por']) ? (int)$d['referido_por'] : null);
+    } catch (Throwable $e) { /* un fallo de la cola no puede impedir el registro */ }
 
     return [
-        'id'     => (int)$db->lastInsertId(),
+        'id'     => $id,
         'codigo' => $d['codigo_promotor'] ?? null,
         'token'  => $d['token_panel'] ?? null,
     ];
