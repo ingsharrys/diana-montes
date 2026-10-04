@@ -7,7 +7,7 @@
     </div>
   </div>
   <div class="login-card">
-    <div class="brand"><span class="brand-mark">G</span> Plataforma Electoral</div>
+    <div class="brand"><span class="brand-mark">DM</span> Centro de mando</div>
     <h2>Iniciar sesión</h2>
     <p class="sub">Acceso exclusivo para el equipo autorizado.</p>
 

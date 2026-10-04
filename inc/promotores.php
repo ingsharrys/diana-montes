@@ -12,6 +12,7 @@
  *   - referido_por    : el simpatizante que lo invitó (árbol de referidos)
  *   - lat / lng       : ubicación aproximada, solo si la autorizó
  */
+require_once __DIR__ . '/esquema.php';
 
 /** Niveles de la gamificación: [invitados mínimos, nombre, emoji]. */
 const PROMOTOR_NIVELES = [
@@ -21,66 +22,19 @@ const PROMOTOR_NIVELES = [
     [25, 'Embajador',      '🏆'],
 ];
 
-/** Columnas que agrega la migración (en orden). */
-const PROMOTOR_COLUMNAS = ['codigo_promotor', 'token_panel', 'referido_por', 'lat', 'lng'];
-
-/** ¿Ya se ejecutó la migración? (una sola consulta por petición) */
+/** ¿Está activa la red de promotores? (existen las columnas del enlace personal) */
 function promotor_esquema_listo(PDO $db): bool
 {
-    static $listo = null;
-    if ($listo !== null) return $listo;
-    try {
-        $st = $db->prepare(
-            "SELECT COUNT(*) FROM information_schema.COLUMNS
-             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'simpatizantes'
-               AND COLUMN_NAME IN ('" . implode("','", PROMOTOR_COLUMNAS) . "')"
-        );
-        $st->execute();
-        $listo = (int)$st->fetchColumn() === count(PROMOTOR_COLUMNAS);
-    } catch (Throwable $e) {
-        $listo = false;
+    foreach (['codigo_promotor', 'token_panel', 'referido_por', 'lat', 'lng'] as $columna) {
+        if (!esquema_tiene($db, 'simpatizantes', $columna)) return false;
     }
-    return $listo;
-}
-
-/** Sentencias de la migración, por columna (idempotente: se salta lo que ya existe). */
-function promotor_sql_migracion(): array
-{
-    return [
-        'codigo_promotor' => 'ALTER TABLE simpatizantes ADD COLUMN codigo_promotor VARCHAR(16) NULL, ADD UNIQUE KEY uq_simp_codigo_promotor (codigo_promotor)',
-        'token_panel'     => 'ALTER TABLE simpatizantes ADD COLUMN token_panel CHAR(32) NULL, ADD UNIQUE KEY uq_simp_token_panel (token_panel)',
-        'referido_por'    => 'ALTER TABLE simpatizantes ADD COLUMN referido_por INT NULL, ADD KEY idx_simp_referido_por (referido_por)',
-        'lat'             => 'ALTER TABLE simpatizantes ADD COLUMN lat DECIMAL(9,6) NULL',
-        'lng'             => 'ALTER TABLE simpatizantes ADD COLUMN lng DECIMAL(9,6) NULL',
-    ];
-}
-
-/**
- * Ejecuta la migración y asigna código/token a los simpatizantes existentes.
- * Devuelve la lista de pasos aplicados. Lanza la excepción si algo falla.
- */
-function promotor_migrar(PDO $db): array
-{
-    $existentes = $db->query(
-        "SELECT COLUMN_NAME FROM information_schema.COLUMNS
-         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'simpatizantes'"
-    )->fetchAll(PDO::FETCH_COLUMN);
-
-    $aplicados = [];
-    foreach (promotor_sql_migracion() as $columna => $sql) {
-        if (in_array($columna, $existentes, true)) continue;
-        $db->exec($sql);
-        $aplicados[] = $columna;
-    }
-
-    $n = promotor_completar_codigos($db);
-    if ($n > 0) $aplicados[] = "códigos para $n simpatizantes";
-    return $aplicados;
+    return true;
 }
 
 /** Asigna código y token a los simpatizantes que aún no los tienen. */
 function promotor_completar_codigos(PDO $db): int
 {
+    if (!promotor_esquema_listo($db)) return 0;
     $ids = $db->query('SELECT id FROM simpatizantes WHERE codigo_promotor IS NULL OR token_panel IS NULL')
               ->fetchAll(PDO::FETCH_COLUMN);
     $st = $db->prepare(

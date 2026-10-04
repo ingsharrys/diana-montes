@@ -54,27 +54,19 @@ class Simpatizante extends Model
         return $this->consultar($sql, $params);
     }
 
+    /** ¿La base ya tiene la columna de género? (se crea con "Actualizar plataforma") */
+    public function pideGenero(): bool
+    {
+        return esquema_tiene($this->db, 'simpatizantes', 'genero');
+    }
+
+    /**
+     * Mismo guardado que la landing (inc/esquema.php): también los registros
+     * hechos por el equipo quedan con su enlace de promotor y su nivel en la red.
+     */
     public function crear(array $d): int
     {
-        $this->ejecutar(
-            'INSERT INTO simpatizantes
-              (nombre, documento, telefono, fecha_nacimiento, zona_id, puesto_id, mesa,
-               profesion_id, nivel, lider_id, consentimiento_datos, consentimiento_fecha, created_by)
-             VALUES
-              (:nombre, :documento, :telefono, :fecha_nacimiento, :zona_id, :puesto_id, :mesa,
-               :profesion_id, :nivel, :lider_id, 1, NOW(), :created_by)',
-            $d
-        );
-        $id = $this->ultimoId();
-
-        // También los registros hechos por el equipo quedan listos para invitar
-        if ($this->redPromotoresActiva()) {
-            $this->ejecutar(
-                'UPDATE simpatizantes SET codigo_promotor = :c, token_panel = :t WHERE id = :id',
-                ['c' => promotor_nuevo_codigo($this->db), 't' => promotor_nuevo_token(), 'id' => $id]
-            );
-        }
-        return $id;
+        return simpatizante_insertar($this->db, $d)['id'];
     }
 
     /* ============ Red de promotores y mapa (requieren la migración) ============ */
