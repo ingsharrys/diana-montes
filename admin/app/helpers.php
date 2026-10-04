@@ -79,5 +79,9 @@ function icono(string $nombre): string
 /** URL de archivos estáticos (css/js/img): siempre ruta directa, sin router. */
 function asset(string $ruta): string
 {
-    return APP_URL . '/' . ltrim($ruta, '/');
+    $ruta = ltrim($ruta, '/');
+    // ?v=fecha de modificación: tras cada actualización el navegador descarga
+    // la versión nueva en vez de usar la vieja guardada en caché
+    $archivo = dirname(__DIR__) . '/' . $ruta;
+    return APP_URL . '/' . $ruta . (is_file($archivo) ? '?v=' . filemtime($archivo) : '');
 }
