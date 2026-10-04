@@ -25,10 +25,25 @@
         <?php if (isset($errores['telefono'])): ?><em><?= e($errores['telefono']) ?></em><?php endif; ?>
       </label>
 
-      <label class="field">
-        <span>Fecha de cumpleaños</span>
-        <input type="date" name="fecha_nacimiento" value="<?= e($v['fecha_nacimiento'] ?? '') ?>">
+      <label class="field <?= isset($errores['fecha_nacimiento']) ? 'has-error' : '' ?>">
+        <span>Fecha de nacimiento *</span>
+        <input type="date" name="fecha_nacimiento" value="<?= e($v['fecha_nacimiento'] ?? '') ?>"
+               max="<?= date('Y-m-d', strtotime('-' . EDAD_MINIMA . ' years')) ?>" required>
+        <?php if (isset($errores['fecha_nacimiento'])): ?><em><?= e($errores['fecha_nacimiento']) ?></em><?php endif; ?>
       </label>
+
+      <?php if ($pideGenero): ?>
+      <label class="field <?= isset($errores['genero']) ? 'has-error' : '' ?>">
+        <span>Género *</span>
+        <select name="genero" required>
+          <option value="">Selecciona…</option>
+          <?php foreach (GENEROS as $valor => $etiqueta): ?>
+            <option value="<?= $valor ?>" <?= ($v['genero'] ?? '') === $valor ? 'selected' : '' ?>><?= e($etiqueta) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <?php if (isset($errores['genero'])): ?><em><?= e($errores['genero']) ?></em><?php endif; ?>
+      </label>
+      <?php endif; ?>
 
       <label class="field <?= isset($errores['zona_id']) ? 'has-error' : '' ?>">
         <span>Zona / barrio / vereda *</span>

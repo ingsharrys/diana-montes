@@ -13,9 +13,11 @@ session_start();
 try {
     $zonas = db()->query('SELECT id, nombre, tipo FROM zonas ORDER BY tipo, nombre')->fetchAll();
     $profesiones = db()->query('SELECT id, nombre FROM profesiones ORDER BY id')->fetchAll();
+    $pideGenero = esquema_tiene(db(), 'simpatizantes', 'genero');
 } catch (Throwable $e) {
-    $zonas = []; $profesiones = [];
+    $zonas = []; $profesiones = []; $pideGenero = false;
 }
+$fechaMaxima = date('Y-m-d', strtotime('-' . EDAD_MINIMA . ' years'));
 
 /* Invitación (?ref=) de un líder o de un promotor ciudadano:
    se resuelve en el servidor para pintar el chip "Te invita…" */
@@ -486,9 +488,22 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
             </select>
           </div>
         </div>
-        <div class="campo">
-          <label for="f-cumple">Cumpleaños <span style="font-weight:500;color:#9AA0AF">(opcional, para saludarte en tu día 🎂)</span></label>
-          <input id="f-cumple" type="date" name="fecha_nacimiento">
+        <div class="campos-2">
+          <div class="campo">
+            <label for="f-cumple">Fecha de nacimiento <span style="font-weight:500;color:#9AA0AF">(te saludamos en tu día 🎂)</span></label>
+            <input id="f-cumple" type="date" name="fecha_nacimiento" max="<?= $fechaMaxima ?>" required>
+          </div>
+          <?php if ($pideGenero): ?>
+          <div class="campo">
+            <label for="f-genero">Género</label>
+            <select id="f-genero" name="genero" required>
+              <option value="">Selecciona…</option>
+              <?php foreach (GENEROS as $valor => $etiqueta): ?>
+              <option value="<?= $valor ?>"><?= e($etiqueta) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <?php endif; ?>
         </div>
 
         <!-- ubicación aproximada: opcional, solo con permiso explícito -->
@@ -679,6 +694,9 @@ document.getElementById('formRegistro').addEventListener('submit', async functio
   else if (cel.length !== 10) msg = 'El celular debe tener 10 dígitos.';
   else if (!document.getElementById('f-zona').value) msg = 'Cuéntanos tu barrio o vereda.';
   else if (!document.getElementById('f-prof').value) msg = 'Cuéntanos a qué te dedicas.';
+  else if (!document.getElementById('f-cumple').value) msg = 'Escribe tu fecha de nacimiento.';
+  else if (document.getElementById('f-cumple').value > document.getElementById('f-cumple').max) msg = 'La red de la campaña es para mayores de <?= EDAD_MINIMA ?> años.';
+  else if (document.getElementById('f-genero') && !document.getElementById('f-genero').value) msg = 'Selecciona tu género.';
   else if (!document.getElementById('f-consent').checked) msg = 'Necesitamos tu autorización de datos (Ley 1581).';
   if (msg) { err.textContent = '⚠ ' + msg; err.style.display = 'block'; return; }
 

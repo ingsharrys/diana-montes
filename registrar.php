@@ -50,6 +50,7 @@ $nombre    = trim($_POST['nombre'] ?? '');
 $documento = preg_replace('/\D/', '', $_POST['documento'] ?? '');
 $telefono  = preg_replace('/\D/', '', $_POST['telefono'] ?? '');
 $cumple    = trim($_POST['fecha_nacimiento'] ?? '');
+$genero    = is_string($_POST['genero'] ?? null) ? $_POST['genero'] : '';
 $zonaId    = (int)($_POST['zona_id'] ?? 0);
 $profId    = (int)($_POST['profesion_id'] ?? 0);
 $ref       = trim($_POST['ref'] ?? '');
@@ -67,10 +68,14 @@ if (!empty($_POST['ubicacion'])) {
 if (mb_strlen($nombre) < 5 || mb_strlen($nombre) > 120) salir(false, 'Escribe tu nombre completo.');
 if (strlen($documento) < 6 || strlen($documento) > 12)  salir(false, 'Revisa tu número de documento.');
 if (strlen($telefono) !== 10 || $telefono[0] !== '3')   salir(false, 'El celular debe tener 10 dígitos y empezar por 3.');
-if ($cumple !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $cumple)) $cumple = '';
-if (!$consent) salir(false, 'Necesitamos tu autorización de datos (Ley 1581 de 2012).');
+if ($error = simpatizante_error_nacimiento($cumple))     salir(false, $error);
 
 $db = db();
+
+// El género se pide desde que la plataforma se actualiza (columna creada)
+$pideGenero = esquema_tiene($db, 'simpatizantes', 'genero');
+if ($pideGenero && !isset(GENEROS[$genero])) salir(false, 'Selecciona tu género.');
+if (!$consent) salir(false, 'Necesitamos tu autorización de datos (Ley 1581 de 2012).');
 
 /* Zona y profesión deben existir en los catálogos */
 $st = $db->prepare('SELECT id FROM zonas WHERE id = :id'); $st->execute(['id' => $zonaId]);
@@ -102,39 +107,15 @@ if ($liderId === null) {
 }
 
 /* Guardar. Con la red de promotores activa, el nuevo simpatizante recibe
-   de una vez su código para invitar y la llave de su panel. */
-$datos = [
+   de una vez su código para invitar, la llave de su panel y su nivel en la red. */
+$nuevo = simpatizante_insertar($db, [
     'nombre' => $nombre, 'documento' => $documento, 'telefono' => $telefono,
-    'cumple' => $cumple ?: null, 'zona' => $zonaId, 'prof' => $profId, 'lider' => $liderId,
-];
-$promotor = null;
-if (promotor_esquema_listo($db)) {
-    $promotor = ['codigo' => promotor_nuevo_codigo($db), 'token' => promotor_nuevo_token()];
-    $st = $db->prepare(
-        'INSERT INTO simpatizantes
-           (nombre, documento, telefono, fecha_nacimiento, zona_id, profesion_id,
-            nivel, lider_id, consentimiento_datos, consentimiento_fecha,
-            codigo_promotor, token_panel, referido_por, lat, lng)
-         VALUES
-           (:nombre, :documento, :telefono, :cumple, :zona, :prof,
-            "simpatizante", :lider, 1, NOW(),
-            :codigo, :token, :referido, :lat, :lng)'
-    );
-    $st->execute($datos + [
-        'codigo' => $promotor['codigo'], 'token' => $promotor['token'],
-        'referido' => $referidoPor, 'lat' => $lat, 'lng' => $lng,
-    ]);
-} else {
-    $st = $db->prepare(
-        'INSERT INTO simpatizantes
-           (nombre, documento, telefono, fecha_nacimiento, zona_id, profesion_id,
-            nivel, lider_id, consentimiento_datos, consentimiento_fecha)
-         VALUES
-           (:nombre, :documento, :telefono, :cumple, :zona, :prof,
-            "simpatizante", :lider, 1, NOW())'
-    );
-    $st->execute($datos);
-}
+    'fecha_nacimiento' => $cumple, 'genero' => $pideGenero ? $genero : null,
+    'zona_id' => $zonaId, 'profesion_id' => $profId,
+    'nivel' => 'simpatizante', 'lider_id' => $liderId,
+    'referido_por' => $referidoPor, 'lat' => $lat, 'lng' => $lng,
+]);
+$promotor = $nuevo['token'] ? ['codigo' => $nuevo['codigo'], 'token' => $nuevo['token']] : null;
 
 /* Auditoría del registro público */
 $db->prepare('INSERT INTO auditoria (usuario_id, accion, detalle, ip)
@@ -157,7 +138,8 @@ $cuerpo = "Nuevo registro desde dianamontes.com\n\n"
         . "WhatsApp:   $telefono\n"
         . "Zona:       $zonaNom\n"
         . "Profesión:  $profNom\n"
-        . ($cumple ? "Cumpleaños: $cumple\n" : '')
+        . "Nacimiento: $cumple\n"
+        . ($pideGenero ? "Género:     " . GENEROS[$genero] . "\n" : '')
         . "Red:        $liderNombre\n"
         . ($lat !== null ? "Ubicación:  https://maps.google.com/?q=$lat,$lng (aprox.)\n" : '')
         . "Fecha:      " . date('d/m/Y g:i a') . "\n"

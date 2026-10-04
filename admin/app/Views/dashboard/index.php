@@ -1,78 +1,152 @@
-<?php if ($puedeActivarRed): ?>
+<?php
+/** Centro de mando › Vista rápida */
+$pct = $meta > 0 ? $total * 100 / $meta : null;
+$pendienteTxt = $soloLider ? 'Disponible cuando la dirección actualice la plataforma.' : 'Disponible al actualizar la plataforma (aviso de arriba).';
+?>
+
+<?php if ($pendientes): ?>
 <div class="activar-red">
   <span class="ar-ico">🚀</span>
   <span class="ar-txt">
-    <b>Activa la red de Súper Promotores y el mapa</b>
-    Cada simpatizante recibirá su enlace personal, su QR y su panel con ranking para invitar a familiares y amigos,
-    y podrás ver en un mapa a quienes compartan su ubicación. Se hace una sola vez y no borra ningún dato.
+    <b>Actualiza la plataforma para completar el centro de mando</b>
+    Falta: <?= e(implode(', ', $pendientes)) ?>. Se hace una sola vez, con un clic, y no borra ningún dato.
   </span>
-  <form method="post" action="<?= url('dashboard/activarred') ?>">
+  <form method="post" action="<?= url('dashboard/actualizar') ?>">
     <?= \Core\Csrf::campo() ?>
-    <button class="btn btn-gold" type="submit">Activar ahora</button>
+    <button class="btn btn-gold" type="submit">Actualizar plataforma</button>
   </form>
 </div>
 <?php endif; ?>
 
-<div class="grid <?= $redActiva ? 'g4' : 'g3' ?>">
-  <div class="card kpi">
-    <div class="lbl">Simpatizantes registrados</div>
-    <div class="kpi-num"><?= number_format($totalSimp, 0, ',', '.') ?></div>
-  </div>
-  <div class="card kpi gold">
-    <div class="lbl">Nuevos esta semana</div>
-    <div class="kpi-num">+<?= number_format($nuevosSemana, 0, ',', '.') ?></div>
-  </div>
-  <?php if ($redActiva): ?>
-  <div class="card kpi violet">
-    <div class="lbl">Promotores activos <span class="muted">(ya invitaron)</span></div>
-    <div class="kpi-num"><?= number_format($promotores, 0, ',', '.') ?></div>
-  </div>
-  <div class="card kpi green">
-    <div class="lbl">Con ubicación en el mapa</div>
-    <div class="kpi-num"><?= number_format($conUbicacion, 0, ',', '.') ?></div>
-    <a class="small" href="<?= url('mapa') ?>">Ver mapa →</a>
-  </div>
-  <?php else: ?>
-  <div class="card kpi green">
-    <div class="lbl">Acciones rápidas</div>
-    <a class="btn btn-gold" style="margin-top:8px;display:inline-block" href="<?= url('simpatizantes/crear') ?>">＋ Registrar simpatizante</a>
-  </div>
-  <?php endif; ?>
+<!-- ============ Fila 1: meta · niveles · promotores ============ -->
+<div class="grid mando-1">
+  <section class="card">
+    <h3><?= $soloLider ? 'Mi meta' : 'Progreso hacia la meta' ?></h3>
+    <?php if ($pct !== null): ?>
+      <?= grafica_medidor($pct) ?>
+      <p class="meta-cifra"><b><?= num($total) ?></b> <span>/ <?= num($meta) ?></span></p>
+      <p class="meta-txt"><?= porc($pct, $pct < 10 ? 2 : 1) ?> de la meta de inscripción de simpatizantes</p>
+    <?php else: ?>
+      <p class="hero-num"><?= num($total) ?></p>
+      <p class="meta-txt"><?= $soloLider ? 'simpatizantes en tu red. La dirección aún no te asignó una meta.' : 'simpatizantes inscritos. Aún no hay meta de inscripción.' ?></p>
+    <?php endif; ?>
+
+    <?php if ($avance && !$soloLider): ?>
+      <p class="meta-extra">Tu red: <b><?= num($avance['vinculados']) ?></b><?= $avance['meta'] ? ' de ' . num($avance['meta']) : '' ?> · puesto #<?= $avance['puesto'] ?> de <?= $avance['equipo'] ?></p>
+    <?php elseif ($soloLider && $avance): ?>
+      <p class="meta-extra">Puesto <b>#<?= $avance['puesto'] ?></b> de <?= $avance['equipo'] ?> en el equipo</p>
+    <?php endif; ?>
+
+    <?php if ($puedeEditarMeta): ?>
+    <details class="editar-meta" <?= $meta ? '' : 'open' ?>>
+      <summary><?= $meta ? 'Editar meta' : 'Definir la meta de la campaña' ?></summary>
+      <form method="post" action="<?= url('dashboard/meta') ?>">
+        <?= \Core\Csrf::campo() ?>
+        <input name="meta" inputmode="numeric" placeholder="Ej: 45000" value="<?= $meta ?: '' ?>" aria-label="Meta de simpatizantes" required>
+        <button class="btn btn-primary btn-mini" type="submit">Guardar</button>
+      </form>
+    </details>
+    <?php endif; ?>
+  </section>
+
+  <section class="card">
+    <h3>Conteo por nivel en la red <span class="tag tag-blue">Total <?= num($total) ?></span></h3>
+    <?php if ($porNivel === null): ?>
+      <p class="muted vacio"><?= $pendienteTxt ?></p>
+    <?php else:
+      $filas = [];
+      foreach ($porNivel as $n => $c) {
+          $nombre = $n === 5 ? 'Nivel 5+' : "Nivel $n";
+          $quien  = $n === 1 ? 'entraron directo' : 'invitados por alguien de nivel ' . ($n - 1) . ($n === 5 ? ' o más' : '');
+          $filas[] = [$nombre, $c, RAMPA_NIVEL[$n - 1], "$nombre ($quien): " . num($c) . ($total ? ' · ' . porc($c * 100 / $total) : '')];
+      } ?>
+      <?= grafica_barras($filas) ?>
+      <p class="muted small nota">Nivel 1: entraron directo (por la candidata o un líder). Nivel 2: invitados por alguien de nivel 1, y así sucesivamente.</p>
+    <?php endif; ?>
+  </section>
+
+  <section class="card">
+    <h3>Promotores</h3>
+    <?php if ($promotores === null): ?>
+      <p class="muted vacio"><?= $pendienteTxt ?></p>
+    <?php else: ?>
+      <div class="stat">
+        <div><span class="stat-lbl">Promotores</span><b class="stat-num"><?= num($promotores['promotores']) ?></b></div>
+        <span class="stat-ico verde"><?= icono('trofeo') ?></span>
+      </div>
+      <div class="stat violeta">
+        <div><span class="stat-lbl">Súper promotores</span><b class="stat-num"><?= num($promotores['super']) ?></b></div>
+        <span class="stat-ico"><?= icono('megafono') ?></span>
+      </div>
+      <p class="muted small nota"><?= num($promotores['activos']) ?> ya invitaron al menos a una persona.
+        Promotor: <?= PROMOTOR_NIVELES[1][0] ?>+ invitados · Súper: <?= PROMOTOR_NIVELES[2][0] ?>+.</p>
+    <?php endif; ?>
+  </section>
 </div>
 
-<?php if ($avance): ?>
-<div class="card mi-avance" style="margin-top:16px">
-  <h3>⭐ Mi avance <span class="tag tag-blue">puesto #<?= $avance['puesto'] ?> de <?= $avance['equipo'] ?> en el equipo</span></h3>
-  <?php if ($avance['progreso'] !== null): ?>
-    <div class="progreso"><i style="width:<?= $avance['progreso'] ?>%"></i></div>
-    <div class="progreso-txt">
-      <span><b><?= $avance['vinculados'] ?></b> de <?= $avance['meta'] ?> simpatizantes en tu red</span>
-      <span><?= $avance['progreso'] ?>%<?= $avance['progreso'] >= 100 ? ' 🎉 ¡Meta cumplida!' : '' ?></span>
-    </div>
-  <?php else: ?>
-    <p><b><?= $avance['vinculados'] ?></b> simpatizantes en tu red. <span class="muted">La dirección aún no te asignó una meta.</span></p>
-  <?php endif; ?>
-  <p class="muted small" style="margin-top:8px">Comparte tu enlace o tu QR desde <a href="<?= url('simpatizantes') ?>">Simpatizantes</a> para crecer más rápido.</p>
+<!-- ============ Fila 2: red de contactos · ubicación ============ -->
+<div class="grid mando-2">
+  <section class="card">
+    <h3>Red de contactos <a class="h3-link" href="<?= url('red') ?>">Ver completa →</a></h3>
+    <?php if (count($grafo['nodos']) <= 1): ?>
+      <p class="muted vacio">Aún no hay simpatizantes para dibujar la red.</p>
+    <?php else: ?>
+      <div class="red-lienzo" id="redMini"></div>
+      <p class="muted small nota">Cada punto es una persona; las líneas muestran quién la trajo.
+        <?= $grafo['mostrados'] < $grafo['total'] ? 'Se muestran los ' . num($grafo['mostrados']) . ' registros más recientes de ' . num($grafo['total']) . '.' : '' ?></p>
+    <?php endif; ?>
+  </section>
+
+  <section class="card">
+    <h3>Ubicación de miembros <a class="h3-link" href="<?= url('mapa') ?>">Ver mapa →</a></h3>
+    <?php if (!$redActiva): ?>
+      <p class="muted vacio"><?= $pendienteTxt ?></p>
+    <?php else: ?>
+      <div class="mapa-mini" id="mapaMini"></div>
+      <p class="muted small nota"><?= num(count($puntos)) ?> simpatizantes compartieron su ubicación aproximada.</p>
+    <?php endif; ?>
+  </section>
 </div>
-<?php endif; ?>
 
-<div class="grid g2" style="margin-top:16px">
-  <div class="card">
-    <h3>Registros por zona</h3>
-    <table>
-      <tr><th>Zona</th><th>Tipo</th><th style="text-align:right">Total</th></tr>
-      <?php foreach ($porZona as $z): ?>
-      <tr>
-        <td><?= e($z['nombre']) ?></td>
-        <td><span class="tag <?= $z['tipo'] === 'rural' ? 'tag-gold' : 'tag-blue' ?>"><?= e($z['tipo']) ?></span></td>
-        <td style="text-align:right"><b><?= number_format((int)$z['total'], 0, ',', '.') ?></b></td>
-      </tr>
-      <?php endforeach; ?>
-    </table>
-  </div>
+<!-- ============ Fila 3: género · edad · últimos 7 días ============ -->
+<div class="grid g3 mando-3">
+  <section class="card">
+    <h3>Género</h3>
+    <?php if ($genero === null): ?>
+      <p class="muted vacio"><?= $pendienteTxt ?></p>
+    <?php else:
+      $partes = [];
+      foreach (GENEROS as $clave => $etiqueta) $partes[] = [$etiqueta, $genero[$clave], COLOR_GENERO[$clave]];
+      $partes[] = ['Sin dato (registros anteriores)', $genero['sin_dato'], COLOR_GENERO['sin_dato']]; ?>
+      <?= grafica_proporcion($partes, 'simpatizantes') ?>
+    <?php endif; ?>
+  </section>
 
+  <section class="card">
+    <h3>Distribución por edad</h3>
+    <?php
+      $bandas = ['18-24' => '18–24', '25-34' => '25–34', '35-44' => '35–44', '45-54' => '45–54', '55-64' => '55–64', '65+' => '65+'];
+      $cols = [];
+      foreach ($bandas as $clave => $etiqueta) $cols[] = [$etiqueta, '', $edad[$clave], true];
+      $sinEdad = $edad['sin_dato'] + $edad['menor']; ?>
+    <?= grafica_columnas($cols, '#7C3AED', '#7C3AED', 'simpatizantes (años)') ?>
+    <?php if ($sinEdad): ?><p class="muted small nota"><?= num($sinEdad) ?> registros anteriores sin fecha de nacimiento válida.</p><?php endif; ?>
+  </section>
+
+  <section class="card">
+    <?php $semanaTotal = array_sum(array_column($semana, 'total')); ?>
+    <h3>Registros en los últimos 7 días <span class="tag tag-gold">+<?= num($semanaTotal) ?></span></h3>
+    <?php
+      $cols = array_map(fn($d) => [$d['etiqueta'], $d['fecha'], $d['total'], $d['hoy']], $semana); ?>
+    <?= grafica_columnas($cols, '#7C3AED', '#C4B2FF', 'registros') ?>
+    <p class="muted small nota">La columna más oscura es hoy.</p>
+  </section>
+</div>
+
+<!-- ============ Fila 4: rankings, zonas y auditoría ============ -->
+<div class="grid g2 mando-4">
   <?php if ($redActiva): ?>
-  <div class="card">
+  <section class="card">
     <h3>🏆 Top Súper Promotores <span class="tag tag-grey">ciudadanos que más invitan</span></h3>
     <?php if (!$topPromotores): ?>
       <p class="muted">Todavía nadie ha invitado a alguien con su enlace personal. Anima a los simpatizantes a abrir su panel y compartir su QR.</p>
@@ -89,35 +163,46 @@
       <?php endforeach; ?>
     </table>
     <?php endif; ?>
-  </div>
+  </section>
   <?php endif; ?>
-</div>
 
-<?php if ($rankingEquipo || $auditoria): ?>
-<div class="grid g2" style="margin-top:16px">
   <?php if ($rankingEquipo): ?>
-  <div class="card">
+  <section class="card">
     <h3>👥 Ranking del equipo <span class="tag tag-grey">simpatizantes vinculados vs. meta</span></h3>
     <table>
       <tr><th>Miembro</th><th>Avance</th><th style="text-align:right">Red</th></tr>
-      <?php foreach ($rankingEquipo as $m): $pct = $m['meta'] ? min(100, (int)round($m['vinculados'] * 100 / $m['meta'])) : null; ?>
+      <?php foreach ($rankingEquipo as $m): $pctM = $m['meta'] ? min(100, (int)round($m['vinculados'] * 100 / $m['meta'])) : null; ?>
       <tr>
         <td><b><?= e($m['nombre']) ?></b> <span class="muted small"><?= e($m['rol']) ?></span></td>
         <td style="min-width:120px">
-          <?php if ($pct !== null): ?>
-            <div class="progreso mini"><i style="width:<?= $pct ?>%"></i></div>
-            <span class="muted small"><?= $pct ?>% de <?= (int)$m['meta'] ?></span>
+          <?php if ($pctM !== null): ?>
+            <div class="progreso mini"><i style="width:<?= $pctM ?>%"></i></div>
+            <span class="muted small"><?= $pctM ?>% de <?= (int)$m['meta'] ?></span>
           <?php else: ?><span class="muted small">sin meta</span><?php endif; ?>
         </td>
         <td style="text-align:right"><b><?= (int)$m['vinculados'] ?></b></td>
       </tr>
       <?php endforeach; ?>
     </table>
-  </div>
+  </section>
   <?php endif; ?>
 
+  <section class="card">
+    <h3>Registros por zona</h3>
+    <table>
+      <tr><th>Zona</th><th>Tipo</th><th style="text-align:right">Total</th></tr>
+      <?php foreach ($porZona as $z): ?>
+      <tr>
+        <td><?= e($z['nombre']) ?></td>
+        <td><span class="tag <?= $z['tipo'] === 'rural' ? 'tag-gold' : 'tag-blue' ?>"><?= e($z['tipo']) ?></span></td>
+        <td style="text-align:right"><b><?= num((int)$z['total']) ?></b></td>
+      </tr>
+      <?php endforeach; ?>
+    </table>
+  </section>
+
   <?php if ($auditoria): ?>
-  <div class="card">
+  <section class="card">
     <h3>Auditoría reciente <span class="tag tag-blue">solo dirección</span></h3>
     <table>
       <tr><th>Fecha</th><th>Usuario</th><th>Acción</th></tr>
@@ -129,7 +214,31 @@
       </tr>
       <?php endforeach; ?>
     </table>
-  </div>
+  </section>
   <?php endif; ?>
 </div>
+
+<?php if (count($grafo['nodos']) > 1): ?>
+<script src="<?= asset('../assets/vendor/d3-force.min.js') ?>"></script>
+<script src="<?= asset('assets/js/red.js') ?>"></script>
+<script>
+pintarRed(document.getElementById('redMini'),
+  <?= json_encode(['nodos' => $grafo['nodos'], 'enlaces' => $grafo['enlaces']], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>,
+  { paleta: <?= json_encode(PALETA) ?>, interactivo: false, etiquetas: true });
+</script>
+<?php endif; ?>
+
+<?php if ($redActiva): ?>
+<link rel="stylesheet" href="<?= asset('../assets/vendor/leaflet/leaflet.css') ?>">
+<link rel="stylesheet" href="<?= asset('../assets/vendor/markercluster/MarkerCluster.css') ?>">
+<link rel="stylesheet" href="<?= asset('../assets/vendor/markercluster/MarkerCluster.Default.css') ?>">
+<script src="<?= asset('../assets/vendor/leaflet/leaflet.js') ?>"></script>
+<script src="<?= asset('../assets/vendor/markercluster/leaflet.markercluster.js') ?>"></script>
+<script src="<?= asset('assets/js/mapa.js') ?>"></script>
+<script>
+pintarMapa('mapaMini', <?= json_encode(array_map(fn($p) => [
+    'n' => promotor_nombre_corto($p['nombre']), 'lat' => (float)$p['lat'], 'lng' => (float)$p['lng'],
+    'nv' => $p['nivel'], 'z' => $p['zona'], 'l' => $p['lider'], 'inv' => (int)$p['invitados'],
+], $puntos), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>, { rueda: false });
+</script>
 <?php endif; ?>

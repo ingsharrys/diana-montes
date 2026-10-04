@@ -43,7 +43,12 @@ class SimpatizantesController extends Controller
     public function crear(): void
     {
         Auth::requerirRol('direccion', 'coordinador', 'lider', 'digitador');
+        $this->formulario([], []);
+    }
 
+    /** Formulario de registro; $v trae los valores previos si la validación falla. */
+    private function formulario(array $errores, array $v): void
+    {
         $cat = new Catalogo();
         $this->vista('simpatizantes/crear', [
             'titulo'      => 'Nuevo simpatizante',
@@ -51,8 +56,9 @@ class SimpatizantesController extends Controller
             'profesiones' => $cat->profesiones(),
             'puestos'     => $cat->puestos(),
             'lideres'     => $cat->lideres(),
-            'errores'     => [],
-            'v'           => [], // valores previos si el formulario falla
+            'pideGenero'  => (new Simpatizante())->pideGenero(),
+            'errores'     => $errores,
+            'v'           => $v,
         ]);
     }
 
@@ -66,7 +72,8 @@ class SimpatizantesController extends Controller
             'nombre'           => trim($_POST['nombre'] ?? ''),
             'documento'        => preg_replace('/\D/', '', $_POST['documento'] ?? ''),
             'telefono'         => preg_replace('/\D/', '', $_POST['telefono'] ?? ''),
-            'fecha_nacimiento' => ($_POST['fecha_nacimiento'] ?? '') ?: null,
+            'fecha_nacimiento' => trim((string)($_POST['fecha_nacimiento'] ?? '')),
+            'genero'           => is_string($_POST['genero'] ?? null) ? $_POST['genero'] : '',
             'zona_id'          => (int)($_POST['zona_id'] ?? 0),
             'puesto_id'        => (int)($_POST['puesto_id'] ?? 0) ?: null,
             'mesa'             => trim($_POST['mesa'] ?? '') ?: null,
@@ -87,16 +94,11 @@ class SimpatizantesController extends Controller
         }
 
         if ($errores) {
-            $cat = new Catalogo();
-            $this->vista('simpatizantes/crear', [
-                'titulo' => 'Nuevo simpatizante',
-                'zonas' => $cat->zonas(), 'profesiones' => $cat->profesiones(),
-                'puestos' => $cat->puestos(), 'lideres' => $cat->lideres(),
-                'errores' => $errores, 'v' => $v,
-            ]);
+            $this->formulario($errores, $v);
             return;
         }
 
+        if (!$modelo->pideGenero()) $v['genero'] = null;
         $v['created_by'] = Auth::id();
         $modelo->crear($v);
 
@@ -112,6 +114,8 @@ class SimpatizantesController extends Controller
         if (strlen($v['documento']) < 6)                  $e['documento'] = 'Documento inválido.';
         elseif ($modelo->existeDocumento($v['documento'])) $e['documento'] = 'Este documento ya está registrado. No se permiten duplicados.';
         if (strlen($v['telefono']) !== 10)                $e['telefono'] = 'El celular debe tener 10 dígitos.';
+        if ($msg = simpatizante_error_nacimiento($v['fecha_nacimiento'])) $e['fecha_nacimiento'] = $msg;
+        if ($modelo->pideGenero() && !isset(GENEROS[$v['genero']])) $e['genero'] = 'Selecciona el género.';
         if ($v['zona_id'] <= 0)                           $e['zona_id'] = 'Selecciona la zona.';
         if ($v['profesion_id'] <= 0)                      $e['profesion_id'] = 'Selecciona la profesión: es la clave de los mensajes.';
         if ($v['lider_id'] <= 0)                          $e['lider_id'] = 'Selecciona el líder que vincula.';
