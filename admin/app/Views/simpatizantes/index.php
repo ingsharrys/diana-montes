@@ -55,6 +55,7 @@
   </select>
   <button class="btn btn-ghost" type="submit">Buscar</button>
   <span class="spacer"></span>
+  <a class="btn btn-ghost" href="<?= url('simpatizantes/verificar') ?>">✓ Completar y verificar</a>
   <a class="btn btn-gold" href="<?= url('simpatizantes/crear') ?>">＋ Nuevo registro</a>
 </form>
 
@@ -62,7 +63,7 @@
   <h3>Base de simpatizantes <span class="tag tag-grey"><?= count($lista) ?> resultados</span></h3>
   <div class="tbl-wrap">
   <table>
-    <tr><th>Nombre</th><th>Documento</th><th>WhatsApp</th><th>Zona</th><th>Profesión</th><th>Nivel</th>
+    <tr><th>Nombre</th><th>Documento</th><th>WhatsApp</th><th>Zona</th><th>Profesión</th><th>Compromiso</th>
         <?php if ($redActiva): ?><th style="text-align:center" title="Personas que se registraron con su enlace personal">Invitados</th><?php endif; ?>
         <th>Líder</th><th>Registro</th>
         <?php if ($redActiva): ?><th>Panel</th><?php endif; ?></tr>
@@ -76,8 +77,8 @@
       <td class="masked"><?= $esDireccion ? e($s['telefono']) : enmascarar($s['telefono']) ?></td>
       <td><?= e($s['zona']) ?></td>
       <td><span class="tag tag-grey"><?= e($s['profesion']) ?></span></td>
-      <td><span class="tag <?= $s['nivel'] === 'votante_confirmado' ? 'tag-green' : ($s['nivel'] === 'voluntario' ? 'tag-gold' : 'tag-blue') ?>">
-        <?= e(str_replace('_', ' ', $s['nivel'])) ?></span></td>
+      <td><span class="tag <?= in_array($s['nivel'], COMPROMISOS_SEGUROS, true) ? 'tag-green' : ($s['nivel'] === 'indeciso' ? 'tag-grey' : 'tag-blue') ?>">
+        <?= e(compromiso_etiqueta($s['nivel'])) ?></span></td>
       <?php if ($redActiva): ?>
       <td style="text-align:center"><b><?= (int)$s['invitados'] ?></b><?= (int)$s['invitados'] > 0 ? ' ' . promotor_nivel((int)$s['invitados'])['actual'][2] : '' ?></td>
       <?php endif; ?>

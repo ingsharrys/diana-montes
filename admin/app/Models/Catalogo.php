@@ -21,6 +21,17 @@ class Catalogo extends Model
         return $this->consultar('SELECT id, nombre FROM puestos_votacion ORDER BY nombre');
     }
 
+    /** Puestos con su zona y número de mesas (si ya se registró), para los selectores. */
+    public function puestosDetalle(): array
+    {
+        $mesas = esquema_tiene($this->db, 'puestos_votacion', 'mesas') ? 'p.mesas' : 'NULL';
+        return $this->consultar(
+            "SELECT p.id, p.nombre, z.nombre AS zona, $mesas AS mesas
+             FROM puestos_votacion p LEFT JOIN zonas z ON z.id = p.zona_id
+             ORDER BY p.nombre"
+        );
+    }
+
     public function lideres(): array
     {
         return $this->consultar(

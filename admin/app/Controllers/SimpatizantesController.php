@@ -40,6 +40,98 @@ class SimpatizantesController extends Controller
         ]);
     }
 
+    /**
+     * Cola "Completar y verificar": el equipo completa puesto y mesa
+     * (consultando con la cédula) y confirma el compromiso llamando.
+     */
+    public function verificar(): void
+    {
+        Auth::requerirRol('direccion', 'coordinador', 'lider', 'digitador');
+        $soloLider = Auth::tieneRol('lider') ? Auth::id() : null;
+
+        $estado = $_GET['estado'] ?? 'pendientes';
+        if (!in_array($estado, ['pendientes', 'sin_puesto', 'sin_verificar', 'todos'], true)) $estado = 'pendientes';
+        $filtros = [
+            'estado' => $estado,
+            'q'      => trim((string)($_GET['q'] ?? '')),
+            'zona'   => (int)($_GET['zona'] ?? 0),
+        ];
+        $porPagina = 40;
+        $pagina = max(1, (int)($_GET['p'] ?? 1));
+
+        $modelo = new Simpatizante();
+        $cat    = new Catalogo();
+        $conteo = $modelo->contarCola($filtros, $soloLider);
+
+        $this->vista('simpatizantes/verificar', [
+            'titulo'       => 'Completar y verificar',
+            'filtros'      => $filtros,
+            'conteo'       => $conteo,
+            'lista'        => $modelo->colaVerificacion($filtros, $soloLider, $porPagina, ($pagina - 1) * $porPagina),
+            'pagina'       => $pagina,
+            'paginas'      => max(1, (int)ceil($conteo[$estado] / $porPagina)),
+            'puestos'      => $cat->puestosDetalle(),
+            'zonas'        => $cat->zonas(),
+            'compromisos'  => compromisos_disponibles(\Core\Database::conexion()),
+            'conVerificacion' => $modelo->conVerificacion(),
+            // Teléfono completo para llamar: dirección, coordinación y el líder (que solo ve su red)
+            'verTelefono'  => Auth::tieneRol('direccion', 'coordinador', 'lider'),
+        ]);
+    }
+
+    /** Guarda puesto, mesa y compromiso de una fila de la cola (responde JSON si se llama con fetch). */
+    public function actualizar(string $id = '0'): void
+    {
+        Auth::requerirRol('direccion', 'coordinador', 'lider', 'digitador');
+        $ajax = ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'fetch';
+        $responder = function (bool $ok, string $msg, array $extra = []) use ($ajax): void {
+            if ($ajax) {
+                header('Content-Type: application/json; charset=utf-8');
+                if (!$ok) http_response_code(422);
+                echo json_encode(['ok' => $ok, 'msg' => $msg] + $extra, JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+            \Core\Session::flash($ok ? 'ok' : 'error', $msg);
+            $this->redirigir('simpatizantes/verificar');
+        };
+
+        if (!$this->esPost()) $this->redirigir('simpatizantes/verificar');
+        $this->validarCsrf();
+
+        $modelo = new Simpatizante();
+        $s = $modelo->porIdBasico((int)$id);
+        if (!$s) $responder(false, 'Simpatizante no encontrado.');
+        // El líder solo puede tocar su propia red
+        if (Auth::tieneRol('lider') && (int)$s['lider_id'] !== Auth::id()) {
+            Auditoria::registrar('acceso_denegado', 'Intento de editar simpatizante #' . (int)$id . ' de otra red');
+            $responder(false, 'Ese simpatizante no es de tu red.');
+        }
+
+        $puestoId = (int)($_POST['puesto_id'] ?? 0) ?: null;
+        $mesa     = preg_replace('/\D/', '', (string)($_POST['mesa'] ?? '')) ?: null;
+        $nivel    = (string)($_POST['nivel'] ?? '');
+        $verificado = !empty($_POST['verificado']);
+
+        $puesto = null;
+        if ($puestoId) {
+            foreach ((new Catalogo())->puestosDetalle() as $p) if ((int)$p['id'] === $puestoId) $puesto = $p;
+            if (!$puesto) $responder(false, 'El puesto de votación no existe.');
+        }
+        if ($mesa !== null && ((int)$mesa < 1 || strlen($mesa) > 4)) $responder(false, 'Revisa el número de mesa.');
+        if ($mesa !== null && $puesto && $puesto['mesas'] && (int)$mesa > (int)$puesto['mesas']) {
+            $responder(false, 'Ese puesto solo tiene ' . (int)$puesto['mesas'] . ' mesas.');
+        }
+        if (!isset(compromisos_disponibles(\Core\Database::conexion())[$nivel])) $responder(false, 'Elige el nivel de compromiso.');
+
+        $modelo->actualizarBase((int)$id, $puestoId, $mesa, $nivel, $verificado, (int)Auth::id());
+        Auditoria::registrar($verificado ? 'simpatizante_verificado' : 'simpatizante_completado',
+            $s['nombre'] . ' · ' . compromiso_etiqueta($nivel) . ($puesto ? ' · ' . $puesto['nombre'] . ($mesa ? " mesa $mesa" : '') : ''));
+
+        $responder(true, $verificado ? 'Verificado ✓' : 'Guardado ✓', [
+            'verificado' => $verificado && $modelo->conVerificacion() ? 'Hoy · ' . (Auth::usuario()['nombre'] ?? '') : null,
+        ]);
+    }
+
     public function crear(): void
     {
         Auth::requerirRol('direccion', 'coordinador', 'lider', 'digitador');
@@ -57,6 +149,7 @@ class SimpatizantesController extends Controller
             'puestos'     => $cat->puestos(),
             'lideres'     => $cat->lideres(),
             'pideGenero'  => (new Simpatizante())->pideGenero(),
+            'compromisos' => compromisos_disponibles(\Core\Database::conexion()),
             'errores'     => $errores,
             'v'           => $v,
         ]);
@@ -78,7 +171,7 @@ class SimpatizantesController extends Controller
             'puesto_id'        => (int)($_POST['puesto_id'] ?? 0) ?: null,
             'mesa'             => trim($_POST['mesa'] ?? '') ?: null,
             'profesion_id'     => (int)($_POST['profesion_id'] ?? 0),
-            'nivel'            => in_array($_POST['nivel'] ?? '', ['simpatizante','voluntario','votante_confirmado'], true)
+            'nivel'            => isset(compromisos_disponibles(\Core\Database::conexion())[$_POST['nivel'] ?? ''])
                                     ? $_POST['nivel'] : 'simpatizante',
             'lider_id'         => (int)($_POST['lider_id'] ?? 0),
         ];

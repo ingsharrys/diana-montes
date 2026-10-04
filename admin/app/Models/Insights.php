@@ -72,6 +72,39 @@ class Insights extends Model
         return array_map('intval', $f ?: ['activos' => 0, 'promotores' => 0, 'super' => 0]);
     }
 
+    /** Embudo de compromiso: [valor => cantidad] en el orden de la escala vigente. */
+    public function porCompromiso(): array
+    {
+        [$w, $p] = $this->alcance();
+        $filas = $this->consultar(
+            "SELECT t.nivel, COUNT(*) AS c FROM (SELECT s.nivel FROM simpatizantes s WHERE 1=1 $w) t GROUP BY t.nivel", $p
+        );
+        $r = array_fill_keys(array_keys(compromisos_disponibles($this->db)), 0);
+        foreach ($filas as $f) $r[$f['nivel']] = ($r[$f['nivel']] ?? 0) + (int)$f['c'];
+        return $r;
+    }
+
+    /** Calidad de la base: votos seguros, con puesto y mesa, verificados. */
+    public function calidad(): array
+    {
+        [$w, $p] = $this->alcance();
+        $seguros = "'" . implode("','", COMPROMISOS_SEGUROS) . "'";
+        $verif = esquema_tiene($this->db, 'simpatizantes', 'verificado_at') ? 'COALESCE(SUM(s.verificado_at IS NOT NULL), 0)' : 'NULL';
+        $f = $this->consultarUno(
+            "SELECT COUNT(*) AS total,
+                    COALESCE(SUM(s.nivel IN ($seguros)), 0) AS seguros,
+                    COALESCE(SUM(s.puesto_id IS NOT NULL AND s.mesa IS NOT NULL AND s.mesa <> ''), 0) AS con_puesto,
+                    $verif AS verificados
+             FROM simpatizantes s WHERE 1=1 $w", $p
+        );
+        return [
+            'total'       => (int)$f['total'],
+            'seguros'     => (int)$f['seguros'],
+            'con_puesto'  => (int)$f['con_puesto'],
+            'verificados' => $f['verificados'] === null ? null : (int)$f['verificados'],
+        ];
+    }
+
     /** Conteo por género, en el orden de GENEROS + 'sin_dato'. */
     public function porGenero(): ?array
     {
