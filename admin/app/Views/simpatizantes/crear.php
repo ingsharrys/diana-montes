@@ -81,9 +81,9 @@
       <label class="field">
         <span>Nivel de compromiso</span>
         <select name="nivel">
-          <option value="simpatizante" <?= ($v['nivel'] ?? '') === 'simpatizante' ? 'selected' : '' ?>>Simpatizante</option>
-          <option value="voluntario" <?= ($v['nivel'] ?? '') === 'voluntario' ? 'selected' : '' ?>>Voluntario/a</option>
-          <option value="votante_confirmado" <?= ($v['nivel'] ?? '') === 'votante_confirmado' ? 'selected' : '' ?>>Votante confirmado</option>
+          <?php foreach ($compromisos as $valor => $etiqueta): ?>
+            <option value="<?= $valor ?>" <?= ($v['nivel'] ?? 'simpatizante') === $valor ? 'selected' : '' ?>><?= e($etiqueta) ?></option>
+          <?php endforeach; ?>
         </select>
       </label>
 

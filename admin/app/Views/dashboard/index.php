@@ -84,6 +84,45 @@ $pendienteTxt = $soloLider ? 'Disponible cuando la dirección actualice la plata
   </section>
 </div>
 
+<!-- ============ Base de votos: compromiso y calidad ============ -->
+<div class="grid g2 mando-3">
+  <section class="card">
+    <h3>Embudo de compromiso <a class="h3-link" href="<?= url('simpatizantes/verificar') ?>">Verificar →</a></h3>
+    <?php
+      $filas = [];
+      foreach ($compromiso as $valor => $c) {
+          $etq = compromiso_etiqueta($valor);
+          $filas[] = [$etq, $c, RAMPA_NIVEL[compromiso_indice($valor)], "$etq: " . num($c) . ($total ? ' · ' . porc($c * 100 / $total) : '')];
+      } ?>
+    <div class="embudo"><?= grafica_barras($filas) ?></div>
+    <p class="muted small nota">El equipo sube a cada persona en la escala al llamarla y confirmar su intención de voto.</p>
+  </section>
+
+  <section class="card">
+    <h3>Calidad de la base</h3>
+    <?php $pctPuesto = $calidad['total'] ? $calidad['con_puesto'] * 100 / $calidad['total'] : 0; ?>
+    <div class="stat violeta">
+      <div><span class="stat-lbl">Votos seguros<?= $metaVotos ? ' (meta ' . num($metaVotos) . ')' : '' ?></span>
+        <b class="stat-num"><?= num($calidad['seguros']) ?></b>
+        <?php if ($metaVotos): ?><div class="progreso mini" style="width:180px"><i style="width:<?= min(100, round($calidad['seguros'] * 100 / $metaVotos, 1)) ?>%"></i></div><?php endif; ?></div>
+      <span class="stat-ico"><?= icono('verificar') ?></span>
+    </div>
+    <div class="calidad-fila">
+      <span>Con puesto y mesa</span>
+      <div class="progreso mini"><i style="width:<?= round($pctPuesto, 1) ?>%"></i></div>
+      <b><?= porc($pctPuesto, 0) ?></b>
+    </div>
+    <?php if ($calidad['verificados'] !== null): $pctVer = $calidad['total'] ? $calidad['verificados'] * 100 / $calidad['total'] : 0; ?>
+    <div class="calidad-fila">
+      <span>Verificados por llamada</span>
+      <div class="progreso mini"><i style="width:<?= round($pctVer, 1) ?>%"></i></div>
+      <b><?= porc($pctVer, 0) ?></b>
+    </div>
+    <?php endif; ?>
+    <p class="muted small nota">Sin puesto y mesa no se puede movilizar el día de la elección. <a href="<?= url('territorio') ?>">Ver por puesto →</a></p>
+  </section>
+</div>
+
 <!-- ============ Fila 2: red de contactos · ubicación ============ -->
 <div class="grid mando-2">
   <section class="card">
@@ -238,7 +277,7 @@ pintarRed(document.getElementById('redMini'),
 <script>
 pintarMapa('mapaMini', <?= json_encode(array_map(fn($p) => [
     'n' => promotor_nombre_corto($p['nombre']), 'lat' => (float)$p['lat'], 'lng' => (float)$p['lng'],
-    'nv' => $p['nivel'], 'z' => $p['zona'], 'l' => $p['lider'], 'inv' => (int)$p['invitados'],
+    'nv' => compromiso_etiqueta($p['nivel']), 'ci' => compromiso_indice($p['nivel']), 'z' => $p['zona'], 'l' => $p['lider'], 'inv' => (int)$p['invitados'],
 ], $puntos), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>, { rueda: false });
 </script>
 <?php endif; ?>

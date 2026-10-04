@@ -9,13 +9,14 @@ $menu = [
     ['dashboard',           'inicio',    'Inicio',        null],
     ['simpatizantes',       'personas',  'Simpatizantes', null],
     ['simpatizantes/crear', 'registrar', 'Registrar',     null],
+    ['simpatizantes/verificar', 'verificar', 'Verificar', null],
     ['red',                 'red',       'Red',           null],
     ['mapa',                'mapa',      'Mapa',          null],
     ['usuarios',            'equipo',    'Equipo',        ['direccion']],
     ['catalogos',           'catalogos', 'Catálogos',     ['direccion']],
 ];
 // Pestañas del centro de mando (las tres vistas de inteligencia de la red)
-$pestanas = ['dashboard' => 'Vista rápida', 'red' => 'Red de contactos', 'mapa' => 'Mapa'];
+$pestanas = ['dashboard' => 'Vista rápida', 'territorio' => 'Territorio', 'red' => 'Red de contactos', 'mapa' => 'Mapa'];
 $enMando  = isset($pestanas[$seccion]);
 ?>
 <!DOCTYPE html>
@@ -35,8 +36,8 @@ $enMando  = isset($pestanas[$seccion]);
     <nav>
       <?php foreach ($menu as [$destino, $ico, $etiqueta, $roles]):
         if ($roles && !Auth::tieneRol(...$roles)) continue;
-        // "Simpatizantes" no se marca cuando se está en "Registrar"
-        $activo = $ruta === $destino || ($seccion === $destino && $ruta !== 'simpatizantes/crear'); ?>
+        // "Simpatizantes" no se marca cuando se está en una de sus subpáginas del menú (Registrar, Verificar)
+        $activo = $ruta === $destino || ($seccion === $destino && !in_array($ruta, ['simpatizantes/crear', 'simpatizantes/verificar'], true)); ?>
         <a class="rail-item <?= $activo ? 'activo' : '' ?>" href="<?= url($destino) ?>" <?= $activo ? 'aria-current="page"' : '' ?>>
           <?= icono($ico) ?><span><?= e($etiqueta) ?></span>
         </a>

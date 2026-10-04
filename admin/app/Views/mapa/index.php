@@ -12,9 +12,9 @@
 <section class="card" style="padding:0;overflow:hidden">
   <div class="toolbar" style="padding:14px 16px 0;margin-bottom:12px">
     <span class="tag tag-blue"><?= num(count($puntos)) ?> simpatizantes con ubicación</span>
-    <span class="leyenda"><i style="background:#7C3AED"></i> simpatizante</span>
-    <span class="leyenda"><i style="background:#E0186C"></i> voluntario</span>
-    <span class="leyenda"><i style="background:#eb6834"></i> votante confirmado</span>
+    <?php foreach (array_values(COMPROMISOS) as $i => $etiqueta): ?>
+      <span class="leyenda"><i style="background:<?= RAMPA_NIVEL[$i] ?>"></i> <?= e(mb_strtolower($etiqueta)) ?></span>
+    <?php endforeach; ?>
     <span class="leyenda"><i class="aro"></i> promotor (ya invitó)</span>
   </div>
   <div id="mapa" class="mapa"></div>
@@ -29,7 +29,8 @@ pintarMapa('mapa', <?= json_encode(array_map(fn($p) => [
     'n'   => promotor_nombre_corto($p['nombre']),
     'lat' => (float)$p['lat'],
     'lng' => (float)$p['lng'],
-    'nv'  => $p['nivel'],
+    'nv'  => compromiso_etiqueta($p['nivel']),
+    'ci'  => compromiso_indice($p['nivel']),
     'z'   => $p['zona'],
     'l'   => $p['lider'],
     'inv' => (int)$p['invitados'],

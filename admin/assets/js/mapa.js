@@ -1,8 +1,9 @@
 /* Mapa de la red (Leaflet + OpenStreetMap). Requiere leaflet.js y leaflet.markercluster.js.
-   pintarMapa('idDelDiv', puntos, { rueda: false })  — puntos: [{n, lat, lng, nv, z, l, inv}] */
+   pintarMapa('idDelDiv', puntos, { rueda: false })
+   puntos: [{n, lat, lng, nv: etiqueta del compromiso, ci: posición 0-4 en la escala, z, l, inv}] */
 (function () {
-  // Primeras 3 posiciones de la paleta validada (todas distinguibles entre sí, también con daltonismo)
-  const COLORES = { simpatizante: '#7C3AED', voluntario: '#E0186C', votante_confirmado: '#eb6834' };
+  // Compromiso = escala ordenada: un solo tono, de claro (indeciso) a oscuro (testigo). Rampa validada.
+  const RAMPA = ['#aa8fff', '#9363ff', '#7f22fd', '#6400cf', '#480099'];
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   window.pintarMapa = function (id, puntos, opciones) {
@@ -23,10 +24,10 @@
       const promotor = p.inv > 0;
       const m = L.circleMarker([p.lat, p.lng], {
         radius: promotor ? 9 : 7,
-        color: promotor ? '#1C1630' : '#fff', weight: promotor ? 3 : 2,
-        fillColor: COLORES[p.nv] || COLORES.simpatizante, fillOpacity: .92
+        color: promotor ? '#E0186C' : '#fff', weight: promotor ? 3 : 2,
+        fillColor: RAMPA[p.ci] || RAMPA[1], fillOpacity: .95
       });
-      m.bindPopup('<b>' + esc(p.n) + '</b><br>' + esc(p.z) + ' · ' + esc(String(p.nv).replace('_', ' ')) +
+      m.bindPopup('<b>' + esc(p.n) + '</b><br>' + esc(p.z) + ' · ' + esc(p.nv) +
                   '<br><span style="color:#6B6580">Red de ' + esc(p.l) + '</span>' +
                   (promotor ? '<br>⭐ Ha invitado a ' + p.inv : ''));
       grupo.addLayer(m);

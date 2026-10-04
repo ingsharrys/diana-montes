@@ -69,6 +69,95 @@ class Simpatizante extends Model
         return simpatizante_insertar($this->db, $d)['id'];
     }
 
+    /* ============ Base de votos: completar y verificar ============ */
+
+    public function porIdBasico(int $id): ?array
+    {
+        return $this->consultarUno('SELECT id, nombre, lider_id, puesto_id, mesa, nivel FROM simpatizantes WHERE id = :id', ['id' => $id]);
+    }
+
+    /** ¿Ya existe la verificación por llamada? (se crea con "Actualizar plataforma") */
+    public function conVerificacion(): bool
+    {
+        return esquema_tiene($this->db, 'simpatizantes', 'verificado_at');
+    }
+
+    /**
+     * Condiciones de cada filtro de la cola. "Pendiente" = le falta puesto,
+     * mesa o la verificación por llamada.
+     */
+    private function condicionEstado(string $estado): string
+    {
+        $sinPuesto = "(s.puesto_id IS NULL OR s.mesa IS NULL OR s.mesa = '')";
+        if (!$this->conVerificacion()) {
+            return in_array($estado, ['pendientes', 'sin_puesto'], true) ? $sinPuesto : '1=1';
+        }
+        return match ($estado) {
+            'sin_puesto'    => $sinPuesto,
+            'sin_verificar' => 's.verificado_at IS NULL',
+            'todos'         => '1=1',
+            default         => "($sinPuesto OR s.verificado_at IS NULL)",
+        };
+    }
+
+    /** Filtros comunes de la cola: búsqueda, zona y alcance del líder. */
+    private function filtrosCola(array $f, ?int $soloLiderId): array
+    {
+        $sql = ''; $p = [];
+        if (($f['q'] ?? '') !== '') {
+            $sql .= ' AND (s.nombre LIKE :q1 OR s.documento LIKE :q2)';
+            $p['q1'] = $p['q2'] = '%' . $f['q'] . '%';
+        }
+        if (!empty($f['zona'])) { $sql .= ' AND s.zona_id = :zona'; $p['zona'] = (int)$f['zona']; }
+        if ($soloLiderId !== null) { $sql .= ' AND s.lider_id = :lider'; $p['lider'] = $soloLiderId; }
+        return [$sql, $p];
+    }
+
+    /** Cuántos hay en cada filtro (para las pestañas de la cola). */
+    public function contarCola(array $f, ?int $soloLiderId): array
+    {
+        [$w, $p] = $this->filtrosCola($f, $soloLiderId);
+        $r = [];
+        foreach (['pendientes', 'sin_puesto', 'sin_verificar', 'todos'] as $estado) {
+            $r[$estado] = (int)($this->consultarUno(
+                'SELECT COUNT(*) c FROM simpatizantes s WHERE ' . $this->condicionEstado($estado) . $w, $p
+            )['c'] ?? 0);
+        }
+        return $r;
+    }
+
+    public function colaVerificacion(array $f, ?int $soloLiderId, int $limite, int $desde): array
+    {
+        [$w, $p] = $this->filtrosCola($f, $soloLiderId);
+        $verif = $this->conVerificacion()
+            ? 's.verificado_at, v.nombre AS verificado_por_nombre'
+            : 'NULL AS verificado_at, NULL AS verificado_por_nombre';
+        $joinVerif = $this->conVerificacion() ? 'LEFT JOIN usuarios v ON v.id = s.verificado_por' : '';
+        return $this->consultar(
+            "SELECT s.id, s.nombre, s.documento, s.telefono, s.nivel, s.puesto_id, s.mesa, s.lider_id,
+                    z.nombre AS zona, u.nombre AS lider, $verif
+             FROM simpatizantes s
+             LEFT JOIN zonas z  ON z.id = s.zona_id
+             JOIN usuarios u    ON u.id = s.lider_id
+             $joinVerif
+             WHERE " . $this->condicionEstado($f['estado'] ?? 'pendientes') . "$w
+             ORDER BY s.created_at DESC, s.id DESC
+             LIMIT " . (int)$limite . ' OFFSET ' . (int)$desde, $p
+        );
+    }
+
+    /** Guarda puesto, mesa y compromiso; si $verificado, deja constancia de quién y cuándo llamó. */
+    public function actualizarBase(int $id, ?int $puestoId, ?string $mesa, string $nivel, bool $verificado, int $usuarioId): void
+    {
+        $sql = 'UPDATE simpatizantes SET puesto_id = :p, mesa = :m, nivel = :n';
+        $params = ['p' => $puestoId, 'm' => $mesa, 'n' => $nivel, 'id' => $id];
+        if ($verificado && $this->conVerificacion()) {
+            $sql .= ', verificado_at = NOW(), verificado_por = :u';
+            $params['u'] = $usuarioId;
+        }
+        $this->ejecutar($sql . ' WHERE id = :id', $params);
+    }
+
     /* ============ Red de promotores y mapa (requieren la migración) ============ */
 
     /** Simpatizantes que ya invitaron al menos a una persona. */

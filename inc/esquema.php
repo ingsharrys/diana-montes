@@ -21,7 +21,28 @@ const GENEROS = [
 const EDAD_MINIMA = 18;
 
 /**
- * Pasos de actualización: [tabla, columna (null = crear la tabla), SQL, descripción].
+ * Escala de compromiso del simpatizante, de menor a mayor. Es lo que convierte
+ * registros en votos: el equipo la confirma llamando a cada persona.
+ */
+const COMPROMISOS = [
+    'indeciso'     => 'Indeciso',
+    'simpatizante' => 'Simpatizante',
+    'voto_seguro'  => 'Voto seguro',
+    'voluntario'   => 'Voluntario',
+    'testigo'      => 'Testigo electoral',
+];
+/** Escala anterior (vigente hasta pulsar "Actualizar plataforma"). */
+const COMPROMISOS_ANTERIORES = [
+    'simpatizante'       => 'Simpatizante',
+    'voluntario'         => 'Voluntario/a',
+    'votante_confirmado' => 'Votante confirmado',
+];
+/** Niveles que ya cuentan como voto (en las dos escalas). */
+const COMPROMISOS_SEGUROS = ['voto_seguro', 'voluntario', 'testigo', 'votante_confirmado'];
+
+/**
+ * Pasos de actualización: [tabla, columna (null = crear la tabla), SQL (o lista
+ * de sentencias), descripción, verificación propia opcional fn(PDO): bool].
  * El orden importa: cada paso se aplica una sola vez.
  */
 function esquema_pasos(): array
@@ -39,7 +60,63 @@ function esquema_pasos(): array
                                                  valor VARCHAR(255) NULL,
                                                  actualizado DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                                                ) DEFAULT CHARSET=utf8mb4', 'configuración (meta de la campaña)'],
+        // Escala de compromiso: se amplía la lista, se pasa "votante confirmado" a "voto seguro" y se deja la lista final
+        ['simpatizantes', 'nivel', [
+            "UPDATE simpatizantes SET nivel = 'simpatizante' WHERE nivel IS NULL OR nivel = ''",
+            "ALTER TABLE simpatizantes MODIFY nivel ENUM('simpatizante','voluntario','votante_confirmado','indeciso','voto_seguro','testigo') NOT NULL DEFAULT 'simpatizante'",
+            "UPDATE simpatizantes SET nivel = 'voto_seguro' WHERE nivel = 'votante_confirmado'",
+            "ALTER TABLE simpatizantes MODIFY nivel ENUM('indeciso','simpatizante','voto_seguro','voluntario','testigo') NOT NULL DEFAULT 'simpatizante'",
+        ], 'escala de compromiso de 5 niveles', fn(PDO $db) => compromiso_escala_nueva($db)],
+        ['simpatizantes', 'verificado_at',   'ALTER TABLE simpatizantes ADD COLUMN verificado_at DATETIME NULL', 'verificación por llamada'],
+        ['simpatizantes', 'verificado_por',  'ALTER TABLE simpatizantes ADD COLUMN verificado_por INT NULL', 'verificación por llamada'],
+        ['puestos_votacion', 'mesas',        'ALTER TABLE puestos_votacion ADD COLUMN mesas SMALLINT UNSIGNED NULL', 'mesas y potencial de cada puesto'],
+        ['puestos_votacion', 'potencial',    'ALTER TABLE puestos_votacion ADD COLUMN potencial INT UNSIGNED NULL', 'mesas y potencial de cada puesto'],
     ];
+}
+
+/** ¿Un paso ya está aplicado? (su verificación propia, o que exista la columna/tabla) */
+function esquema_paso_aplicado(PDO $db, array $paso): bool
+{
+    return isset($paso[4]) ? (bool)($paso[4])($db) : esquema_tiene($db, $paso[0], $paso[1]);
+}
+
+/** ¿La columna nivel ya usa la escala de compromiso de 5 niveles? */
+function compromiso_escala_nueva(PDO $db, bool $refrescar = false): bool
+{
+    static $nueva = null;
+    if ($nueva === null || $refrescar) {
+        try {
+            $st = $db->prepare(
+                "SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'simpatizantes' AND COLUMN_NAME = 'nivel'"
+            );
+            $st->execute();
+            $tipo = (string)$st->fetchColumn();
+            $nueva = str_contains($tipo, "'voto_seguro'") && !str_contains($tipo, "'votante_confirmado'");
+        } catch (Throwable $e) {
+            $nueva = false;
+        }
+    }
+    return $nueva;
+}
+
+/** Niveles de compromiso que la base acepta hoy (valor => etiqueta), de menor a mayor. */
+function compromisos_disponibles(PDO $db): array
+{
+    return compromiso_escala_nueva($db) ? COMPROMISOS : COMPROMISOS_ANTERIORES;
+}
+
+function compromiso_etiqueta(?string $valor): string
+{
+    return COMPROMISOS[$valor] ?? COMPROMISOS_ANTERIORES[$valor] ?? (string)$valor;
+}
+
+/** Posición 0-4 en la escala nueva (el "votante confirmado" anterior equivale a voto seguro). */
+function compromiso_indice(?string $valor): int
+{
+    if ($valor === 'votante_confirmado') $valor = 'voto_seguro';
+    $i = array_search($valor, array_keys(COMPROMISOS), true);
+    return $i === false ? 1 : $i;
 }
 
 /** Columnas de una tabla (cacheadas por petición; [] si la tabla no existe). */
@@ -72,8 +149,8 @@ function esquema_tiene(PDO $db, string $tabla, ?string $columna = null): bool
 function esquema_pendientes(PDO $db): array
 {
     $pendientes = [];
-    foreach (esquema_pasos() as [$tabla, $columna, , $desc]) {
-        if (!esquema_tiene($db, $tabla, $columna)) $pendientes[$desc] = $desc;
+    foreach (esquema_pasos() as $paso) {
+        if (!esquema_paso_aplicado($db, $paso)) $pendientes[$paso[3]] = $paso[3];
     }
     return array_values($pendientes);
 }
@@ -85,11 +162,13 @@ function esquema_pendientes(PDO $db): array
 function esquema_actualizar(PDO $db): array
 {
     $aplicados = [];
-    foreach (esquema_pasos() as [$tabla, $columna, $sql, $desc]) {
-        if (esquema_tiene($db, $tabla, $columna)) continue;
-        $db->exec($sql);
+    foreach (esquema_pasos() as $paso) {
+        if (esquema_paso_aplicado($db, $paso)) continue;
+        [$tabla, $columna, $sql] = $paso;
+        foreach ((array)$sql as $sentencia) $db->exec($sentencia);
         esquema_columnas($db, $tabla, true);
-        $aplicados[] = $columna ?? "tabla $tabla";
+        compromiso_escala_nueva($db, true);
+        $aplicados[] = isset($paso[4]) ? $paso[3] : ($columna ?? "tabla $tabla");
     }
 
     $n = promotor_completar_codigos($db);
