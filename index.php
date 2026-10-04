@@ -6,6 +6,7 @@
  * formulario guarda vía registrar.php (fetch, sin recargar la página).
  */
 require __DIR__ . '/config.php';
+require __DIR__ . '/inc/promotores.php';
 session_start();
 
 /* Catálogos desde la BD (con respaldo por si la BD no responde) */
@@ -16,15 +17,14 @@ try {
     $zonas = []; $profesiones = [];
 }
 
-/* Invitación de líder (?ref=): se resuelve en el servidor para pintar el chip */
+/* Invitación (?ref=) de un líder o de un promotor ciudadano:
+   se resuelve en el servidor para pintar el chip "Te invita…" */
 $refCodigo = '';
 $refLider  = '';
 if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])) {
     $refCodigo = $_GET['ref'];
     try {
-        $st = db()->prepare('SELECT nombre FROM usuarios WHERE codigo_ref = :r AND activo = 1 LIMIT 1');
-        $st->execute(['r' => $refCodigo]);
-        $refLider = $st->fetchColumn() ?: '';
+        $refLider = promotor_resolver_ref(db(), $refCodigo)['nombre'] ?? '';
     } catch (Throwable $e) { /* silencioso */ }
 }
 ?>
@@ -193,6 +193,24 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
   .form-ok p{font-size:14px;color:var(--gris)}
   .lock-note{font-size:11px;color:var(--gris);text-align:center;margin-top:11px}
   .hp{position:absolute;left:-9999px;opacity:0;height:0;overflow:hidden}
+  /* ubicación opcional */
+  .consent.geo{background:var(--violeta-soft);border-color:#E0D4FB;margin-bottom:6px}
+  .consent.geo input{accent-color:var(--violeta)}
+  .geo-nota{font-size:11.5px;color:var(--gris);min-height:14px;margin:0 2px 10px}
+  /* Súper Promotores: enlace personal tras registrarse */
+  .promo-box{margin-top:20px;text-align:left;background:var(--rosa-soft);border:1px solid #F7C6DC;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px}
+  .promo-box[hidden]{display:none}
+  .promo-tit{font-family:var(--head);font-size:16px;color:var(--rosa-osc)}
+  .promo-sub,.promo-nota{font-size:12.5px;color:var(--gris);line-height:1.5}
+  .promo-link{background:#fff;border:1px dashed #F0A9C8;border-radius:10px;padding:9px 11px;font-size:12.5px;font-weight:600;word-break:break-all;color:var(--ink)}
+  .promo-btns{display:flex;gap:8px;flex-wrap:wrap}
+  .promo-btns .btn{flex:1;min-width:150px;padding:11px 14px;font-size:13.5px}
+  .btn-wa{background:#1FAF5A;color:#fff}
+  .btn-wa:hover{background:#128C46}
+  .promo-qr{align-self:center;background:#fff;border-radius:12px;padding:8px;width:170px;height:170px}
+  .promo-qr:empty{display:none}
+  .promo-qr svg{width:100%;height:100%;display:block}
+  .promo-panel{width:100%}
 
   /* footer */
   footer{background:var(--fondo-2);border-top:1px solid var(--linea);padding:38px 0 24px;color:var(--gris)}
@@ -417,7 +435,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
         <div class="paso"><span class="p-n">2</span><div><b>Recibe la bienvenida de Diana</b><span>Te llegará un mensaje por WhatsApp.</span></div></div>
         <div class="paso"><span class="p-n">3</span><div><b>Acompáñanos cerca de ti</b><span>Actividades en tu vereda o barrio.</span></div></div>
       </div>
-      <div class="red-nota">💜 <b>¿Cómo funciona la red?</b> Al registrarte entras a la red directa de la candidata. Si un líder te compartió su enlace personal, quedarás en su equipo. Los líderes ingresan solo por invitación de la campaña.</div>
+      <div class="red-nota">💜 <b>¿Cómo funciona la red?</b> Al registrarte entras a la red directa de la candidata. Si alguien te compartió su enlace personal, quedarás en su red. Y al terminar recibes <b>tu propio enlace</b> para invitar a familiares y amigos: ¡conviértete en Súper Promotor! Los líderes ingresan solo por invitación de la campaña.</div>
     </div>
 
     <div class="form-card rv">
@@ -473,6 +491,15 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
           <input id="f-cumple" type="date" name="fecha_nacimiento">
         </div>
 
+        <!-- ubicación aproximada: opcional, solo con permiso explícito -->
+        <label class="consent geo">
+          <input type="checkbox" name="ubicacion" value="1" id="f-geo">
+          <span>📍 <b>Compartir mi ubicación aproximada</b> (opcional) para invitarme a actividades cerca de mí. Se guarda redondeada a unos 100 m.</span>
+        </label>
+        <p class="geo-nota" id="geoNota"></p>
+        <input type="hidden" name="lat" id="f-lat">
+        <input type="hidden" name="lng" id="f-lng">
+
         <!-- código de invitación del líder + honeypot anti-bots -->
         <input type="hidden" name="ref" value="<?= e($refCodigo) ?>">
         <div class="hp" aria-hidden="true"><label>Tu web<input type="text" name="web" tabindex="-1" autocomplete="off"></label></div>
@@ -490,6 +517,20 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
         <div class="ok-ico">✓</div>
         <h4>¡Bienvenida/o a la red!</h4>
         <p id="okTexto"></p>
+
+        <!-- Súper Promotores: aparece solo si el servidor entregó el enlace personal -->
+        <div class="promo-box" id="promoBox" hidden>
+          <b class="promo-tit">🚀 Ahora multiplica tu voz</b>
+          <span class="promo-sub">Este es <b>tu enlace personal</b>. Cada familiar o amigo que se registre con él suma a tu red.</span>
+          <div class="promo-link" id="promoLink"></div>
+          <div class="promo-btns">
+            <a class="btn btn-wa" id="promoWa" target="_blank" rel="noopener">📲 Invitar por WhatsApp</a>
+            <button type="button" class="btn btn-soft" id="promoCopiar">🔗 Copiar enlace</button>
+          </div>
+          <div class="promo-qr" id="promoQr"></div>
+          <a class="btn btn-rosa promo-panel" id="promoPanel">⭐ Abrir mi panel de promotor</a>
+          <span class="promo-nota">Guarda el enlace de tu panel: ahí verás a cuántos has invitado y tu puesto en el ranking.</span>
+        </div>
       </div>
     </div>
   </div>
@@ -573,6 +614,54 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') modalBio.cla
 const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting){ e.target.classList.add('vis'); io.unobserve(e.target);} }), { threshold:.12 });
 document.querySelectorAll('.rv').forEach(el => io.observe(el));
 
+/* ---------- ubicación aproximada (opcional, con permiso del navegador) ---------- */
+const geo = document.getElementById('f-geo');
+const geoNota = document.getElementById('geoNota');
+geo.addEventListener('change', () => {
+  document.getElementById('f-lat').value = '';
+  document.getElementById('f-lng').value = '';
+  geoNota.textContent = '';
+  if (!geo.checked) return;
+  if (!navigator.geolocation) { geo.checked = false; geoNota.textContent = 'Tu navegador no permite compartir la ubicación.'; return; }
+  geoNota.textContent = 'Obteniendo tu ubicación…';
+  navigator.geolocation.getCurrentPosition(p => {
+    document.getElementById('f-lat').value = p.coords.latitude.toFixed(3);
+    document.getElementById('f-lng').value = p.coords.longitude.toFixed(3);
+    geoNota.textContent = '✓ Ubicación aproximada lista.';
+  }, () => {
+    geo.checked = false;
+    geoNota.textContent = 'No se compartió la ubicación. Puedes registrarte igual.';
+  }, { enableHighAccuracy:false, timeout:10000, maximumAge:600000 });
+});
+
+/* ---------- Súper Promotores: enlace personal, QR y panel ---------- */
+function mostrarPromotor(p) {
+  const base   = location.origin + location.pathname.replace(/[^/]*$/, '');
+  const enlace = base + '?ref=' + encodeURIComponent(p.codigo) + '#sumate';
+  const panel  = base + 'promotor.php?t=' + encodeURIComponent(p.token);
+
+  document.getElementById('promoLink').textContent = enlace;
+  document.getElementById('promoWa').href = 'https://wa.me/?text=' + encodeURIComponent(
+    '¡Hola! 👋 Me sumé a la campaña de Diana Lucía Montes a la Alcaldía de Garzón. Súmate tú también, toma menos de un minuto: ' + enlace);
+  document.getElementById('promoPanel').href = panel;
+  document.getElementById('promoCopiar').onclick = function () {
+    navigator.clipboard.writeText(enlace).then(() => {
+      this.textContent = '¡Copiado!';
+      setTimeout(() => this.textContent = '🔗 Copiar enlace', 1600);
+    });
+  };
+  document.getElementById('promoBox').hidden = false;
+
+  // El QR se carga solo aquí, para no hacer más pesada la landing
+  const s = document.createElement('script');
+  s.src = 'assets/vendor/qrcode.js';
+  s.onload = () => {
+    const q = qrcode(0, 'M'); q.addData(enlace); q.make();
+    document.getElementById('promoQr').innerHTML = q.createSvgTag(4, 2);
+  };
+  document.body.appendChild(s);
+}
+
 /* ---------- envío real del formulario a registrar.php ---------- */
 document.getElementById('formRegistro').addEventListener('submit', async function (ev) {
   ev.preventDefault();
@@ -601,6 +690,7 @@ document.getElementById('formRegistro').addEventListener('submit', async functio
       this.style.display = 'none';
       document.getElementById('okTexto').textContent = data.msg;
       document.getElementById('formOk').style.display = 'block';
+      if (data.promotor) mostrarPromotor(data.promotor);
     } else {
       err.textContent = '⚠ ' + data.msg; err.style.display = 'block';
     }

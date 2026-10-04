@@ -36,6 +36,7 @@ class SimpatizantesController extends Controller
             'esDireccion'  => Auth::tieneRol('direccion', 'coordinador'),
             'miEnlace'     => $miEnlace,
             'esEnlacePropio' => (bool)$miCodigo,
+            'redActiva'    => $modelo->redPromotoresActiva(),
         ]);
     }
 
@@ -65,7 +66,7 @@ class SimpatizantesController extends Controller
             'nombre'           => trim($_POST['nombre'] ?? ''),
             'documento'        => preg_replace('/\D/', '', $_POST['documento'] ?? ''),
             'telefono'         => preg_replace('/\D/', '', $_POST['telefono'] ?? ''),
-            'fecha_nacimiento' => $_POST['fecha_nacimiento'] ?: null,
+            'fecha_nacimiento' => ($_POST['fecha_nacimiento'] ?? '') ?: null,
             'zona_id'          => (int)($_POST['zona_id'] ?? 0),
             'puesto_id'        => (int)($_POST['puesto_id'] ?? 0) ?: null,
             'mesa'             => trim($_POST['mesa'] ?? '') ?: null,
