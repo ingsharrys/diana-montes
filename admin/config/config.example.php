@@ -57,3 +57,18 @@ define('LOCK_MINUTES',       15);           // minutos de bloqueo
 define('GOOGLE_CLIENT_ID',     '');   // xxxx.apps.googleusercontent.com
 define('GOOGLE_CLIENT_SECRET', '');
 define('GOOGLE_REDIRECT_URI',  'https://tu-dominio.com/admin/auth/callback');
+
+/* ============================================================
+   MAPBOX — mapas del admin (Vista rápida y Mapa)
+   ------------------------------------------------------------
+   Estilos disponibles en el mapa: Calles, Claro y Satélite.
+   Si no se define, el admin usa OpenStreetMap.
+
+   1. En https://account.mapbox.com/access-tokens/ usa (o crea)
+      un token PÚBLICO: empieza por  pk.
+      NUNCA pongas aquí un token secreto (sk.…): el admin lo
+      rechaza porque quedaría visible en el navegador.
+   2. Recomendado: en ese token, en "URL restrictions", agrega
+      https://dianamontes.com  (así nadie más puede usarlo).
+   ============================================================ */
+define('MAPBOX_TOKEN', '');   // pk.xxxxxxxx

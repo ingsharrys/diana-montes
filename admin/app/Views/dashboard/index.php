@@ -278,6 +278,6 @@ pintarRed(document.getElementById('redMini'),
 pintarMapa('mapaMini', <?= json_encode(array_map(fn($p) => [
     'n' => promotor_nombre_corto($p['nombre']), 'lat' => (float)$p['lat'], 'lng' => (float)$p['lng'],
     'nv' => compromiso_etiqueta($p['nivel']), 'ci' => compromiso_indice($p['nivel']), 'z' => $p['zona'], 'l' => $p['lider'], 'inv' => (int)$p['invitados'],
-], $puntos), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>, { rueda: false });
+], $puntos), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>, <?= mapa_opciones('claro', false) ?>);
 </script>
 <?php endif; ?>
