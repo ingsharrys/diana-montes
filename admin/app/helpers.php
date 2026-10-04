@@ -77,6 +77,37 @@ function icono(string $nombre): string
          . ($trazos[$nombre] ?? '') . '</svg>';
 }
 
+/**
+ * Token PÚBLICO de Mapbox (pk.…) definido en config.php, o null (se usa
+ * OpenStreetMap). Un token secreto (sk.…) jamás se envía al navegador.
+ */
+function mapbox_token(): ?string
+{
+    if (!defined('MAPBOX_TOKEN')) return null;
+    $token = trim((string)MAPBOX_TOKEN);
+    return preg_match('/^pk\.[A-Za-z0-9._-]{20,}$/', $token) ? $token : null;
+}
+
+/** Si MAPBOX_TOKEN está mal configurado, el motivo (para avisarle a la dirección). */
+function mapbox_problema(): ?string
+{
+    if (!defined('MAPBOX_TOKEN') || trim((string)MAPBOX_TOKEN) === '' || mapbox_token()) return null;
+    return str_starts_with(trim((string)MAPBOX_TOKEN), 'sk.')
+        ? 'El MAPBOX_TOKEN de config.php es un token SECRETO (sk.…): no se usa porque quedaría expuesto en el navegador. Pon el token público (pk.…).'
+        : 'El MAPBOX_TOKEN de config.php no tiene el formato de un token público de Mapbox (pk.…).';
+}
+
+/** Opciones del mapa para mapa.js: token, estilo inicial y logo de Mapbox. */
+function mapa_opciones(string $estilo, bool $rueda = true): string
+{
+    return json_encode([
+        'mapbox' => mapbox_token(),
+        'estilo' => $estilo,
+        'rueda'  => $rueda,
+        'logo'   => asset('assets/img/mapbox-logo.svg'),
+    ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
+}
+
 /** URL de archivos estáticos (css/js/img): siempre ruta directa, sin router. */
 function asset(string $ruta): string
 {

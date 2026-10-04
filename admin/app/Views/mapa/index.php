@@ -9,6 +9,10 @@
 <link rel="stylesheet" href="<?= asset('../assets/vendor/markercluster/MarkerCluster.css') ?>">
 <link rel="stylesheet" href="<?= asset('../assets/vendor/markercluster/MarkerCluster.Default.css') ?>">
 
+<?php if (($problema = mapbox_problema()) && \Core\Auth::tieneRol('direccion')): ?>
+  <div class="alert alert-error"><?= e($problema) ?> Mientras tanto se usa OpenStreetMap.</div>
+<?php endif; ?>
+
 <section class="card" style="padding:0;overflow:hidden">
   <div class="toolbar" style="padding:14px 16px 0;margin-bottom:12px">
     <span class="tag tag-blue"><?= num(count($puntos)) ?> simpatizantes con ubicación</span>
@@ -34,6 +38,6 @@ pintarMapa('mapa', <?= json_encode(array_map(fn($p) => [
     'z'   => $p['zona'],
     'l'   => $p['lider'],
     'inv' => (int)$p['invitados'],
-], $puntos), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>);
+], $puntos), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>, <?= mapa_opciones('calles') ?>);
 </script>
 <?php endif; ?>

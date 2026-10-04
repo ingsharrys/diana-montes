@@ -242,6 +242,8 @@ tr:hover td{background:#FBF9FF}
 .red-lienzo{height:330px;border:1px solid var(--line);border-radius:12px;background:#FDFCFF;overflow:hidden;position:relative}
 .red-lienzo canvas{display:block;touch-action:none}
 .mapa-mini{height:330px;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.mapbox-logo{display:block;line-height:0}
+.mapbox-logo img{display:block;width:88px;height:23px}
 /* Grupos de puntos del mapa en la marca (más oscuro = más personas), no en verde/amarillo/naranja */
 .leaflet-container .marker-cluster-small,.leaflet-container .marker-cluster-medium,.leaflet-container .marker-cluster-large{background-color:rgba(124,58,237,.22)}
 .leaflet-container .marker-cluster-small div{background-color:#9363ff;color:#fff;font-weight:700}
