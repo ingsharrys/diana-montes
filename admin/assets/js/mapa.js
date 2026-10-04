@@ -9,8 +9,13 @@
     opciones = opciones || {};
     // Centro por defecto: Garzón, Huila
     const mapa = L.map(id, { scrollWheelZoom: opciones.rueda !== false }).setView([2.1959, -75.6278], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 18, attribution: '&copy; OpenStreetMap'
+    // OpenStreetMap bloquea (403) los mosaicos pedidos sin Referer. El admin usa
+    // Referrer-Policy "same-origin", así que solo para los mosaicos se envía el
+    // dominio (sin ruta ni datos de la página), como pide su política de uso.
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      referrerPolicy: 'strict-origin-when-cross-origin',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(mapa);
 
     const grupo = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 45 });
