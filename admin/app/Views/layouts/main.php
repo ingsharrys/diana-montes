@@ -12,6 +12,7 @@ $menu = [
     ['simpatizantes/verificar', 'verificar', 'Verificar', null],
     ['red',                 'red',       'Red',           null],
     ['mapa',                'mapa',      'Mapa',          null],
+    ['whatsapp',            'whatsapp',  'WhatsApp',      ['direccion', 'coordinador']],
     ['usuarios',            'equipo',    'Equipo',        ['direccion']],
     ['catalogos',           'catalogos', 'Catálogos',     ['direccion']],
 ];

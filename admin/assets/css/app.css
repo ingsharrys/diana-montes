@@ -258,6 +258,7 @@ tr:hover td{background:#FBF9FF}
 .embudo .b-fila{grid-template-columns:120px 1fr}
 .calidad-fila{display:grid;grid-template-columns:150px 1fr 48px;align-items:center;gap:10px;font-size:12.5px;padding:8px 2px;border-bottom:1px solid var(--line)}
 .calidad-fila b{text-align:right;font-variant-numeric:tabular-nums}
+.calidad-fila.sin-barra{grid-template-columns:1fr auto}
 
 /* ---------- Cola "Completar y verificar" ---------- */
 .cola-tabs{display:flex;gap:6px;flex-wrap:wrap}
@@ -275,6 +276,19 @@ tr:hover td{background:#FBF9FF}
 .fila-msg.ok{color:#128C46} .fila-msg.err{color:var(--bad)}
 .cola tr.guardada td{background:#F6FBF8}
 .paginacion{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:14px}
+
+/* ---------- Módulo WhatsApp ---------- */
+.wa-tabs{margin-bottom:2px}
+.wa-kpis{margin-top:4px}
+.var-fila{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.var-fila b{font-family:var(--head);color:var(--violeta);min-width:34px}
+.var-fila select{max-width:260px}
+.sugerida{border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:8px}
+.sugerida summary{cursor:pointer;font-size:13px}
+.sugerida pre{white-space:pre-wrap;font:inherit;font-size:12.5px;background:#FBF9FF;border-radius:8px;padding:10px;margin:8px 0;line-height:1.5}
+.copiable{background:#FBF9FF;border:1px dashed #D4CBE8;border-radius:9px;padding:9px 11px;font-size:12px;word-break:break-all}
+.pasos-wa{padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:13px;line-height:1.55}
+code{font-size:.92em}
 
 /* ---------- Acceso con Google ---------- */
 .btn-google{display:flex;align-items:center;justify-content:center;gap:10px;

@@ -72,3 +72,17 @@ define('GOOGLE_REDIRECT_URI',  'https://tu-dominio.com/admin/auth/callback');
       https://dianamontes.com  (así nadie más puede usarlo).
    ============================================================ */
 define('MAPBOX_TOKEN', '');   // pk.xxxxxxxx
+
+/* ============================================================
+   WHATSAPP (Cloud API de Meta) — saludos automáticos y métricas
+   ------------------------------------------------------------
+   Paso a paso en el admin: WhatsApp → Configuración.
+   Ahí también están la URL del webhook y la línea del cron.
+   ============================================================ */
+define('WA_PHONE_NUMBER_ID', '');   // Identificador del número (WhatsApp Manager → API)
+define('WA_WABA_ID',         '');   // Cuenta de WhatsApp Business (para traer plantillas)
+define('WA_TOKEN',           '');   // Token PERMANENTE de un usuario del sistema
+define('WA_APP_SECRET',      '');   // Clave secreta de la app (valida la firma del webhook)
+define('WA_VERIFY_TOKEN',    '');   // Frase que inventas y pegas también en Meta
+define('WA_LIMITE_DIARIO',   250);  // Tope de mensajes por día (según el límite de tu número en Meta)
+// Opcionales: WA_HORA_ENVIO (9), WA_HORA_FIN (21), WA_LOTE (60), WA_ZONA_HORARIA ('America/Bogota'), WA_API_VERSION ('v23.0')
