@@ -12,6 +12,13 @@ class Simpatizante extends Model
         ) !== null;
     }
 
+    public function existeTelefono(string $telefono): bool
+    {
+        return $this->consultarUno(
+            'SELECT id FROM simpatizantes WHERE telefono = :t LIMIT 1', ['t' => $telefono]
+        ) !== null;
+    }
+
     /** ¿Ya se activó la red de promotores y el mapa (migración ejecutada)? */
     public function redPromotoresActiva(): bool
     {
@@ -67,6 +74,51 @@ class Simpatizante extends Model
     public function crear(array $d): int
     {
         return simpatizante_insertar($this->db, $d)['id'];
+    }
+
+    /* ============ Duplicados: documento o celular repetidos ============ */
+
+    /** Registros cuyo documento o celular se repite, agrupados por el dato repetido. */
+    public function duplicados(): array
+    {
+        $grupos = [];
+        foreach (['documento' => 'Documento', 'telefono' => 'Celular'] as $col => $etiqueta) {
+            $filas = $this->consultar(
+                "SELECT s.id, s.nombre, s.documento, s.telefono, s.created_at, s.$col AS valor,
+                        z.nombre AS zona, u.nombre AS lider,
+                        (SELECT COUNT(*) FROM simpatizantes r WHERE r.referido_por = s.id) AS invitados
+                 FROM simpatizantes s
+                 JOIN (SELECT $col AS v FROM simpatizantes GROUP BY $col HAVING COUNT(*) > 1) d ON d.v = s.$col
+                 LEFT JOIN zonas z ON z.id = s.zona_id
+                 LEFT JOIN usuarios u ON u.id = s.lider_id
+                 ORDER BY s.$col, s.id"
+            );
+            foreach ($filas as $f) $grupos[$etiqueta . ' ' . $f['valor']][] = $f;
+        }
+        return $grupos;
+    }
+
+    /**
+     * Elimina un registro sobrante. Sus invitados pasan a quien lo invitó a él
+     * y su historial de WhatsApp se borra. Devuelve el nombre eliminado.
+     */
+    public function eliminar(int $id): ?string
+    {
+        $s = $this->consultarUno('SELECT id, nombre, referido_por FROM simpatizantes WHERE id = :id', ['id' => $id]);
+        if (!$s) return null;
+        $this->db->beginTransaction();
+        try {
+            $this->ejecutar('UPDATE simpatizantes SET referido_por = :padre WHERE referido_por = :id',
+                            ['padre' => $s['referido_por'], 'id' => $id]);
+            if (esquema_tiene($this->db, 'wa_mensajes'))  $this->ejecutar('DELETE FROM wa_mensajes WHERE simpatizante_id = :id', ['id' => $id]);
+            if (esquema_tiene($this->db, 'wa_entrantes')) $this->ejecutar('UPDATE wa_entrantes SET simpatizante_id = NULL WHERE simpatizante_id = :id', ['id' => $id]);
+            $this->ejecutar('DELETE FROM simpatizantes WHERE id = :id', ['id' => $id]);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+        return $s['nombre'];
     }
 
     /* ============ Base de votos: completar y verificar ============ */

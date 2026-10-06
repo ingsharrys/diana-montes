@@ -71,9 +71,11 @@ class DashboardController extends Controller
         $this->validarCsrf();
 
         try {
-            $pasos = esquema_actualizar(Database::conexion());
+            $avisos = [];
+            $pasos = esquema_actualizar(Database::conexion(), $avisos);
             Auditoria::registrar('plataforma_actualizada', implode(', ', $pasos) ?: 'sin cambios');
             Session::flash('ok', 'Plataforma actualizada: red de promotores, mapa, género, nivel en la red y meta de la campaña listos.');
+            if ($avisos) Session::flash('error', implode(' ', $avisos));
         } catch (\Throwable $e) {
             Session::flash('error', 'No se pudo actualizar automáticamente (' . $e->getMessage() . '). '
                 . 'Ejecuta en phpMyAdmin los archivos de admin/sql/ (en orden) y vuelve a intentarlo.');

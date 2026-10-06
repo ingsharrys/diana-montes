@@ -88,3 +88,23 @@ function limpiar_texto_catalogo(string $texto, int $max = 120): ?string
     if (!preg_match('/^[\p{L}\p{M}\p{N} .,()\-\/#º°]+$/u', $texto)) return null;
     return $texto;
 }
+
+/**
+ * ¿Ya existe un simpatizante con este documento o este celular?
+ * Devuelve el campo repetido ('documento' o 'telefono') o null.
+ * La base de datos lo garantiza además con índices únicos (ver esquema.php).
+ */
+function simpatizante_duplicado(PDO $db, string $documento, string $telefono): ?string
+{
+    $st = $db->prepare('SELECT documento FROM simpatizantes WHERE documento = :d OR telefono = :t LIMIT 1');
+    $st->execute(['d' => $documento, 't' => $telefono]);
+    $fila = $st->fetch(PDO::FETCH_ASSOC);
+    if (!$fila) return null;
+    return (string)$fila['documento'] === $documento ? 'documento' : 'telefono';
+}
+
+/** ¿La excepción es un choque con un índice único (registro duplicado)? */
+function es_error_duplicado(Throwable $e): bool
+{
+    return $e instanceof PDOException && (($e->errorInfo[1] ?? null) === 1062 || $e->getCode() === '23000');
+}
