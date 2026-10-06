@@ -2,25 +2,26 @@
   <h3>Invitar a un miembro del equipo</h3>
   <p class="muted">Al guardar se genera su <b>contraseña temporal</b> (se muestra una sola vez) y su <b>enlace de red</b> para registrar simpatizantes.</p>
 
-  <form method="post" action="<?= url('usuarios/guardar') ?>" novalidate>
+  <form method="post" action="<?= url('usuarios/guardar') ?>" novalidate data-validar>
     <?= \Core\Csrf::campo() ?>
     <div class="form-grid">
 
       <label class="field <?= isset($errores['nombre']) ? 'has-error' : '' ?>">
         <span>Nombre completo *</span>
-        <input name="nombre" value="<?= e($v['nombre'] ?? '') ?>" placeholder="Ej: Rosalba Perdomo" required>
+        <input name="nombre" data-tipo="nombre" maxlength="120" autocapitalize="words" value="<?= e($v['nombre'] ?? '') ?>" placeholder="Ej: Rosalba Perdomo" required data-msg="Escribe el nombre completo.">
         <?php if (isset($errores['nombre'])): ?><em><?= e($errores['nombre']) ?></em><?php endif; ?>
       </label>
 
       <label class="field <?= isset($errores['email']) ? 'has-error' : '' ?>">
         <span>Correo electrónico *</span>
-        <input type="email" name="email" value="<?= e($v['email'] ?? '') ?>" placeholder="correo@ejemplo.com" required>
+        <input type="email" name="email" maxlength="150" autocomplete="off" value="<?= e($v['email'] ?? '') ?>" placeholder="correo@ejemplo.com" required data-msg="Escribe el correo: con él ingresa con Google.">
         <?php if (isset($errores['email'])): ?><em><?= e($errores['email']) ?></em><?php endif; ?>
       </label>
 
-      <label class="field">
-        <span>Celular / WhatsApp</span>
-        <input name="telefono" inputmode="tel" value="<?= e($v['telefono'] ?? '') ?>" placeholder="3XX XXX XXXX">
+      <label class="field <?= isset($errores['telefono']) ? 'has-error' : '' ?>">
+        <span>Celular / WhatsApp *</span>
+        <input type="tel" name="telefono" data-tipo="celular" inputmode="tel" value="<?= e($v['telefono'] ?? '') ?>" placeholder="3XX XXX XXXX" required data-msg="El celular es obligatorio: es su enlace de invitación.">
+        <?php if (isset($errores['telefono'])): ?><em><?= e($errores['telefono']) ?></em><?php endif; ?>
       </label>
 
       <label class="field">
@@ -56,7 +57,7 @@
 
       <label class="field">
         <span>Meta de vinculados (campaña)</span>
-        <input name="meta" inputmode="numeric" value="<?= e((string)($v['meta'] ?? '')) ?>" placeholder="Ej: 325">
+        <input name="meta" data-tipo="numero" data-max="1000000" maxlength="7" value="<?= e((string)($v['meta'] ?? '')) ?>" placeholder="Ej: 325">
       </label>
 
       <div class="full form-actions">

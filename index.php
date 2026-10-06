@@ -18,6 +18,7 @@ try {
     $zonas = []; $profesiones = []; $pideGenero = false;
 }
 $fechaMaxima = date('Y-m-d', strtotime('-' . EDAD_MINIMA . ' years'));
+$fechaMinima = date('Y-m-d', strtotime('-110 years'));
 
 /* Invitación (?ref=) de un líder o de un promotor ciudadano:
    se resuelve en el servidor para pintar el chip "Te invita…" */
@@ -188,6 +189,12 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
   .consent{display:flex;gap:10px;align-items:flex-start;background:var(--fondo-2);border:1px solid var(--linea);border-radius:12px;padding:11px 13px;font-size:11.5px;line-height:1.5;color:var(--gris);margin:2px 0 14px}
   .consent input{width:17px;height:17px;margin-top:2px;flex:none;accent-color:var(--rosa)}
   .consent a{color:var(--rosa);font-weight:700}
+  .campo.has-error label{color:#B4123F}
+  .politica p{font-size:13.5px;color:var(--gris);margin-bottom:10px;line-height:1.55}
+  .politica b{color:var(--ink)}
+  .btn[disabled]{opacity:.75;cursor:progress;transform:none}
+  .giro{width:16px;height:16px;border-radius:50%;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;animation:gira .8s linear infinite}
+  @keyframes gira{to{transform:rotate(360deg)}}
   .error-msg{display:none;background:#FDECEF;border:1px solid #F7C4CE;color:#B4123F;font-size:12.5px;font-weight:600;border-radius:11px;padding:10px 13px;margin-bottom:12px}
   .form-ok{display:none;text-align:center;padding:26px 8px}
   .form-ok .ok-ico{width:64px;height:64px;border-radius:20px;background:#E9F9EF;color:var(--verde);font-size:29px;display:flex;align-items:center;justify-content:center;margin:0 auto 13px}
@@ -426,6 +433,22 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
   </div>
 </div>
 
+<!-- modal política de datos (Ley 1581 de 2012) -->
+<div class="modal-bg" id="modalPolitica" role="dialog" aria-modal="true" aria-labelledby="modalPoliticaTitulo">
+  <div class="modal">
+    <button class="modal-x" type="button" data-cerrar aria-label="Cerrar">✕</button>
+    <h3 id="modalPoliticaTitulo">Tratamiento de datos personales</h3>
+    <div class="politica">
+      <p><b>Responsable:</b> Campaña de Diana Lucía Montes a la Alcaldía de Garzón (Huila).</p>
+      <p><b>Datos que pedimos:</b> nombre, documento, celular, barrio o vereda, ocupación, fecha de nacimiento, género y, solo si lo autorizas, tu ubicación aproximada.</p>
+      <p><b>Para qué los usamos:</b> contactarte e informarte sobre la campaña y sus actividades, enviarte saludos en fechas especiales por WhatsApp y organizar el trabajo territorial. No vendemos ni cedemos tus datos.</p>
+      <p><b>Tus derechos:</b> conocer, actualizar, rectificar y pedir que se eliminen tus datos, y revocar esta autorización en cualquier momento. Para dejar de recibir mensajes responde <b>SALIR</b> a cualquier mensaje de WhatsApp de la campaña.</p>
+      <p><b>Seguridad:</b> los datos viajan cifrados y solo los consulta el equipo autorizado de la campaña.</p>
+    </div>
+    <button class="btn btn-rosa" type="button" data-cerrar style="width:100%;margin-top:14px">Entendido</button>
+  </div>
+</div>
+
 <!-- ==================== REGISTRO ==================== -->
 <section id="sumate" class="registro">
   <div class="wrap reg-grid">
@@ -441,7 +464,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
     </div>
 
     <div class="form-card rv">
-      <form id="formRegistro" novalidate>
+      <form id="formRegistro" novalidate data-validar="manual">
         <h3>Registro de simpatizantes</h3>
         <p class="sub">Entras a la red oficial de la campaña.</p>
 
@@ -452,26 +475,24 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
         </div>
         <?php endif; ?>
 
-        <div class="error-msg" id="errBox"></div>
-
         <div class="campo">
           <label for="f-nombre">Nombre completo</label>
-          <input id="f-nombre" name="nombre" autocomplete="name" placeholder="Ej: María Fernanda Ortiz" required>
+          <input id="f-nombre" name="nombre" data-tipo="nombre" autocomplete="name" autocapitalize="words" maxlength="120" placeholder="Ej: María Fernanda Ortiz" required data-msg="Escribe tu nombre completo.">
         </div>
         <div class="campos-2">
           <div class="campo">
             <label for="f-doc">Documento de identidad</label>
-            <input id="f-doc" name="documento" inputmode="numeric" placeholder="Sin puntos ni comas" required>
+            <input id="f-doc" name="documento" data-tipo="documento" inputmode="numeric" autocomplete="off" placeholder="Solo números, sin puntos" required data-msg="Escribe tu número de documento.">
           </div>
           <div class="campo">
             <label for="f-cel">Celular (WhatsApp)</label>
-            <input id="f-cel" name="telefono" inputmode="tel" autocomplete="tel" placeholder="3XX XXX XXXX" required>
+            <input id="f-cel" type="tel" name="telefono" data-tipo="celular" inputmode="tel" autocomplete="tel-national" placeholder="3XX XXX XXXX" required data-msg="Escribe tu celular de WhatsApp.">
           </div>
         </div>
         <div class="campos-2">
           <div class="campo">
             <label for="f-zona">Barrio o vereda</label>
-            <select id="f-zona" name="zona_id" required>
+            <select id="f-zona" name="zona_id" required data-msg="Cuéntanos tu barrio o vereda.">
               <option value="">Selecciona…</option>
               <?php foreach ($zonas as $z): ?>
               <option value="<?= (int)$z['id'] ?>"><?= e($z['nombre']) ?></option>
@@ -480,7 +501,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
           </div>
           <div class="campo">
             <label for="f-prof">¿A qué te dedicas?</label>
-            <select id="f-prof" name="profesion_id" required>
+            <select id="f-prof" name="profesion_id" required data-msg="Cuéntanos a qué te dedicas.">
               <option value="">Selecciona…</option>
               <?php foreach ($profesiones as $p): ?>
               <option value="<?= (int)$p['id'] ?>"><?= e($p['nombre']) ?></option>
@@ -491,12 +512,12 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
         <div class="campos-2">
           <div class="campo">
             <label for="f-cumple">Fecha de nacimiento <span style="font-weight:500;color:#9AA0AF">(te saludamos en tu día 🎂)</span></label>
-            <input id="f-cumple" type="date" name="fecha_nacimiento" max="<?= $fechaMaxima ?>" required>
+            <input id="f-cumple" type="date" name="fecha_nacimiento" data-tipo="nacimiento" data-edad-min="<?= EDAD_MINIMA ?>" min="<?= $fechaMinima ?>" max="<?= $fechaMaxima ?>" required data-msg="Escribe tu fecha de nacimiento.">
           </div>
           <?php if ($pideGenero): ?>
           <div class="campo">
             <label for="f-genero">Género</label>
-            <select id="f-genero" name="genero" required>
+            <select id="f-genero" name="genero" required data-msg="Selecciona tu género.">
               <option value="">Selecciona…</option>
               <?php foreach (GENEROS as $valor => $etiqueta): ?>
               <option value="<?= $valor ?>"><?= e($etiqueta) ?></option>
@@ -520,10 +541,11 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
         <div class="hp" aria-hidden="true"><label>Tu web<input type="text" name="web" tabindex="-1" autocomplete="off"></label></div>
 
         <label class="consent">
-          <input type="checkbox" name="consentimiento" value="1" id="f-consent" required>
-          <span>Autorizo el tratamiento de mis datos personales a la campaña de Diana Lucía Montes para fines de contacto e información política, conforme a la <b>Ley 1581 de 2012</b>. <a href="#" onclick="return false">Ver política de datos</a>.</span>
+          <input type="checkbox" name="consentimiento" value="1" id="f-consent" required data-msg="Para registrarte necesitamos tu autorización de datos (Ley 1581).">
+          <span>Autorizo el tratamiento de mis datos personales a la campaña de Diana Lucía Montes para fines de contacto e información política, conforme a la <b>Ley 1581 de 2012</b>. <a href="#politica" id="lnkPolitica">Ver política de datos</a>.</span>
         </label>
 
+        <div class="error-msg" id="errBox" role="alert" tabindex="-1"></div>
         <button class="btn btn-rosa" style="width:100%" type="submit" id="btnEnviar">Sí, quiero sumarme</button>
         <p class="lock-note">🔒 Tus datos viajan cifrados y solo los usa la campaña.</p>
       </form>
@@ -576,6 +598,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
   </div>
 </footer>
 
+<script src="assets/js/validar.js?v=<?= @filemtime(__DIR__ . '/assets/js/validar.js') ?>"></script>
 <script>
 /* ---------- video: autoplay silenciado + botón de sonido ---------- */
 const video = document.getElementById('heroVideo');
@@ -677,46 +700,64 @@ function mostrarPromotor(p) {
   document.body.appendChild(s);
 }
 
+/* ---------- política de datos ---------- */
+const modalPolitica = document.getElementById('modalPolitica');
+document.getElementById('lnkPolitica').addEventListener('click', e => { e.preventDefault(); modalPolitica.classList.add('abierto'); });
+modalPolitica.querySelectorAll('[data-cerrar]').forEach(b => b.addEventListener('click', () => modalPolitica.classList.remove('abierto')));
+modalPolitica.addEventListener('click', e => { if (e.target === modalPolitica) modalPolitica.classList.remove('abierto'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') modalPolitica.classList.remove('abierto'); });
+
 /* ---------- envío real del formulario a registrar.php ---------- */
-document.getElementById('formRegistro').addEventListener('submit', async function (ev) {
+const formReg = document.getElementById('formRegistro');
+const errBox  = document.getElementById('errBox');
+const btnEnviar = document.getElementById('btnEnviar');
+const TEXTO_BTN = btnEnviar.textContent;
+
+function mostrarError(msg) {
+  errBox.textContent = '⚠ ' + msg;
+  errBox.style.display = 'block';
+  errBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+formReg.addEventListener('submit', async function (ev) {
   ev.preventDefault();
-  const err = document.getElementById('errBox');
-  const btn = document.getElementById('btnEnviar');
-  err.style.display = 'none';
+  errBox.style.display = 'none';
+  if (btnEnviar.disabled) return;                 // evita doble envío
+  if (!window.Validar) { mostrarError('La página no cargó completa. Recárgala e intenta de nuevo.'); return; }
+  if (!Validar.formulario(this)) return;          // los errores quedan debajo de cada campo
 
-  const nombre = document.getElementById('f-nombre').value.trim();
-  const doc = document.getElementById('f-doc').value.replace(/\D/g,'');
-  const cel = document.getElementById('f-cel').value.replace(/\D/g,'');
-
-  let msg = '';
-  if (nombre.length < 5) msg = 'Escribe tu nombre completo.';
-  else if (doc.length < 6) msg = 'Revisa tu número de documento.';
-  else if (cel.length !== 10) msg = 'El celular debe tener 10 dígitos.';
-  else if (!document.getElementById('f-zona').value) msg = 'Cuéntanos tu barrio o vereda.';
-  else if (!document.getElementById('f-prof').value) msg = 'Cuéntanos a qué te dedicas.';
-  else if (!document.getElementById('f-cumple').value) msg = 'Escribe tu fecha de nacimiento.';
-  else if (document.getElementById('f-cumple').value > document.getElementById('f-cumple').max) msg = 'La red de la campaña es para mayores de <?= EDAD_MINIMA ?> años.';
-  else if (document.getElementById('f-genero') && !document.getElementById('f-genero').value) msg = 'Selecciona tu género.';
-  else if (!document.getElementById('f-consent').checked) msg = 'Necesitamos tu autorización de datos (Ley 1581).';
-  if (msg) { err.textContent = '⚠ ' + msg; err.style.display = 'block'; return; }
-
-  btn.disabled = true; btn.textContent = 'Enviando…';
+  btnEnviar.disabled = true;
+  btnEnviar.innerHTML = '<span class="giro" aria-hidden="true"></span> Enviando…';
+  const control = new AbortController();
+  const espera = setTimeout(() => control.abort(), 25000);
   try {
-    const r = await fetch('registrar.php', { method:'POST', body:new FormData(this) });
-    const data = await r.json();
+    const r = await fetch('registrar.php', { method: 'POST', body: new FormData(this), signal: control.signal,
+                                             headers: { 'Accept': 'application/json' } });
+    const crudo = await r.text();
+    let data;
+    try { data = JSON.parse(crudo); }
+    catch (e) { throw new Error('respuesta'); }
     if (data.ok) {
       this.style.display = 'none';
       document.getElementById('okTexto').textContent = data.msg;
-      document.getElementById('formOk').style.display = 'block';
+      const ok = document.getElementById('formOk');
+      ok.style.display = 'block';
       if (data.promotor) mostrarPromotor(data.promotor);
-    } else {
-      err.textContent = '⚠ ' + data.msg; err.style.display = 'block';
+      ok.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (!(data.campo && Validar.marcar(this, data.campo, data.msg))) {
+      mostrarError(data.msg || 'No pudimos guardar tu registro. Intenta de nuevo.');
     }
   } catch (e) {
-    err.textContent = '⚠ No pudimos conectar con el servidor. Intenta de nuevo en un momento.';
-    err.style.display = 'block';
+    mostrarError(e.name === 'AbortError'
+      ? 'El servidor tardó demasiado en responder. Revisa tu conexión e intenta de nuevo.'
+      : e.message === 'respuesta'
+        ? 'Tuvimos un problema al guardar tu registro. Intenta de nuevo en unos minutos.'
+        : 'No pudimos conectar con el servidor. Revisa tu conexión a internet e intenta de nuevo.');
+  } finally {
+    clearTimeout(espera);
+    btnEnviar.disabled = false;
+    btnEnviar.textContent = TEXTO_BTN;
   }
-  btn.disabled = false; btn.textContent = 'Sí, quiero sumarme';
 });
 </script>
 </body>

@@ -84,6 +84,7 @@ $enMando  = isset($pestanas[$seccion]);
 
 <!-- Globo de ayuda para las gráficas: cualquier elemento con data-tip lo muestra al pasar o enfocar -->
 <div class="tip" id="tip" role="tooltip" hidden></div>
+<script src="<?= asset('../assets/js/validar.js') ?>"></script>
 <script>
 (function () {
   const tip = document.getElementById('tip');

@@ -45,7 +45,7 @@ $sugeridas = [
       <select name="plantilla_id" style="flex:1;min-width:160px;border:1.5px solid var(--line);border-radius:9px;padding:8px" aria-label="Plantilla">
         <?php foreach ($plantillas as $p): if (!$p['compatible']) continue; ?><option value="<?= (int)$p['id'] ?>"><?= e($p['nombre']) ?></option><?php endforeach; ?>
       </select>
-      <input name="telefono" inputmode="tel" placeholder="Tu celular: 3XX XXX XXXX" aria-label="Celular de prueba" required>
+      <input type="tel" name="telefono" data-tipo="celular" pattern="3[0-9]{9}" title="10 dígitos, empieza por 3" placeholder="Tu celular: 3XX XXX XXXX" aria-label="Celular de prueba" required>
       <button class="btn btn-gold btn-mini" type="submit" <?= $configurado ? '' : 'disabled' ?>>Enviar prueba</button>
     </form>
     <p class="muted small nota">Usa datos de ejemplo (María, Docente…). Mientras el número de WhatsApp esté en modo de prueba, solo llega a los números autorizados en Meta.</p>
@@ -99,8 +99,8 @@ $sugeridas = [
     <form method="post" action="<?= url('whatsapp/nuevaplantilla') ?>" style="display:grid;gap:10px">
       <?= \Core\Csrf::campo() ?>
       <div class="form-grid">
-        <label class="field"><span>Nombre en Meta</span><input name="nombre" placeholder="saludo_cumpleanos" required></label>
-        <label class="field"><span>Idioma</span><input name="idioma" value="es" placeholder="es o es_CO" required></label>
+        <label class="field"><span>Nombre en Meta</span><input name="nombre" data-tipo="plantilla" maxlength="512" pattern="[a-z0-9_]+" title="Solo minúsculas, números y guion bajo, igual que en Meta" placeholder="saludo_cumpleanos" required></label>
+        <label class="field"><span>Idioma</span><input name="idioma" value="es" pattern="[a-z]{2}(_[A-Z]{2})?" title="Código de idioma: es, es_CO, es_MX…" placeholder="es o es_CO" required></label>
       </div>
       <label class="field"><span>Texto del cuerpo (con {{1}}, {{2}}…)</span>
         <textarea name="cuerpo" rows="4" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px;font:inherit"></textarea></label>

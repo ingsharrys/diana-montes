@@ -36,7 +36,7 @@ $urlSinPuesto = url('simpatizantes/verificar') . ((defined('USE_REWRITE') && USE
     <?php if ($puedeEditar): ?>
       <form method="post" action="<?= url('territorio/meta') ?>" class="editar-meta" style="margin-top:0">
         <?= \Core\Csrf::campo() ?>
-        <input name="meta_votos" inputmode="numeric" placeholder="Ej: 15000" value="<?= $metaVotos ?: '' ?>" aria-label="Meta de votos" required>
+        <input name="meta_votos" data-tipo="numero" maxlength="7" min="1" placeholder="Ej: 15000" value="<?= $metaVotos ?: '' ?>" aria-label="Meta de votos" required>
         <button class="btn btn-primary btn-mini" type="submit">Guardar</button>
       </form>
       <p class="muted small nota">Referencia 2023 en Garzón: 33.871 votos válidos. Con 3 o 4 candidatos se suele ganar con el 35–45 % (unos 12.000 a 15.000 votos).
@@ -71,8 +71,8 @@ $urlSinPuesto = url('simpatizantes/verificar') . ((defined('USE_REWRITE') && USE
       <td><b><?= e($p['nombre']) ?></b><br><span class="muted small"><?= e($p['zona'] ?? '—') ?></span>
         <?php if ($puedeEditar): ?><form id="<?= $fid ?>" method="post" action="<?= url('territorio/puesto/' . (int)$p['id']) ?>"><?= \Core\Csrf::campo() ?></form><?php endif; ?></td>
       <?php if ($puedeEditar): ?>
-        <td><input class="in-mesa" name="mesas" form="<?= $fid ?>" inputmode="numeric" value="<?= e((string)$p['mesas']) ?>" placeholder="—" aria-label="Mesas de <?= e($p['nombre']) ?>"></td>
-        <td><input class="in-mesa" style="width:86px" name="potencial" form="<?= $fid ?>" inputmode="numeric" value="<?= e((string)$p['potencial']) ?>" placeholder="—" aria-label="Habilitados de <?= e($p['nombre']) ?>"></td>
+        <td><input class="in-mesa" name="mesas" form="<?= $fid ?>" data-tipo="numero" maxlength="4" value="<?= e((string)$p['mesas']) ?>" placeholder="—" aria-label="Mesas de <?= e($p['nombre']) ?>"></td>
+        <td><input class="in-mesa" style="width:86px" name="potencial" form="<?= $fid ?>" data-tipo="numero" maxlength="6" value="<?= e((string)$p['potencial']) ?>" placeholder="—" aria-label="Habilitados de <?= e($p['nombre']) ?>"></td>
       <?php else: ?>
         <td><?= $p['mesas'] ? num((int)$p['mesas']) : '—' ?></td>
         <td><?= $p['potencial'] ? num((int)$p['potencial']) : '—' ?></td>

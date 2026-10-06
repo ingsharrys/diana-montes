@@ -13,6 +13,7 @@
  *   - lat / lng       : ubicación aproximada, solo si la autorizó
  */
 require_once __DIR__ . '/esquema.php';
+require_once __DIR__ . '/validacion.php';
 require_once __DIR__ . '/whatsapp.php';
 
 /** Niveles de la gamificación: [invitados mínimos, nombre, emoji]. */

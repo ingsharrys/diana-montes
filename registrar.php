@@ -25,6 +25,20 @@ function salir(bool $ok, string $msg, int $http = 200, array $extra = []): void 
     exit;
 }
 
+/** Error de validación ligado a un campo: el formulario lo muestra debajo de ese campo. */
+function error_campo(string $campo, string $msg): void {
+    salir(false, $msg, 200, ['campo' => $campo]);
+}
+
+// Cualquier fallo inesperado (base de datos caída, etc.) responde en JSON
+// para que el formulario muestre un mensaje en vez de quedarse en silencio.
+set_exception_handler(function (Throwable $e) {
+    error_log('[registrar.php] ' . $e->getMessage() . ' en ' . $e->getFile() . ':' . $e->getLine());
+    if (!headers_sent()) header('Content-Type: application/json; charset=utf-8');
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'msg' => 'Tuvimos un problema al guardar tu registro. Intenta de nuevo en unos minutos.'], JSON_UNESCAPED_UNICODE);
+});
+
 /* ---------- GET: resolver nombre del líder que invita ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $ref = trim($_GET['ref'] ?? '');
@@ -46,14 +60,14 @@ if (isset($_SESSION['ultimo_registro']) && time() - $_SESSION['ultimo_registro']
     salir(false, 'Espera un momento antes de enviar otro registro.', 429);
 }
 
-$nombre    = trim($_POST['nombre'] ?? '');
-$documento = preg_replace('/\D/', '', $_POST['documento'] ?? '');
-$telefono  = preg_replace('/\D/', '', $_POST['telefono'] ?? '');
-$cumple    = trim($_POST['fecha_nacimiento'] ?? '');
+$nombre    = normalizar_nombre((string)($_POST['nombre'] ?? ''));
+$documento = normalizar_documento((string)($_POST['documento'] ?? ''));
+$telefono  = normalizar_celular((string)($_POST['telefono'] ?? ''));
+$cumple    = trim((string)($_POST['fecha_nacimiento'] ?? ''));
 $genero    = is_string($_POST['genero'] ?? null) ? $_POST['genero'] : '';
 $zonaId    = (int)($_POST['zona_id'] ?? 0);
 $profId    = (int)($_POST['profesion_id'] ?? 0);
-$ref       = trim($_POST['ref'] ?? '');
+$ref       = trim((string)($_POST['ref'] ?? ''));
 $consent   = !empty($_POST['consentimiento']);
 
 // Ubicación aproximada: solo si el ciudadano marcó la casilla y el navegador la entregó
@@ -65,28 +79,31 @@ if (!empty($_POST['ubicacion'])) {
 }
 
 /* Validaciones */
-if (mb_strlen($nombre) < 5 || mb_strlen($nombre) > 120) salir(false, 'Escribe tu nombre completo.');
-if (strlen($documento) < 6 || strlen($documento) > 12)  salir(false, 'Revisa tu número de documento.');
-if (strlen($telefono) !== 10 || $telefono[0] !== '3')   salir(false, 'El celular debe tener 10 dígitos y empezar por 3.');
-if ($error = simpatizante_error_nacimiento($cumple))     salir(false, $error);
+if ($error = error_nombre_persona($nombre))            error_campo('nombre', $error);
+if ($error = error_documento($documento))             error_campo('documento', $error);
+if ($error = error_celular($telefono))                error_campo('telefono', $error);
+if ($error = simpatizante_error_nacimiento($cumple))  error_campo('fecha_nacimiento', $error);
 
 $db = db();
 
 // El género se pide desde que la plataforma se actualiza (columna creada)
 $pideGenero = esquema_tiene($db, 'simpatizantes', 'genero');
-if ($pideGenero && !isset(GENEROS[$genero])) salir(false, 'Selecciona tu género.');
-if (!$consent) salir(false, 'Necesitamos tu autorización de datos (Ley 1581 de 2012).');
+if ($pideGenero && !isset(GENEROS[$genero])) error_campo('genero', 'Selecciona tu género.');
 
 /* Zona y profesión deben existir en los catálogos */
 $st = $db->prepare('SELECT id FROM zonas WHERE id = :id'); $st->execute(['id' => $zonaId]);
-if (!$st->fetch()) salir(false, 'Selecciona tu barrio o vereda.');
+if (!$st->fetch()) error_campo('zona_id', 'Selecciona tu barrio o vereda.');
 $st = $db->prepare('SELECT id FROM profesiones WHERE id = :id'); $st->execute(['id' => $profId]);
-if (!$st->fetch()) salir(false, 'Cuéntanos a qué te dedicas.');
+if (!$st->fetch()) error_campo('profesion_id', 'Cuéntanos a qué te dedicas.');
+if (!$consent) error_campo('consentimiento', 'Para registrarte necesitamos tu autorización de datos (Ley 1581 de 2012).');
 
 /* Duplicados */
-$st = $db->prepare('SELECT id FROM simpatizantes WHERE documento = :d OR telefono = :t LIMIT 1');
-$st->execute(['d' => $documento, 't' => $telefono]);
-if ($st->fetch()) salir(false, '¡Ya estás registrado/a en la red! Gracias por acompañarnos.');
+$st = $db->prepare('SELECT documento = :d AS mismo_doc FROM simpatizantes WHERE documento = :d2 OR telefono = :t LIMIT 1');
+$st->execute(['d' => $documento, 'd2' => $documento, 't' => $telefono]);
+if ($dup = $st->fetch()) {
+    if ($dup['mismo_doc']) salir(false, '¡Ya estás registrado/a en la red con este documento! Gracias por acompañarnos.');
+    error_campo('telefono', 'Este celular ya está registrado en la red. Si es de otra persona de tu familia, usa tu propio número.');
+}
 
 /* Resolver quién invita: un miembro del equipo, un promotor ciudadano
    (su invitado hereda el líder del promotor) o la red directa de la candidata.
@@ -119,7 +136,7 @@ $promotor = $nuevo['token'] ? ['codigo' => $nuevo['codigo'], 'token' => $nuevo['
 
 /* Auditoría del registro público */
 $db->prepare('INSERT INTO auditoria (usuario_id, accion, detalle, ip)
-              VALUES (NULL, "registro_landing", :d, :ip)')
+              VALUES (NULL, \'registro_landing\', :d, :ip)')
    ->execute([
        'd'  => 'Doc ' . substr($documento, 0, 3) . '··· vía ' . ($ref ?: 'red directa'),
        'ip' => $_SERVER['REMOTE_ADDR'] ?? '',

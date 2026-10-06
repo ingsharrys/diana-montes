@@ -41,7 +41,7 @@
     <form method="post" action="<?= url('catalogos/zona') ?>" class="cat-form">
       <?= \Core\Csrf::campo() ?>
       <div class="cf-fila">
-        <input name="nombre" placeholder="Nombre del barrio o vereda" required>
+        <input name="nombre" data-tipo="texto" minlength="3" maxlength="120" placeholder="Nombre del barrio o vereda" required>
         <select name="tipo" style="max-width:110px"><option value="urbano">Urbano</option><option value="rural">Rural</option></select>
       </div>
       <button type="submit">＋ Agregar zona</button>
@@ -68,9 +68,9 @@
     <h3>🗳 Puestos de votación <span class="tag tag-grey"><?= count($puestos) ?></span></h3>
     <form method="post" action="<?= url('catalogos/puesto') ?>" class="cat-form">
       <?= \Core\Csrf::campo() ?>
-      <input name="nombre" placeholder="Nombre del puesto" required>
+      <input name="nombre" data-tipo="texto" minlength="3" maxlength="150" placeholder="Nombre del puesto" required>
       <div class="cf-fila">
-        <input name="direccion" placeholder="Dirección (opcional)">
+        <input name="direccion" data-tipo="texto" maxlength="200" placeholder="Dirección (opcional)">
         <select name="zona_id">
           <option value="">Zona (opcional)</option>
           <?php foreach ($zonasSimple as $z): ?>
@@ -102,7 +102,7 @@
     <h3>💼 Profesiones / ocupaciones <span class="tag tag-grey"><?= count($profesiones) ?></span></h3>
     <form method="post" action="<?= url('catalogos/profesion') ?>" class="cat-form">
       <?= \Core\Csrf::campo() ?>
-      <input name="nombre" placeholder="Ej: Enfermera, Mototaxista…" required>
+      <input name="nombre" data-tipo="nombre-simple" minlength="3" maxlength="100" placeholder="Ej: Enfermera, Mototaxista…" required>
       <span class="cf-label">Día gremial (opcional, para los mensajes de WhatsApp)</span>
       <input type="date" name="dia_celebracion">
       <button type="submit">＋ Agregar profesión</button>

@@ -162,14 +162,14 @@ class SimpatizantesController extends Controller
         $this->validarCsrf();
 
         $v = [
-            'nombre'           => trim($_POST['nombre'] ?? ''),
-            'documento'        => preg_replace('/\D/', '', $_POST['documento'] ?? ''),
-            'telefono'         => preg_replace('/\D/', '', $_POST['telefono'] ?? ''),
+            'nombre'           => normalizar_nombre((string)($_POST['nombre'] ?? '')),
+            'documento'        => normalizar_documento((string)($_POST['documento'] ?? '')),
+            'telefono'         => normalizar_celular((string)($_POST['telefono'] ?? '')),
             'fecha_nacimiento' => trim((string)($_POST['fecha_nacimiento'] ?? '')),
             'genero'           => is_string($_POST['genero'] ?? null) ? $_POST['genero'] : '',
             'zona_id'          => (int)($_POST['zona_id'] ?? 0),
             'puesto_id'        => (int)($_POST['puesto_id'] ?? 0) ?: null,
-            'mesa'             => trim($_POST['mesa'] ?? '') ?: null,
+            'mesa'             => preg_replace('/\D/', '', (string)($_POST['mesa'] ?? '')) ?: null,
             'profesion_id'     => (int)($_POST['profesion_id'] ?? 0),
             'nivel'            => isset(compromisos_disponibles(\Core\Database::conexion())[$_POST['nivel'] ?? ''])
                                     ? $_POST['nivel'] : 'simpatizante',
@@ -203,10 +203,11 @@ class SimpatizantesController extends Controller
     private function validar(array $v, Simpatizante $modelo): array
     {
         $e = [];
-        if (mb_strlen($v['nombre']) < 5)                  $e['nombre'] = 'Escribe el nombre completo.';
-        if (strlen($v['documento']) < 6)                  $e['documento'] = 'Documento inválido.';
+        if ($msg = error_nombre_persona($v['nombre'], 'el')) $e['nombre'] = $msg;
+        if ($msg = error_documento($v['documento']))       $e['documento'] = $msg;
         elseif ($modelo->existeDocumento($v['documento'])) $e['documento'] = 'Este documento ya está registrado. No se permiten duplicados.';
-        if (strlen($v['telefono']) !== 10)                $e['telefono'] = 'El celular debe tener 10 dígitos.';
+        if ($msg = error_celular($v['telefono']))          $e['telefono'] = $msg;
+        if ($v['mesa'] !== null && ((int)$v['mesa'] < 1 || strlen($v['mesa']) > 4)) $e['mesa'] = 'Revisa el número de mesa.';
         if ($msg = simpatizante_error_nacimiento($v['fecha_nacimiento'])) $e['fecha_nacimiento'] = $msg;
         if ($modelo->pideGenero() && !isset(GENEROS[$v['genero']])) $e['genero'] = 'Selecciona el género.';
         if ($v['zona_id'] <= 0)                           $e['zona_id'] = 'Selecciona la zona.';

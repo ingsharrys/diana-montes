@@ -58,11 +58,11 @@
   <h3>Agregar otra fecha especial</h3>
   <form method="post" action="<?= url('whatsapp/nuevaocasion') ?>" class="form-grid">
     <?= \Core\Csrf::campo() ?>
-    <label class="field"><span>Nombre</span><input name="nombre" placeholder="Ej: Día del Campesino" required></label>
+    <label class="field"><span>Nombre</span><input name="nombre" data-tipo="texto" minlength="3" maxlength="100" placeholder="Ej: Día del Campesino" required></label>
     <label class="field"><span>Fecha (se repite cada año)</span><input type="date" name="fecha"></label>
     <label class="field"><span>Solo para</span>
       <select name="genero"><option value="">Todos</option><option value="mujer">Mujeres</option><option value="hombre">Hombres</option></select></label>
-    <label class="field"><span>…o regla de día móvil (opcional)</span><input name="regla" placeholder="1-0-06 = primer domingo de junio"></label>
+    <label class="field"><span>…o regla de día móvil (opcional)</span><input name="regla" pattern="[1-5]-[0-6]-(0[1-9]|1[0-2])" title="n-d-MM, por ejemplo 1-0-06" placeholder="1-0-06 = primer domingo de junio"></label>
     <div class="full form-actions"><button class="btn btn-primary" type="submit">＋ Agregar ocasión</button></div>
   </form>
   <p class="muted small nota">Regla de día móvil: <b>n-d-MM</b> = n-ésimo día <i>d</i> de la semana (0 domingo … 6 sábado) del mes MM. Ej.: Día del Campesino = <b>1-0-06</b>.</p>
