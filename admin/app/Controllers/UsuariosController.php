@@ -44,21 +44,20 @@ class UsuariosController extends Controller
         $this->validarCsrf();
 
         $v = [
-            'nombre'         => trim($_POST['nombre'] ?? ''),
-            'email'          => strtolower(trim($_POST['email'] ?? '')),
-            'telefono'       => preg_replace('/\D/', '', $_POST['telefono'] ?? '') ?: null,
+            'nombre'         => normalizar_nombre((string)($_POST['nombre'] ?? '')),
+            'email'          => strtolower(trim((string)($_POST['email'] ?? ''))),
+            'telefono'       => normalizar_celular((string)($_POST['telefono'] ?? '')) ?: null,
             'rol'            => in_array($_POST['rol'] ?? '', ['coordinador','lider','digitador'], true) ? $_POST['rol'] : 'lider',
             'zona_id'        => (int)($_POST['zona_id'] ?? 0) ?: null,
             'coordinador_id' => (int)($_POST['coordinador_id'] ?? 0) ?: null,
         ];
-        $meta = (int)($_POST['meta'] ?? 0);
+        $meta = (int)preg_replace('/\D/', '', (string)($_POST['meta'] ?? ''));
 
         $modelo  = new Usuario();
         $errores = [];
-        if (mb_strlen($v['nombre']) < 5)                        $errores['nombre'] = 'Escribe el nombre completo.';
-        if (strlen((string)$v['telefono']) !== 10 || ($v['telefono'][0] ?? '') !== '3')
-                                                                $errores['telefono'] = 'El celular es obligatorio (10 dígitos, empieza por 3): es su enlace de invitación.';
-        if (!filter_var($v['email'], FILTER_VALIDATE_EMAIL))    $errores['email'] = 'Correo inválido.';
+        if ($msg = error_nombre_persona($v['nombre'], 'el'))    $errores['nombre'] = $msg;
+        if (error_celular((string)$v['telefono']))              $errores['telefono'] = 'El celular es obligatorio (10 dígitos, empieza por 3): es su enlace de invitación.';
+        if ($msg = error_correo($v['email']))                   $errores['email'] = $msg;
         elseif ($modelo->existeEmail($v['email']))              $errores['email'] = 'Ya existe un usuario con este correo.';
         if ($v['rol'] === 'lider' && !$v['zona_id'])            $errores['zona_id'] = 'Todo líder debe tener su zona.';
 

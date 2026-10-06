@@ -82,7 +82,7 @@ $enlace = function (array $cambios) use ($filtros): string {
           <?php endforeach; ?>
         </select>
       </td>
-      <td><input name="mesa" form="<?= $fid ?>" class="in-mesa" inputmode="numeric" maxlength="4" value="<?= e($s['mesa']) ?>" placeholder="—" aria-label="Mesa"></td>
+      <td><input name="mesa" form="<?= $fid ?>" class="in-mesa" data-tipo="numero" maxlength="4" value="<?= e($s['mesa']) ?>" placeholder="—" aria-label="Mesa"></td>
       <td>
         <select name="nivel" form="<?= $fid ?>" aria-label="Compromiso">
           <?php foreach ($compromisos as $valor => $etiqueta): ?>

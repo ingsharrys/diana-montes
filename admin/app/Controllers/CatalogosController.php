@@ -33,10 +33,10 @@ class CatalogosController extends Controller
         if (!$this->esPost()) $this->redirigir('catalogos');
         $this->validarCsrf();
 
-        $nombre = trim($_POST['nombre'] ?? '');
+        $nombre = limpiar_texto_catalogo((string)($_POST['nombre'] ?? '')) ?? '';
         $tipo   = ($_POST['tipo'] ?? '') === 'rural' ? 'rural' : 'urbano';
 
-        if (mb_strlen($nombre) < 3) { Session::flash('error', 'Escribe el nombre del barrio o vereda.'); $this->redirigir('catalogos'); }
+        if (mb_strlen($nombre) < 3) { Session::flash('error', 'Escribe el nombre del barrio o vereda (letras y números, sin símbolos raros).'); $this->redirigir('catalogos'); }
 
         if ((new Catalogo())->crearZona($nombre, $tipo)) {
             Auditoria::registrar('catalogo_zona_creada', $nombre . ' (' . $tipo . ')');
@@ -53,11 +53,15 @@ class CatalogosController extends Controller
         if (!$this->esPost()) $this->redirigir('catalogos');
         $this->validarCsrf();
 
-        $nombre    = trim($_POST['nombre'] ?? '');
-        $direccion = trim($_POST['direccion'] ?? '') ?: null;
+        $nombre    = limpiar_texto_catalogo((string)($_POST['nombre'] ?? ''), 150) ?? '';
+        $direccion = trim((string)($_POST['direccion'] ?? ''));
+        if ($direccion !== '' && ($direccion = limpiar_texto_catalogo($direccion, 200)) === null) {
+            Session::flash('error', 'Revisa la dirección: solo letras, números y # - . , /'); $this->redirigir('catalogos');
+        }
+        $direccion = $direccion ?: null;
         $zonaId    = (int)($_POST['zona_id'] ?? 0) ?: null;
 
-        if (mb_strlen($nombre) < 3) { Session::flash('error', 'Escribe el nombre del puesto de votación.'); $this->redirigir('catalogos'); }
+        if (mb_strlen($nombre) < 3) { Session::flash('error', 'Escribe el nombre del puesto de votación (letras y números, sin símbolos raros).'); $this->redirigir('catalogos'); }
 
         if ((new Catalogo())->crearPuesto($nombre, $direccion, $zonaId)) {
             Auditoria::registrar('catalogo_puesto_creado', $nombre);
@@ -74,11 +78,12 @@ class CatalogosController extends Controller
         if (!$this->esPost()) $this->redirigir('catalogos');
         $this->validarCsrf();
 
-        $nombre = trim($_POST['nombre'] ?? '');
-        $dia    = trim($_POST['dia_celebracion'] ?? '');
+        $nombre = trim(preg_replace('/\s+/u', ' ', (string)($_POST['nombre'] ?? '')));
+        if (!preg_match('/^[\p{L}\p{M} ()\/]{3,100}$/u', $nombre)) $nombre = '';
+        $dia    = trim((string)($_POST['dia_celebracion'] ?? ''));
         $dia    = preg_match('/^\d{4}-\d{2}-\d{2}$/', $dia) ? $dia : null;
 
-        if (mb_strlen($nombre) < 3) { Session::flash('error', 'Escribe el nombre de la profesión u ocupación.'); $this->redirigir('catalogos'); }
+        if (mb_strlen($nombre) < 3) { Session::flash('error', 'Escribe el nombre de la profesión u ocupación (solo letras).'); $this->redirigir('catalogos'); }
 
         if ((new Catalogo())->crearProfesion($nombre, $dia)) {
             Auditoria::registrar('catalogo_profesion_creada', $nombre);

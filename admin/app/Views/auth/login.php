@@ -29,13 +29,13 @@
       <div class="divider"><span>o con contraseña</span></div>
     <?php endif; ?>
 
-    <form method="post" action="<?= url('auth/login') ?>" autocomplete="off">
+    <form method="post" action="<?= url('auth/login') ?>" autocomplete="off" data-validar>
       <?= \Core\Csrf::campo() ?>
       <label class="field"><span>Correo electrónico</span>
-        <input type="email" name="email" required autofocus>
+        <input type="email" name="email" required autofocus autocomplete="username" data-msg="Escribe tu correo.">
       </label>
       <label class="field"><span>Contraseña</span>
-        <input type="password" name="password" required>
+        <input type="password" name="password" required autocomplete="current-password" data-msg="Escribe tu contraseña.">
       </label>
       <button class="btn btn-primary btn-block" type="submit">Ingresar</button>
     </form>

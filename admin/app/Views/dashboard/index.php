@@ -42,7 +42,7 @@ $pendienteTxt = $soloLider ? 'Disponible cuando la dirección actualice la plata
       <summary><?= $meta ? 'Editar meta' : 'Definir la meta de la campaña' ?></summary>
       <form method="post" action="<?= url('dashboard/meta') ?>">
         <?= \Core\Csrf::campo() ?>
-        <input name="meta" inputmode="numeric" placeholder="Ej: 45000" value="<?= $meta ?: '' ?>" aria-label="Meta de simpatizantes" required>
+        <input name="meta" data-tipo="numero" maxlength="7" placeholder="Ej: 45000" value="<?= $meta ?: '' ?>" aria-label="Meta de simpatizantes" required>
         <button class="btn btn-primary btn-mini" type="submit">Guardar</button>
       </form>
     </details>

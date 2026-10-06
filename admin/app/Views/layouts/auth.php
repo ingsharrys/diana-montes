@@ -10,5 +10,6 @@
 </head>
 <body class="body-auth">
 <?= $contenido ?>
+<script src="<?= asset('../assets/js/validar.js') ?>"></script>
 </body>
 </html>

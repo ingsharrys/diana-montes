@@ -112,7 +112,7 @@ class WhatsappController extends Controller
     public function nuevaocasion(): void
     {
         $wa = $this->accion('whatsapp/ocasiones');
-        $nombre = trim((string)($_POST['nombre'] ?? ''));
+        $nombre = limpiar_texto_catalogo((string)($_POST['nombre'] ?? ''), 100) ?? '';
         $fecha  = (string)($_POST['fecha'] ?? '');
         $regla  = trim((string)($_POST['regla'] ?? ''));
         if ($regla === '' && preg_match('/^\d{4}-(\d{2}-\d{2})$/', $fecha, $m)) $regla = $m[1];
@@ -192,8 +192,7 @@ class WhatsappController extends Controller
     public function prueba(): void
     {
         $wa = $this->accion('whatsapp/plantillas');
-        $tel = preg_replace('/\D/', '', (string)($_POST['telefono'] ?? ''));
-        $tel = strlen($tel) === 12 && str_starts_with($tel, '57') ? substr($tel, 2) : $tel;
+        $tel = normalizar_celular((string)($_POST['telefono'] ?? ''));
         $p = $wa->plantilla((int)($_POST['plantilla_id'] ?? 0));
         if (!preg_match('/^3\d{9}$/', $tel) || !$p) { Session::flash('error', 'Escribe un celular válido (10 dígitos) y elige la plantilla.'); $this->redirigir('whatsapp/plantillas'); }
         if (!wa_configurado()) { Session::flash('error', 'Faltan las credenciales de WhatsApp en config.php.'); $this->redirigir('whatsapp/plantillas'); }
