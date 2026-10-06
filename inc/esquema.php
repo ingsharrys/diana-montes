@@ -42,7 +42,8 @@ const COMPROMISOS_SEGUROS = ['voto_seguro', 'voluntario', 'testigo', 'votante_co
 
 /**
  * Pasos de actualización: [tabla, columna (null = crear la tabla), SQL (o lista
- * de sentencias), descripción, verificación propia opcional fn(PDO): bool].
+ * de sentencias), descripción, verificación propia opcional fn(PDO): bool,
+ * revisión previa opcional fn(PDO): ?string (si devuelve un aviso, el paso no se aplica)].
  * El orden importa: cada paso se aplica una sola vez.
  */
 function esquema_pasos(): array
@@ -147,7 +148,52 @@ function esquema_pasos(): array
               UNIQUE KEY uq_wa_ent_wamid (wamid),
               KEY idx_wa_ent_tel (telefono)
             ) DEFAULT CHARSET=utf8mb4", 'respuestas recibidas por WhatsApp'],
+
+        // ---------- Sin duplicados: la base de datos rechaza un documento o celular repetido ----------
+        // Si ya hay repetidos, el paso no se aplica y se listan para que el equipo los corrija.
+        ['simpatizantes', null, 'ALTER TABLE simpatizantes ADD UNIQUE KEY uq_simp_documento (documento)', 'documento único (sin duplicados)',
+            fn(PDO $db) => esquema_indice_unico($db, 'simpatizantes', 'documento'), fn(PDO $db) => esquema_aviso_duplicados($db, 'documento')],
+        ['simpatizantes', null, 'ALTER TABLE simpatizantes ADD UNIQUE KEY uq_simp_telefono (telefono)', 'celular único (sin duplicados)',
+            fn(PDO $db) => esquema_indice_unico($db, 'simpatizantes', 'telefono'), fn(PDO $db) => esquema_aviso_duplicados($db, 'telefono')],
     ];
+}
+
+/** ¿La columna tiene un índice único propio (de una sola columna)? */
+function esquema_indice_unico(PDO $db, string $tabla, string $columna): bool
+{
+    try {
+        $st = $db->prepare(
+            'SELECT s.INDEX_NAME FROM information_schema.STATISTICS s
+             WHERE s.TABLE_SCHEMA = DATABASE() AND s.TABLE_NAME = :t AND s.COLUMN_NAME = :c AND s.NON_UNIQUE = 0
+               AND (SELECT COUNT(*) FROM information_schema.STATISTICS x
+                    WHERE x.TABLE_SCHEMA = s.TABLE_SCHEMA AND x.TABLE_NAME = s.TABLE_NAME AND x.INDEX_NAME = s.INDEX_NAME) = 1
+             LIMIT 1'
+        );
+        $st->execute(['t' => $tabla, 'c' => $columna]);
+        return (bool)$st->fetchColumn();
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
+/** Valores repetidos de una columna de simpatizantes: [[valor, veces, nombres], ...] (máximo 10). */
+function esquema_duplicados(PDO $db, string $columna): array
+{
+    $columna = $columna === 'telefono' ? 'telefono' : 'documento'; // nunca viene del usuario
+    return $db->query(
+        "SELECT $columna AS valor, COUNT(*) AS veces, GROUP_CONCAT(nombre ORDER BY id SEPARATOR ' / ') AS nombres
+         FROM simpatizantes GROUP BY $columna HAVING COUNT(*) > 1 ORDER BY COUNT(*) DESC LIMIT 10"
+    )->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/** Aviso legible si una columna tiene repetidos (null si está limpia). */
+function esquema_aviso_duplicados(PDO $db, string $columna): ?string
+{
+    $dup = esquema_duplicados($db, $columna);
+    if (!$dup) return null;
+    $lista = array_map(fn($d) => $d['valor'] . ' (' . $d['nombres'] . ')', $dup);
+    return 'Hay ' . ($columna === 'telefono' ? 'celulares' : 'documentos') . ' repetidos: ' . implode('; ', $lista)
+         . '. Elimina los sobrantes en Simpatizantes › ⧉ Duplicados y vuelve a pulsar "Actualizar plataforma".';
 }
 
 /** ¿Un paso ya está aplicado? (su verificación propia, o que exista la columna/tabla) */
@@ -235,11 +281,13 @@ function esquema_pendientes(PDO $db): array
  * Aplica lo pendiente y completa los datos derivados (códigos de promotor,
  * nivel en la red). Devuelve lo aplicado. Lanza la excepción si algo falla.
  */
-function esquema_actualizar(PDO $db): array
+function esquema_actualizar(PDO $db, array &$avisos = []): array
 {
     $aplicados = [];
     foreach (esquema_pasos() as $paso) {
         if (esquema_paso_aplicado($db, $paso)) continue;
+        // Revisión previa (p. ej. datos repetidos): si falla, el paso espera y los demás siguen
+        if (isset($paso[5]) && ($aviso = ($paso[5])($db))) { $avisos[] = $aviso; continue; }
         [$tabla, $columna, $sql] = $paso;
         foreach ((array)$sql as $sentencia) $db->exec($sentencia);
         esquema_columnas($db, $tabla, true);

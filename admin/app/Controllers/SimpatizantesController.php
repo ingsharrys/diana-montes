@@ -132,6 +132,42 @@ class SimpatizantesController extends Controller
         ]);
     }
 
+    /** Registros con documento o celular repetido, para dejar uno solo. */
+    public function duplicados(): void
+    {
+        Auth::requerirRol('direccion');
+        $this->vista('simpatizantes/duplicados', [
+            'titulo'  => 'Registros duplicados',
+            'grupos'  => (new Simpatizante())->duplicados(),
+        ]);
+    }
+
+    /** Elimina un registro sobrante (solo dirección, solo si está duplicado). */
+    public function eliminar(string $id = '0'): void
+    {
+        Auth::requerirRol('direccion');
+        if (!$this->esPost()) $this->redirigir('simpatizantes/duplicados');
+        $this->validarCsrf();
+
+        $modelo = new Simpatizante();
+        $esDuplicado = false;
+        foreach ($modelo->duplicados() as $grupo) {
+            foreach ($grupo as $f) if ((int)$f['id'] === (int)$id) $esDuplicado = true;
+        }
+        if (!$esDuplicado) {
+            \Core\Session::flash('error', 'Solo se pueden eliminar aquí registros duplicados.');
+            $this->redirigir('simpatizantes/duplicados');
+        }
+        try {
+            $nombre = $modelo->eliminar((int)$id);
+            Auditoria::registrar('simpatizante_duplicado_eliminado', '#' . (int)$id . ' ' . $nombre);
+            \Core\Session::flash('ok', 'Registro duplicado de ' . $nombre . ' eliminado.');
+        } catch (\Throwable $e) {
+            \Core\Session::flash('error', 'No se pudo eliminar: el registro está en uso (' . $e->getMessage() . ').');
+        }
+        $this->redirigir('simpatizantes/duplicados');
+    }
+
     public function crear(): void
     {
         Auth::requerirRol('direccion', 'coordinador', 'lider', 'digitador');
@@ -193,7 +229,14 @@ class SimpatizantesController extends Controller
 
         if (!$modelo->pideGenero()) $v['genero'] = null;
         $v['created_by'] = Auth::id();
-        $modelo->crear($v);
+        try {
+            $modelo->crear($v);
+        } catch (\PDOException $ex) {
+            // Otro usuario lo guardó al mismo tiempo: el índice único de la base lo frena
+            if (!es_error_duplicado($ex)) throw $ex;
+            $this->formulario($this->validar($v, $modelo) ?: ['documento' => 'Este registro ya existe. No se permiten duplicados.'], $v);
+            return;
+        }
 
         Auditoria::registrar('simpatizante_creado', 'Documento ' . enmascarar($v['documento']) . ' · zona ' . $v['zona_id']);
         \Core\Session::flash('ok', 'Registro guardado correctamente. ¡Gracias por hacer crecer la campaña!');
@@ -205,8 +248,14 @@ class SimpatizantesController extends Controller
         $e = [];
         if ($msg = error_nombre_persona($v['nombre'], 'el')) $e['nombre'] = $msg;
         if ($msg = error_documento($v['documento']))       $e['documento'] = $msg;
-        elseif ($modelo->existeDocumento($v['documento'])) $e['documento'] = 'Este documento ya está registrado. No se permiten duplicados.';
         if ($msg = error_celular($v['telefono']))          $e['telefono'] = $msg;
+        // Sin duplicados: ni el documento ni el celular pueden repetirse
+        if (!isset($e['documento']) && $modelo->existeDocumento($v['documento'])) {
+            $e['documento'] = 'Este documento ya está registrado. No se permiten duplicados.';
+        }
+        if (!isset($e['telefono']) && $modelo->existeTelefono($v['telefono'])) {
+            $e['telefono'] = 'Este celular ya está registrado a otra persona. No se permiten duplicados.';
+        }
         if ($v['mesa'] !== null && ((int)$v['mesa'] < 1 || strlen($v['mesa']) > 4)) $e['mesa'] = 'Revisa el número de mesa.';
         if ($msg = simpatizante_error_nacimiento($v['fecha_nacimiento'])) $e['fecha_nacimiento'] = $msg;
         if ($modelo->pideGenero() && !isset(GENEROS[$v['genero']])) $e['genero'] = 'Selecciona el género.';

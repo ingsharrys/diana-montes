@@ -98,12 +98,12 @@ if (!$st->fetch()) error_campo('profesion_id', 'Cuéntanos a qué te dedicas.');
 if (!$consent) error_campo('consentimiento', 'Para registrarte necesitamos tu autorización de datos (Ley 1581 de 2012).');
 
 /* Duplicados */
-$st = $db->prepare('SELECT documento = :d AS mismo_doc FROM simpatizantes WHERE documento = :d2 OR telefono = :t LIMIT 1');
-$st->execute(['d' => $documento, 'd2' => $documento, 't' => $telefono]);
-if ($dup = $st->fetch()) {
-    if ($dup['mismo_doc']) salir(false, '¡Ya estás registrado/a en la red con este documento! Gracias por acompañarnos.');
-    error_campo('telefono', 'Este celular ya está registrado en la red. Si es de otra persona de tu familia, usa tu propio número.');
+// Duplicados: ni el documento ni el celular pueden repetirse
+function salir_duplicado(?string $campo): void {
+    if ($campo === 'documento') error_campo('documento', '¡Este documento ya está registrado en la red! Gracias por acompañarnos.');
+    if ($campo === 'telefono')  error_campo('telefono', 'Este celular ya está registrado en la red. Si es de otra persona de tu familia, usa tu propio número.');
 }
+salir_duplicado(simpatizante_duplicado($db, $documento, $telefono));
 
 /* Resolver quién invita: un miembro del equipo, un promotor ciudadano
    (su invitado hereda el líder del promotor) o la red directa de la candidata.
@@ -125,13 +125,19 @@ if ($liderId === null) {
 
 /* Guardar. Con la red de promotores activa, el nuevo simpatizante recibe
    de una vez su código para invitar, la llave de su panel y su nivel en la red. */
-$nuevo = simpatizante_insertar($db, [
-    'nombre' => $nombre, 'documento' => $documento, 'telefono' => $telefono,
-    'fecha_nacimiento' => $cumple, 'genero' => $pideGenero ? $genero : null,
-    'zona_id' => $zonaId, 'profesion_id' => $profId,
-    'nivel' => 'simpatizante', 'lider_id' => $liderId,
-    'referido_por' => $referidoPor, 'lat' => $lat, 'lng' => $lng,
-]);
+try {
+    $nuevo = simpatizante_insertar($db, [
+        'nombre' => $nombre, 'documento' => $documento, 'telefono' => $telefono,
+        'fecha_nacimiento' => $cumple, 'genero' => $pideGenero ? $genero : null,
+        'zona_id' => $zonaId, 'profesion_id' => $profId,
+        'nivel' => 'simpatizante', 'lider_id' => $liderId,
+        'referido_por' => $referidoPor, 'lat' => $lat, 'lng' => $lng,
+    ]);
+} catch (PDOException $e) {
+    // Dos envíos al mismo tiempo: el índice único de la base frena el segundo
+    if (es_error_duplicado($e)) salir_duplicado(simpatizante_duplicado($db, $documento, $telefono) ?? 'documento');
+    throw $e;
+}
 $promotor = $nuevo['token'] ? ['codigo' => $nuevo['codigo'], 'token' => $nuevo['token']] : null;
 
 /* Auditoría del registro público */

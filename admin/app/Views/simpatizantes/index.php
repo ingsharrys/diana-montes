@@ -55,6 +55,9 @@
   </select>
   <button class="btn btn-ghost" type="submit">Buscar</button>
   <span class="spacer"></span>
+  <?php if (\Core\Auth::tieneRol('direccion')): ?>
+  <a class="btn btn-ghost" href="<?= url('simpatizantes/duplicados') ?>">⧉ Duplicados</a>
+  <?php endif; ?>
   <a class="btn btn-ghost" href="<?= url('simpatizantes/verificar') ?>">✓ Completar y verificar</a>
   <a class="btn btn-gold" href="<?= url('simpatizantes/crear') ?>">＋ Nuevo registro</a>
 </form>
