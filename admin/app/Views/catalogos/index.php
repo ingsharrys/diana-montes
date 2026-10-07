@@ -13,6 +13,9 @@
 .cat-form .cf-label{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:-4px}
 
 .cat-lista{max-height:430px;overflow-y:auto;padding-right:4px}
+.cat-grupo{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--violeta);margin:10px 0 2px}
+.cat-grupo[hidden],.cat-item[hidden]{display:none}
+.cat-buscar{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;margin:10px 0 4px;background:#fff}
 .cat-lista::-webkit-scrollbar{width:6px}
 .cat-lista::-webkit-scrollbar-thumb{background:#D5DAE6;border-radius:99px}
 
@@ -44,13 +47,22 @@
         <input name="nombre" data-tipo="texto" minlength="3" maxlength="120" placeholder="Nombre del barrio o vereda" required>
         <select name="tipo" style="max-width:110px"><option value="urbano">Urbano</option><option value="rural">Rural</option></select>
       </div>
+      <?php if ($gruposZona): ?>
+      <input name="grupo" list="grupos-zona" data-tipo="texto" maxlength="60" placeholder="Zona urbana o corregimiento (ej. Zona Norte, Corregimiento Majo)">
+      <datalist id="grupos-zona"><?php foreach ($gruposZona as $g): ?><option value="<?= e($g) ?>"><?php endforeach; ?></datalist>
+      <?php endif; ?>
       <button type="submit">＋ Agregar zona</button>
     </form>
+    <input type="search" class="cat-buscar" placeholder="Buscar barrio o vereda…" aria-label="Buscar barrio o vereda"
+           oninput="const q=this.value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();this.nextElementSibling.querySelectorAll('.cat-item').forEach(i=>i.hidden=q&&!i.dataset.n.includes(q));this.nextElementSibling.querySelectorAll('.cat-grupo').forEach(g=>{let n=g.nextElementSibling,v=false;while(n&&!n.classList.contains('cat-grupo')){v=v||!n.hidden;n=n.nextElementSibling}g.hidden=!v})">
     <div class="cat-lista">
-      <?php foreach ($zonas as $z): $uso = (int)$z['uso']; ?>
-      <div class="cat-item">
+      <?php $grupoAnt = null; foreach ($zonas as $z): $uso = (int)$z['uso'];
+        $g = zona_grupo_etiqueta($z); if ($g !== $grupoAnt): $grupoAnt = $g; ?>
+      <div class="cat-grupo"><?= e($g) ?></div>
+      <?php endif; ?>
+      <div class="cat-item" data-n="<?= e(mb_strtolower(iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', zona_etiqueta($z) . ' ' . $g) ?: zona_etiqueta($z))) ?>">
         <span class="cat-nombre"><b><?= e($z['nombre']) ?></b>
-          <span class="tag <?= $z['tipo']==='rural'?'tag-gold':'tag-blue' ?>"><?= e($z['tipo']) ?></span>
+          <span class="tag <?= $z['tipo']==='rural'?'tag-gold':'tag-blue' ?>"><?= e($z['clase'] ? mb_strtolower($z['clase']) : $z['tipo']) ?></span>
         </span>
         <span class="cat-uso <?= $uso ? 'con-gente' : '' ?>" title="Personas registradas con esta zona"><?= $uso ?> 👤</span>
         <?php if (!$uso): ?>
@@ -73,9 +85,7 @@
         <input name="direccion" data-tipo="texto" maxlength="200" placeholder="Dirección (opcional)">
         <select name="zona_id">
           <option value="">Zona (opcional)</option>
-          <?php foreach ($zonasSimple as $z): ?>
-          <option value="<?= (int)$z['id'] ?>"><?= e($z['nombre']) ?></option>
-          <?php endforeach; ?>
+          <?= zonas_opciones($zonasSimple) ?>
         </select>
       </div>
       <button type="submit">＋ Agregar puesto</button>

@@ -9,6 +9,8 @@
  * aplique, el código sigue funcionando sin esa columna.
  */
 
+require_once __DIR__ . '/zonas_garzon.php';
+
 /** Opciones de género: valor guardado => etiqueta visible. */
 const GENEROS = [
     'mujer'   => 'Mujer',
@@ -200,6 +202,9 @@ function esquema_pasos(): array
             fn(PDO $db) => !esquema_tiene($db, 'wa_ocasiones') ? false
                 : (bool)$db->query("SELECT COUNT(*) FROM wa_ocasiones WHERE clave = 'invitacion_evento'")->fetchColumn()],
 
+        // ---------- Barrios y veredas de Garzón agrupados por zona urbana y corregimiento ----------
+        ['zonas', 'grupo', 'ALTER TABLE zonas ADD COLUMN grupo VARCHAR(60) NULL, ADD COLUMN clase VARCHAR(40) NULL', 'zona urbana o corregimiento de cada barrio y vereda'],
+        ['zonas', null, zonas_garzon_sql(), 'barrios y veredas de Garzón (Plan de Desarrollo 2024-2027)', fn(PDO $db) => zonas_garzon_cargadas($db)],
         ['wa_plantillas', 'categoria_solicitada', 'ALTER TABLE wa_plantillas ADD COLUMN categoria_solicitada VARCHAR(20) NULL', 'categoría pedida de las plantillas de WhatsApp'],
 
         // ---------- Sin duplicados: la base de datos rechaza un documento o celular repetido ----------
@@ -442,4 +447,76 @@ function simpatizante_error_nacimiento(string $fecha): ?string
     if ($f > new DateTime('today') || $edad > 110) return 'Revisa la fecha de nacimiento.';
     if ($edad < EDAD_MINIMA) return 'La red de la campaña es para mayores de ' . EDAD_MINIMA . ' años.';
     return null;
+}
+
+/* ======================= Barrios y veredas ======================= */
+
+/**
+ * Sentencias que cargan ZONAS_GARZON: agrega las que faltan y completa zona
+ * urbana o corregimiento de las que ya existen con el mismo nombre (sus
+ * registros no cambian). Deja la marca en configuración.
+ */
+function zonas_garzon_sql(): array
+{
+    $q = fn(string $t) => "'" . str_replace(["\\", "'"], ["\\\\", "\\'"], $t) . "'";
+    $filas = array_map(fn($z) => '(' . implode(', ', array_map($q, $z)) . ')', ZONAS_GARZON);
+    return [
+        'INSERT INTO zonas (nombre, tipo, clase, grupo) VALUES ' . implode(",\n", $filas) . '
+         ON DUPLICATE KEY UPDATE tipo = VALUES(tipo), clase = VALUES(clase), grupo = VALUES(grupo)',
+        "INSERT INTO configuracion (clave, valor) VALUES ('zonas_garzon', '" . count(ZONAS_GARZON) . " zonas PDM 2024-2027')
+         ON DUPLICATE KEY UPDATE valor = VALUES(valor)",
+    ];
+}
+
+/** ¿Ya se cargaron los barrios y veredas de Garzón? */
+function zonas_garzon_cargadas(PDO $db): bool
+{
+    if (!esquema_tiene($db, 'configuracion') || !esquema_tiene($db, 'zonas', 'grupo')) return false;
+    $st = $db->prepare("SELECT COUNT(*) FROM configuracion WHERE clave = 'zonas_garzon'");
+    $st->execute();
+    return (bool)$st->fetchColumn();
+}
+
+/** Zonas en orden de presentación: casco urbano por zona, luego rural por corregimiento, "Otra" al final. */
+function zonas_listar(PDO $db): array
+{
+    $conGrupo = esquema_tiene($db, 'zonas', 'grupo');
+    return $db->query($conGrupo
+        ? "SELECT id, nombre, tipo, grupo, clase FROM zonas
+           ORDER BY (nombre = 'Otra'), tipo, grupo IS NULL, grupo, (clase = 'Centro poblado') DESC, nombre"
+        : "SELECT id, nombre, tipo, NULL AS grupo, NULL AS clase FROM zonas ORDER BY (nombre = 'Otra'), tipo, nombre"
+    )->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/** Etiqueta del grupo (optgroup) de una zona. */
+function zona_grupo_etiqueta(array $z): string
+{
+    if ($z['nombre'] === 'Otra') return 'Otra';
+    $base = $z['tipo'] === 'rural' ? 'Zona rural' : 'Casco urbano';
+    return $z['grupo'] ? $base . ' · ' . $z['grupo'] : $base;
+}
+
+/** Nombre visible de una zona (aclara los centros poblados). */
+function zona_etiqueta(array $z): string
+{
+    $n = (string)$z['nombre'];
+    return ($z['clase'] ?? '') === 'Centro poblado' && !str_contains($n, 'centro poblado') ? $n . ' (centro poblado)' : $n;
+}
+
+/** <option> agrupados por zona urbana y corregimiento. */
+function zonas_opciones(array $zonas, $seleccionada = null): string
+{
+    $html = '';
+    $grupo = null;
+    foreach ($zonas as $z) {
+        $g = zona_grupo_etiqueta($z);
+        if ($g !== $grupo) {
+            if ($grupo !== null) $html .= '</optgroup>';
+            $html .= '<optgroup label="' . e($g) . '">';
+            $grupo = $g;
+        }
+        $html .= '<option value="' . (int)$z['id'] . '"' . ((int)$seleccionada === (int)$z['id'] ? ' selected' : '') . '>'
+               . e(zona_etiqueta($z)) . '</option>';
+    }
+    return $html . ($grupo !== null ? '</optgroup>' : '');
 }

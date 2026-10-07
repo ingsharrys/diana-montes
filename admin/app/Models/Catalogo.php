@@ -8,7 +8,7 @@ class Catalogo extends Model
 {
     public function zonas(): array
     {
-        return $this->consultar('SELECT id, nombre, tipo FROM zonas ORDER BY tipo, nombre');
+        return zonas_listar($this->db);
     }
 
     public function profesiones(): array
@@ -50,10 +50,9 @@ class Catalogo extends Model
 
     public function zonasConUso(): array
     {
-        return $this->consultar(
-            "SELECT z.id, z.nombre, z.tipo,
-                    (SELECT COUNT(*) FROM simpatizantes s WHERE s.zona_id = z.id) AS uso
-             FROM zonas z ORDER BY z.tipo, z.nombre");
+        $uso = [];
+        foreach ($this->consultar('SELECT zona_id, COUNT(*) AS c FROM simpatizantes GROUP BY zona_id') as $f) $uso[(int)$f['zona_id']] = (int)$f['c'];
+        return array_map(fn($z) => $z + ['uso' => $uso[(int)$z['id']] ?? 0], zonas_listar($this->db));
     }
 
     public function puestosConUso(): array
@@ -73,9 +72,21 @@ class Catalogo extends Model
              FROM profesiones p ORDER BY p.nombre");
     }
 
-    public function crearZona(string $nombre, string $tipo): bool
+    /** Zonas urbanas y corregimientos ya usados como grupo. */
+    public function gruposZona(): array
+    {
+        if (!esquema_tiene($this->db, 'zonas', 'grupo')) return [];
+        return array_column($this->consultar('SELECT DISTINCT tipo, grupo FROM zonas WHERE grupo IS NOT NULL ORDER BY tipo, grupo'), 'grupo');
+    }
+
+    public function crearZona(string $nombre, string $tipo, ?string $grupo = null): bool
     {
         try {
+            if (esquema_tiene($this->db, 'zonas', 'grupo')) {
+                $this->ejecutar('INSERT INTO zonas (nombre, tipo, grupo, clase) VALUES (:n, :t, :g, :c)',
+                    ['n' => $nombre, 't' => $tipo, 'g' => $grupo, 'c' => $tipo === 'rural' ? 'Vereda' : 'Barrio']);
+                return true;
+            }
             $this->ejecutar('INSERT INTO zonas (nombre, tipo) VALUES (:n, :t)', ['n' => $nombre, 't' => $tipo]);
             return true;
         } catch (\PDOException $e) { return false; } // duplicado

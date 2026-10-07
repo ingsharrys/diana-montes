@@ -71,7 +71,7 @@
           <span>Zona</span>
           <select name="zona_id">
             <option value="">Todas</option>
-            <?php foreach ($zonas as $z): ?><option value="<?= (int)$z['id'] ?>" <?= (int)($v['zona_id'] ?? 0) === (int)$z['id'] ? 'selected' : '' ?>><?= e($z['nombre']) ?></option><?php endforeach; ?>
+            <?= zonas_opciones($zonas, $v['zona_id'] ?? null) ?>
           </select>
         </label>
         <?php if ($lideres): ?>

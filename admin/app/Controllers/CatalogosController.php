@@ -24,6 +24,7 @@ class CatalogosController extends Controller
             'puestos'     => $cat->puestosConUso(),
             'profesiones' => $cat->profesionesConUso(),
             'zonasSimple' => $cat->zonas(),
+            'gruposZona'  => $cat->gruposZona(),
         ]);
     }
 
@@ -35,10 +36,11 @@ class CatalogosController extends Controller
 
         $nombre = limpiar_texto_catalogo((string)($_POST['nombre'] ?? '')) ?? '';
         $tipo   = ($_POST['tipo'] ?? '') === 'rural' ? 'rural' : 'urbano';
+        $grupo  = limpiar_texto_catalogo((string)($_POST['grupo'] ?? ''), 60);
 
         if (mb_strlen($nombre) < 3) { Session::flash('error', 'Escribe el nombre del barrio o vereda (letras y números, sin símbolos raros).'); $this->redirigir('catalogos'); }
 
-        if ((new Catalogo())->crearZona($nombre, $tipo)) {
+        if ((new Catalogo())->crearZona($nombre, $tipo, $grupo)) {
             Auditoria::registrar('catalogo_zona_creada', $nombre . ' (' . $tipo . ')');
             Session::flash('ok', 'Zona "' . $nombre . '" creada: ya aparece en la landing.');
         } else {
