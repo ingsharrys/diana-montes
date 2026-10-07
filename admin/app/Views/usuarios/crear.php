@@ -35,12 +35,9 @@
 
       <label class="field <?= isset($errores['zona_id']) ? 'has-error' : '' ?>">
         <span>Zona a cargo</span>
-        <select name="zona_id">
+        <select name="zona_id" data-buscar="Buscar barrio o vereda…">
           <option value="">Sin zona específica</option>
-          <?php foreach ($zonas as $z): ?>
-            <option value="<?= (int)$z['id'] ?>" <?= (int)($v['zona_id'] ?? 0) === (int)$z['id'] ? 'selected' : '' ?>>
-              <?= e($z['nombre']) ?> (<?= e($z['tipo']) ?>)</option>
-          <?php endforeach; ?>
+          <?= zonas_opciones($zonas, $v['zona_id'] ?? null) ?>
         </select>
         <?php if (isset($errores['zona_id'])): ?><em><?= e($errores['zona_id']) ?></em><?php endif; ?>
       </label>

@@ -211,10 +211,61 @@
   css.textContent = 'em.v-error{display:block;color:#B4123F;font-size:12px;font-style:normal;font-weight:600;margin-top:5px;line-height:1.4}'
     + 'em[hidden]{display:none!important}'
     + '[aria-invalid="true"]{border-color:#E34948!important;background:#FFF7F8!important}'
-    + 'label.has-error{border-color:#F7C4CE!important}';
+    + 'label.has-error{border-color:#F7C4CE!important}'
+    + 'input.v-buscar{width:100%;margin-bottom:6px;font-size:15px}';
   document.head.appendChild(css);
 
+  /* ---------- buscador para listas largas: <select data-buscar="Texto de ayuda"> ---------- */
+  function sinTildes(t) { return t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+
+  function buscador(sel) {
+    if (sel.dataset.vBuscar) return;
+    sel.dataset.vBuscar = '1';
+    // copia de las opciones originales (con sus grupos) para reconstruir la lista al filtrar
+    var vacia = sel.querySelector('option[value=""]');
+    var vaciaTxt = vacia ? vacia.textContent : '';
+    var grupos = [];
+    Array.prototype.forEach.call(sel.children, function (n) {
+      if (n.tagName === 'OPTGROUP') {
+        grupos.push({ label: n.label, ops: Array.prototype.map.call(n.children, function (o) { return [o.value, o.textContent]; }) });
+      } else if (n.value !== '') {
+        grupos.push({ label: null, ops: [[n.value, n.textContent]] });
+      }
+    });
+    var caja = document.createElement('input');
+    caja.type = 'search';
+    caja.className = 'v-buscar';
+    caja.placeholder = sel.dataset.buscar || 'Buscar…';
+    caja.setAttribute('aria-label', caja.placeholder);
+    caja.autocomplete = 'off';
+    sel.parentNode.insertBefore(caja, sel);
+
+    function pintar(q) {
+      var actual = sel.value, total = 0, unica = null;
+      sel.innerHTML = '';
+      var v = document.createElement('option'); v.value = ''; v.textContent = vaciaTxt || 'Selecciona…'; sel.appendChild(v);
+      grupos.forEach(function (g) {
+        var cabe = q ? sinTildes((g.label || '') + ' ').indexOf(q) !== -1 : true;
+        var ops = g.ops.filter(function (o) { return cabe || sinTildes(o[1]).indexOf(q) !== -1; });
+        if (!ops.length) return;
+        var destino = sel;
+        if (g.label) { destino = document.createElement('optgroup'); destino.label = g.label; sel.appendChild(destino); }
+        ops.forEach(function (o) {
+          var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1];
+          destino.appendChild(op); total++; unica = o[0];
+        });
+      });
+      if (q && !total) v.textContent = 'Sin resultados para "' + caja.value + '"';
+      else if (q) v.textContent = total + ' resultado' + (total === 1 ? '' : 's') + ': elige aquí';
+      else v.textContent = vaciaTxt || 'Selecciona…';
+      if (q && total === 1) { sel.value = unica; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+      else sel.value = Array.prototype.some.call(sel.options, function (o) { return o.value === actual; }) ? actual : '';
+    }
+    caja.addEventListener('input', function () { pintar(sinTildes(caja.value.trim())); });
+  }
+
   function iniciar() {
+    document.querySelectorAll('select[data-buscar]').forEach(buscador);
     document.querySelectorAll('form[data-validar]').forEach(preparar);
     document.querySelectorAll('[data-tipo]').forEach(filtrar);
   }

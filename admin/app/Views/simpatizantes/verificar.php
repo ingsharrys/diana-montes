@@ -34,9 +34,7 @@ $enlace = function (array $cambios) use ($filtros): string {
     <input type="search" name="q" placeholder="Buscar nombre o documento…" value="<?= e($filtros['q']) ?>">
     <select name="zona" onchange="this.form.submit()" aria-label="Zona">
       <option value="0">Todas las zonas</option>
-      <?php foreach ($zonas as $z): ?>
-        <option value="<?= (int)$z['id'] ?>" <?= $filtros['zona'] === (int)$z['id'] ? 'selected' : '' ?>><?= e($z['nombre']) ?></option>
-      <?php endforeach; ?>
+      <?= zonas_opciones($zonas, $filtros['zona']) ?>
     </select>
     <button class="btn btn-ghost" type="submit">Buscar</button>
   </form>

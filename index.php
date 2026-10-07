@@ -11,7 +11,7 @@ session_start();
 
 /* Catálogos desde la BD (con respaldo por si la BD no responde) */
 try {
-    $zonas = db()->query('SELECT id, nombre, tipo FROM zonas ORDER BY tipo, nombre')->fetchAll();
+    $zonas = zonas_listar(db());   // agrupadas por zona urbana y corregimiento
     $profesiones = db()->query('SELECT id, nombre FROM profesiones ORDER BY id')->fetchAll();
     $pideGenero = esquema_tiene(db(), 'simpatizantes', 'genero');
     $pideClave  = esquema_tiene(db(), 'simpatizantes', 'clave_hash'); // acceso al panel /mi/
@@ -501,11 +501,9 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
         <div class="campos-2">
           <div class="campo">
             <label for="f-zona">Barrio o vereda</label>
-            <select id="f-zona" name="zona_id" required data-msg="Cuéntanos tu barrio o vereda.">
+            <select id="f-zona" name="zona_id" required data-buscar="Escribe tu barrio o vereda…" data-msg="Cuéntanos tu barrio o vereda.">
               <option value="">Selecciona…</option>
-              <?php foreach ($zonas as $z): ?>
-              <option value="<?= (int)$z['id'] ?>"><?= e($z['nombre']) ?></option>
-              <?php endforeach; ?>
+              <?= zonas_opciones($zonas) ?>
             </select>
           </div>
           <div class="campo">
