@@ -472,9 +472,10 @@ function zonas_garzon_sql(): array
 function zonas_garzon_cargadas(PDO $db): bool
 {
     if (!esquema_tiene($db, 'configuracion') || !esquema_tiene($db, 'zonas', 'grupo')) return false;
-    $st = $db->prepare("SELECT COUNT(*) FROM configuracion WHERE clave = 'zonas_garzon'");
+    // La marca guarda cuántas zonas se cargaron: si la lista crece, se vuelve a ofrecer la actualización
+    $st = $db->prepare("SELECT valor FROM configuracion WHERE clave = 'zonas_garzon'");
     $st->execute();
-    return (bool)$st->fetchColumn();
+    return (int)$st->fetchColumn() >= count(ZONAS_GARZON);
 }
 
 /** Zonas en orden de presentación: casco urbano por zona, luego rural por corregimiento, "Otra" al final. */

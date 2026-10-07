@@ -1,4 +1,4 @@
--- 004: Barrios y veredas de Garzón (Plan de Desarrollo 2024-2027, verificación 6-oct-2026).
+-- 004: Barrios y veredas de Garzón (Plan de Desarrollo 2024-2027 + barrios del PBOT 2018, verificación 6-oct-2026).
 -- Normalmente NO hace falta: "Actualizar plataforma" en el admin hace esto solo.
 -- Úsalo en phpMyAdmin solo si la actualización automática falla. Es seguro repetirlo
 -- (las zonas existentes se conservan; solo se completa su zona urbana o corregimiento).
@@ -7,7 +7,6 @@ SET NAMES utf8mb4;
 
 -- Si la tabla zonas ya tiene las columnas grupo y clase, omite esta línea:
 ALTER TABLE zonas ADD COLUMN grupo VARCHAR(60) NULL, ADD COLUMN clase VARCHAR(40) NULL;
-
 INSERT INTO zonas (nombre, tipo, clase, grupo) VALUES ('San Isidro', 'urbano', 'Barrio', 'Zona Norte'),
 ('Bajo Sartenejo', 'urbano', 'Barrio', 'Zona Norte'),
 ('Valle del Casa Loma', 'urbano', 'Barrio', 'Zona Norte'),
@@ -115,6 +114,13 @@ INSERT INTO zonas (nombre, tipo, clase, grupo) VALUES ('San Isidro', 'urbano', '
 ('Bosques del Café', 'urbano', 'Urbanización', 'Zona Centro Sur Oriental'),
 ('Octavio Martínez', 'urbano', 'Urbanización', 'Zona Centro Sur Oriental'),
 ('San Carlos', 'urbano', 'Urbanización', 'Zona Centro Sur Oriental'),
+('Cristo Rey', 'urbano', 'Barrio', 'Zona por confirmar (PBOT 2018)'),
+('Nueva Esperanza Real', 'urbano', 'Barrio', 'Zona por confirmar (PBOT 2018)'),
+('San Lorenzo', 'urbano', 'Barrio', 'Zona por confirmar (PBOT 2018)'),
+('Alto Garzón', 'urbano', 'Asentamiento', 'Zona por confirmar (PBOT 2018)'),
+('Brisas del Oriente', 'urbano', 'Asentamiento', 'Zona por confirmar (PBOT 2018)'),
+('Pastranista e Israelitas', 'urbano', 'Asentamiento', 'Zona por confirmar (PBOT 2018)'),
+('San Felipe', 'urbano', 'Asentamiento', 'Zona por confirmar (PBOT 2018)'),
 ('Descanso', 'rural', 'Centro poblado', 'Corregimiento Descanso'),
 ('Filo de Guayabal', 'rural', 'Vereda', 'Corregimiento Descanso'),
 ('La Orquídea', 'rural', 'Vereda', 'Corregimiento Descanso'),
@@ -222,5 +228,5 @@ INSERT INTO zonas (nombre, tipo, clase, grupo) VALUES ('San Isidro', 'urbano', '
 ('El Vergel', 'rural', 'Vereda', 'Corregimiento Zuluaga')
          ON DUPLICATE KEY UPDATE tipo = VALUES(tipo), clase = VALUES(clase), grupo = VALUES(grupo);
 
-INSERT INTO configuracion (clave, valor) VALUES ('zonas_garzon', '212 zonas PDM 2024-2027')
+INSERT INTO configuracion (clave, valor) VALUES ('zonas_garzon', '219 zonas PDM 2024-2027')
          ON DUPLICATE KEY UPDATE valor = VALUES(valor);

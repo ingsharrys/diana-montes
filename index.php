@@ -502,7 +502,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
           <div class="campo">
             <label for="f-zona">Barrio o vereda</label>
             <select id="f-zona" name="zona_id" required data-buscar="Escribe tu barrio o vereda…" data-msg="Cuéntanos tu barrio o vereda.">
-              <option value="">Selecciona…</option>
+              <option value="">Busca y elige tu barrio o vereda</option>
               <?= zonas_opciones($zonas) ?>
             </select>
           </div>
