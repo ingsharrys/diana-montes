@@ -69,6 +69,7 @@ $zonaId    = (int)($_POST['zona_id'] ?? 0);
 $profId    = (int)($_POST['profesion_id'] ?? 0);
 $ref       = trim((string)($_POST['ref'] ?? ''));
 $consent   = !empty($_POST['consentimiento']);
+$clave     = is_string($_POST['clave'] ?? null) ? $_POST['clave'] : '';
 
 // Ubicación aproximada: solo si el ciudadano marcó la casilla y el navegador la entregó
 $lat = $lng = null;
@@ -89,6 +90,10 @@ $db = db();
 // El género se pide desde que la plataforma se actualiza (columna creada)
 $pideGenero = esquema_tiene($db, 'simpatizantes', 'genero');
 if ($pideGenero && !isset(GENEROS[$genero])) error_campo('genero', 'Selecciona tu género.');
+
+// Clave del panel personal (/mi/): se pide desde que la plataforma se actualiza
+$pideClave = esquema_tiene($db, 'simpatizantes', 'clave_hash');
+if ($pideClave && ($error = error_clave($clave, $documento))) error_campo('clave', $error);
 
 /* Zona y profesión deben existir en los catálogos */
 $st = $db->prepare('SELECT id FROM zonas WHERE id = :id'); $st->execute(['id' => $zonaId]);
@@ -132,13 +137,14 @@ try {
         'zona_id' => $zonaId, 'profesion_id' => $profId,
         'nivel' => 'simpatizante', 'lider_id' => $liderId,
         'referido_por' => $referidoPor, 'lat' => $lat, 'lng' => $lng,
+        'clave_hash' => $pideClave ? password_hash($clave, PASSWORD_DEFAULT) : null,
     ]);
 } catch (PDOException $e) {
     // Dos envíos al mismo tiempo: el índice único de la base frena el segundo
     if (es_error_duplicado($e)) salir_duplicado(simpatizante_duplicado($db, $documento, $telefono) ?? 'documento');
     throw $e;
 }
-$promotor = $nuevo['token'] ? ['codigo' => $nuevo['codigo'], 'token' => $nuevo['token']] : null;
+$promotor = $nuevo['token'] ? ['codigo' => $nuevo['codigo'], 'token' => $nuevo['token'], 'usuario' => $pideClave ? $documento : null] : null;
 
 /* Auditoría del registro público */
 $db->prepare('INSERT INTO auditoria (usuario_id, accion, detalle, ip)

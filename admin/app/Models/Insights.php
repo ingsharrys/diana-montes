@@ -61,11 +61,13 @@ class Insights extends Model
         [$w, $p] = $this->alcance('pr');
         $umbralPromotor = (int)PROMOTOR_NIVELES[1][0];
         $umbralSuper    = (int)PROMOTOR_NIVELES[2][0];
+        // Niveles por puntos (antes de actualizar la plataforma: 10 puntos por invitado)
+        $puntos = red_portal_listo($this->db) ? 'MAX(pr.puntos)' : RED_PUNTOS_INVITADO . ' * COUNT(*)';
         $f = $this->consultarUno(
             "SELECT COUNT(*) AS activos,
-                    COALESCE(SUM(t.c >= $umbralPromotor), 0) AS promotores,
-                    COALESCE(SUM(t.c >= $umbralSuper), 0)    AS super
-             FROM (SELECT r.referido_por, COUNT(*) AS c
+                    COALESCE(SUM(t.p >= $umbralPromotor), 0) AS promotores,
+                    COALESCE(SUM(t.p >= $umbralSuper), 0)    AS super
+             FROM (SELECT r.referido_por, $puntos AS p
                    FROM simpatizantes r JOIN simpatizantes pr ON pr.id = r.referido_por
                    WHERE 1=1 $w GROUP BY r.referido_por) t", $p
         );

@@ -62,12 +62,23 @@
   <a class="btn btn-gold" href="<?= url('simpatizantes/crear') ?>">＋ Nuevo registro</a>
 </form>
 
+<?php if ($ct = \Core\Session::get('clave_temporal')): unset($_SESSION['clave_temporal']);
+  $msgClave = '¡Hola ' . strtok($ct['nombre'], ' ') . '! 👋 Este es tu acceso al panel de la red de Diana Lucía Montes: '
+            . rtrim(LANDING_URL, '/') . '/mi/ · Usuario: ' . $ct['documento'] . ' · Clave temporal: ' . $ct['clave']
+            . ' (al entrar te pedirá crear una nueva).'; ?>
+<div class="alert alert-ok clave-temp" style="font-weight:500">
+  <span>🔑 Clave temporal de <b><?= e($ct['nombre']) ?></b>: <code><?= e($ct['clave']) ?></code><br>
+    <span class="small">Usuario: su documento. Al entrar a <?= e(rtrim(LANDING_URL, '/')) ?>/mi le pedirá crear una clave propia. Esta clave no se vuelve a mostrar.</span></span>
+  <a class="btn btn-wa" target="_blank" rel="noopener" href="https://wa.me/<?= $esDireccion ? '57' . e($ct['telefono']) : '' ?>?text=<?= rawurlencode($msgClave) ?>">📲 Enviársela por WhatsApp</a>
+</div>
+<?php endif; ?>
+
 <div class="card">
   <h3>Base de simpatizantes <span class="tag tag-grey"><?= count($lista) ?> resultados</span></h3>
   <div class="tbl-wrap">
   <table>
     <tr><th>Nombre</th><th>Documento</th><th>WhatsApp</th><th>Zona</th><th>Profesión</th><th>Compromiso</th>
-        <?php if ($redActiva): ?><th style="text-align:center" title="Personas que se registraron con su enlace personal">Invitados</th><?php endif; ?>
+        <?php if ($redActiva): ?><th style="text-align:center" title="Invitados que se registraron con su enlace personal · puntos y nivel en la red">Invitados · puntos</th><?php endif; ?>
         <th>Líder</th><th>Registro</th>
         <?php if ($redActiva): ?><th>Panel</th><?php endif; ?></tr>
     <?php if (!$lista): ?>
@@ -83,7 +94,8 @@
       <td><span class="tag <?= in_array($s['nivel'], COMPROMISOS_SEGUROS, true) ? 'tag-green' : ($s['nivel'] === 'indeciso' ? 'tag-grey' : 'tag-blue') ?>">
         <?= e(compromiso_etiqueta($s['nivel'])) ?></span></td>
       <?php if ($redActiva): ?>
-      <td style="text-align:center"><b><?= (int)$s['invitados'] ?></b><?= (int)$s['invitados'] > 0 ? ' ' . promotor_nivel((int)$s['invitados'])['actual'][2] : '' ?></td>
+      <?php $pts = red_puntos_fila($s); ?>
+      <td style="text-align:center;white-space:nowrap"><b><?= (int)$s['invitados'] ?></b> · <?= $pts ?> pts <span title="<?= e(promotor_nivel($pts)['actual'][1]) ?>"><?= promotor_nivel($pts)['actual'][2] ?></span></td>
       <?php endif; ?>
       <td><?= e($s['lider']) ?></td>
       <td class="muted"><?= fecha_co($s['created_at']) ?></td>
@@ -91,11 +103,18 @@
       <td>
         <?php if (!empty($s['token_panel'])):
           $msgPanel = '¡Hola ' . strtok($s['nombre'], ' ') . '! 👋 Gracias por sumarte a la campaña de Diana. '
-                    . 'Este es tu panel de promotor: ahí tienes tu enlace personal y tu QR para invitar a tu familia y amigos, '
-                    . 'y tu puesto en el ranking: ' . LANDING_URL . '/promotor.php?t=' . $s['token_panel'];
+                    . 'Este es tu panel: ahí tienes tu enlace y tu QR para invitar, tus tareas, tus puntos '
+                    . 'y tu puesto en el ranking: ' . rtrim(LANDING_URL, '/') . '/mi/?t=' . $s['token_panel'];
           // Con teléfono completo solo quien puede verlo (dirección/coordinación); el resto elige el contacto en WhatsApp
           $waPanel = 'https://wa.me/' . ($esDireccion ? '57' . $s['telefono'] : '') . '?text=' . rawurlencode($msgPanel); ?>
-          <a class="btn btn-ghost btn-mini" target="_blank" rel="noopener" href="<?= e($waPanel) ?>" title="Enviarle su panel de promotor por WhatsApp">📲 Enviar</a>
+          <a class="btn btn-ghost btn-mini" target="_blank" rel="noopener" href="<?= e($waPanel) ?>" title="Enviarle el enlace de su panel por WhatsApp">📲 Enviar</a>
+        <?php endif; ?>
+        <?php if (array_key_exists('tiene_clave', $s) && \Core\Auth::tieneRol('direccion', 'coordinador', 'lider')): ?>
+          <form method="post" action="<?= url('simpatizantes/clave/' . (int)$s['id']) ?>" style="display:inline"
+                onsubmit="return confirm('¿Generar una clave temporal para <?= e(strtok($s['nombre'], ' ')) ?>? Su clave actual dejará de servir.')">
+            <?= \Core\Csrf::campo() ?>
+            <button class="btn btn-ghost btn-mini" type="submit" title="<?= $s['tiene_clave'] ? 'Ya tiene clave' . ($s['ultimo_acceso'] ? ' · último acceso ' . fecha_co($s['ultimo_acceso']) : '') . '. Genera una temporal si la olvidó.' : 'Aún no tiene clave: genérale una temporal' ?>">🔑 <?= $s['tiene_clave'] ? 'Clave' : 'Dar clave' ?></button>
+          </form>
         <?php endif; ?>
       </td>
       <?php endif; ?>

@@ -300,3 +300,21 @@ code{font-size:.92em}
 .google-hint{color:var(--muted);font-size:11.5px;text-align:center;margin-top:8px}
 .divider{display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--muted);font-size:11.5px}
 .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* ===== Tareas de la red ===== */
+.kpi-mini{display:flex;flex-direction:column;gap:2px;padding:14px 16px}
+.kpi-mini b{font-family:var(--head,inherit);font-size:24px;line-height:1.1}
+.kpi-mini.kpi-alerta{border:1.5px solid #F2C46D;background:#FFF9EC}
+.kpi-mini.activo{outline:2px solid var(--violeta)}
+.txt-alerta{color:#B7791F}
+.tag-red{background:#FDECEF;color:#B4123F}
+.field-titulo{display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:6px}
+.opciones-modo{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.op-modo{display:flex;flex-direction:column;gap:2px;border:1.5px solid var(--line);border-radius:12px;padding:12px 12px 12px 36px;position:relative;cursor:pointer;background:#FCFBFE}
+.op-modo input{position:absolute;left:12px;top:14px;accent-color:var(--violeta)}
+.op-modo b{font-size:13.5px}
+.op-modo span{font-size:12px;color:var(--muted)}
+.op-modo:has(input:checked){border-color:var(--violeta);background:#F6F1FE}
+@media(max-width:720px){.opciones-modo{grid-template-columns:1fr}}
+.clave-temp{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.clave-temp code{font-size:18px;font-weight:800;background:#fff;border:1px dashed var(--violeta);border-radius:8px;padding:4px 10px}

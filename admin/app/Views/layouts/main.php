@@ -10,6 +10,7 @@ $menu = [
     ['simpatizantes',       'personas',  'Simpatizantes', null],
     ['simpatizantes/crear', 'registrar', 'Registrar',     null],
     ['simpatizantes/verificar', 'verificar', 'Verificar', null],
+    ['tareas',              'tareas',    'Tareas',        ['direccion', 'coordinador', 'lider']],
     ['red',                 'red',       'Red',           null],
     ['mapa',                'mapa',      'Mapa',          null],
     ['whatsapp',            'whatsapp',  'WhatsApp',      ['direccion', 'coordinador']],

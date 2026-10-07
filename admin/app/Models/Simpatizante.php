@@ -12,6 +12,23 @@ class Simpatizante extends Model
         ) !== null;
     }
 
+    /** Quién invitó a este simpatizante (id) o null. */
+    public function referidoPor(int $id): ?int
+    {
+        if (!esquema_tiene($this->db, 'simpatizantes', 'referido_por')) return null;
+        $f = $this->consultarUno('SELECT referido_por FROM simpatizantes WHERE id = :id', ['id' => $id]);
+        return $f && $f['referido_por'] ? (int)$f['referido_por'] : null;
+    }
+
+    /** Datos mínimos para generar una clave temporal (respeta la red del líder). */
+    public function paraClave(int $id, ?int $soloLiderId): ?array
+    {
+        $sql = 'SELECT id, nombre, telefono, documento, lider_id FROM simpatizantes WHERE id = :id';
+        $p = ['id' => $id];
+        if ($soloLiderId !== null) { $sql .= ' AND lider_id = :l'; $p['l'] = $soloLiderId; }
+        return $this->consultarUno($sql, $p);
+    }
+
     public function existeTelefono(string $telefono): bool
     {
         return $this->consultarUno(
@@ -33,6 +50,7 @@ class Simpatizante extends Model
     {
         $extra = $this->redPromotoresActiva()
             ? ', s.token_panel, (SELECT COUNT(*) FROM simpatizantes r WHERE r.referido_por = s.id) AS invitados'
+              . (red_portal_listo($this->db) ? ', s.puntos, (s.clave_hash IS NOT NULL) AS tiene_clave, s.ultimo_acceso' : '')
             : '';
         $sql = 'SELECT s.id, s.nombre, s.documento, s.telefono, s.nivel, s.created_at,
                        z.nombre AS zona, p.nombre AS profesion, u.nombre AS lider' . $extra . '
@@ -112,12 +130,14 @@ class Simpatizante extends Model
                             ['padre' => $s['referido_por'], 'id' => $id]);
             if (esquema_tiene($this->db, 'wa_mensajes'))  $this->ejecutar('DELETE FROM wa_mensajes WHERE simpatizante_id = :id', ['id' => $id]);
             if (esquema_tiene($this->db, 'wa_entrantes')) $this->ejecutar('UPDATE wa_entrantes SET simpatizante_id = NULL WHERE simpatizante_id = :id', ['id' => $id]);
+            if (esquema_tiene($this->db, 'tarea_asignaciones')) $this->ejecutar('DELETE FROM tarea_asignaciones WHERE simpatizante_id = :id', ['id' => $id]);
             $this->ejecutar('DELETE FROM simpatizantes WHERE id = :id', ['id' => $id]);
             $this->db->commit();
         } catch (\Throwable $e) {
             $this->db->rollBack();
             throw $e;
         }
+        if ($s['referido_por']) red_actualizar_puntos($this->db, (int)$s['referido_por']);
         return $s['nombre'];
     }
 
@@ -233,7 +253,8 @@ class Simpatizante extends Model
     /** Top de promotores ciudadanos por invitados directos. */
     public function rankingPromotores(int $limite = 10, ?int $soloLiderId = null): array
     {
-        $sql = 'SELECT p.id, p.nombre, z.nombre AS zona, u.nombre AS lider, COUNT(r.id) AS invitados
+        $pts = red_portal_listo($this->db) ? 'MAX(p.puntos)' : 'NULL';
+        $sql = 'SELECT p.id, p.nombre, z.nombre AS zona, u.nombre AS lider, COUNT(r.id) AS invitados, ' . $pts . ' AS puntos
                 FROM simpatizantes r
                 JOIN simpatizantes p ON p.id = r.referido_por
                 JOIN usuarios u      ON u.id = p.lider_id

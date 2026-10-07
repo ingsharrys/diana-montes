@@ -124,12 +124,38 @@ class SimpatizantesController extends Controller
         if (!isset(compromisos_disponibles(\Core\Database::conexion())[$nivel])) $responder(false, 'Elige el nivel de compromiso.');
 
         $modelo->actualizarBase((int)$id, $puestoId, $mesa, $nivel, $verificado, (int)Auth::id());
+        // Un invitado confirmado como voto seguro da puntos extra a quien lo invitó
+        if ($padre = $modelo->referidoPor((int)$id)) red_actualizar_puntos(\Core\Database::conexion(), $padre);
         Auditoria::registrar($verificado ? 'simpatizante_verificado' : 'simpatizante_completado',
             $s['nombre'] . ' · ' . compromiso_etiqueta($nivel) . ($puesto ? ' · ' . $puesto['nombre'] . ($mesa ? " mesa $mesa" : '') : ''));
 
         $responder(true, $verificado ? 'Verificado ✓' : 'Guardado ✓', [
             'verificado' => $verificado && $modelo->conVerificacion() ? 'Hoy · ' . (Auth::usuario()['nombre'] ?? '') : null,
         ]);
+    }
+
+    /**
+     * Genera una clave temporal para que la persona entre a su panel (/mi/).
+     * Al entrar con ella, el panel le pide crear una propia.
+     */
+    public function clave(string $id = '0'): void
+    {
+        Auth::requerirRol('direccion', 'coordinador', 'lider');
+        if (!$this->esPost()) $this->redirigir('simpatizantes');
+        $this->validarCsrf();
+        $db = \Core\Database::conexion();
+        if (!red_portal_listo($db)) { \Core\Session::flash('error', 'Primero pulsa "Actualizar plataforma" en Inicio.'); $this->redirigir('simpatizantes'); }
+
+        $s = (new Simpatizante())->paraClave((int)$id, Auth::tieneRol('lider') ? Auth::id() : null);
+        if (!$s) { \Core\Session::flash('error', 'Ese simpatizante no es de tu red.'); $this->redirigir('simpatizantes'); }
+
+        $clave = red_clave_temporal();
+        red_guardar_clave($db, (int)$s['id'], $clave, true);
+        Auditoria::registrar('simpatizante_clave_temporal', $s['nombre'] . ' (#' . (int)$s['id'] . ')');
+        \Core\Session::set('clave_temporal', [
+            'nombre' => $s['nombre'], 'documento' => $s['documento'], 'telefono' => $s['telefono'], 'clave' => $clave,
+        ]);
+        $this->redirigir('simpatizantes');
     }
 
     /** Registros con documento o celular repetido, para dejar uno solo. */
