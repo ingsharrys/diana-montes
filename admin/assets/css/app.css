@@ -318,3 +318,6 @@ code{font-size:.92em}
 @media(max-width:720px){.opciones-modo{grid-template-columns:1fr}}
 .clave-temp{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .clave-temp code{font-size:18px;font-weight:800;background:#fff;border:1px dashed var(--violeta);border-radius:8px;padding:4px 10px}
+#nuevaVars .var-fila{display:flex;gap:8px;align-items:center;margin-top:6px}
+#nuevaVars select{border:1.5px solid var(--line);border-radius:9px;padding:7px 10px;background:#fff;min-width:260px}
+.form-sugerida{margin-top:10px}

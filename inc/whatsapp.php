@@ -507,3 +507,161 @@ function wa_sincronizar_plantillas(PDO $db): array
     }
     return [$n, null];
 }
+
+/* ======================= Crear plantillas desde la plataforma ======================= */
+
+/** Valores de ejemplo de cada variable: Meta los pide para revisar la plantilla. */
+const WA_EJEMPLOS = [
+    'primer_nombre' => 'María', 'nombre' => 'María Pérez', 'profesion' => 'Docente', 'zona' => 'Centro',
+    'lider' => 'Carlos', 'enlace_panel' => 'https://dianamontes.com/mi/', 'enlace_invitacion' => 'https://dianamontes.com/',
+    'invitado' => 'Ana P.', 'nivel_promotor' => 'Súper Promotor', 'tarea' => 'Reunión con vecinos del barrio',
+    'fecha_tarea' => 'sáb 18 oct, 4:00 p. m.', 'lugar_tarea' => 'Salón comunal', 'enlace_portal' => 'https://dianamontes.com/mi/',
+];
+
+/** Categorías de Meta y cómo se muestran. */
+const WA_CATEGORIAS = [
+    'UTILITY'        => 'Servicio (utilidad)',
+    'MARKETING'      => 'Marketing',
+    'AUTHENTICATION' => 'Autenticación',
+];
+
+/** Idiomas de plantilla que se ofrecen (código de Meta => nombre). */
+const WA_IDIOMAS = ['es' => 'Español', 'es_CO' => 'Español (Colombia)', 'es_MX' => 'Español (México)', 'es_ES' => 'Español (España)'];
+
+/**
+ * Plantillas listas para enviar a Meta desde Admin › WhatsApp › Plantillas:
+ * nombre => [categoría pedida, ocasiones que la usan, variables en orden, texto].
+ * Meta decide la categoría final: los saludos son marketing; los avisos de la
+ * cuenta (registro, tareas) se piden como servicio y Meta puede cambiarlos.
+ */
+const WA_PLANTILLAS_SUGERIDAS = [
+    'registro_exitoso' => ['UTILITY', ['bienvenida'], 'primer_nombre, enlace_portal',
+        "Hola, {{1}}. Tu registro en la red de Diana Lucía Montes quedó confirmado. Tu usuario para entrar a tu panel es tu número de documento y tu clave es la que creaste al registrarte. Entra aquí: {{2}}\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    'nuevo_invitado_red' => ['UTILITY', ['nuevo_invitado'], 'primer_nombre, invitado, enlace_portal',
+        "Hola, {{1}}. {{2}} se registró en tu red usando tu enlace personal. Puedes ver tu red y tus puntos en tu panel: {{3}}\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    'tarea_asignada' => ['UTILITY', ['tarea_asignada'], 'primer_nombre, tarea, fecha_tarea, enlace_portal',
+        "Hola, {{1}}. Tienes una nueva tarea en la red de Diana Lucía Montes: {{2}} (fecha: {{3}}). Revísala y cuéntanos si la puedes hacer en tu panel: {{4}}\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    'invitacion_evento' => ['UTILITY', ['invitacion_evento'], 'primer_nombre, tarea, fecha_tarea, lugar_tarea, enlace_portal',
+        "Hola, {{1}}. Te invitamos a {{2}} el {{3}} en {{4}}. Confirma si asistirás desde tu panel: {{5}}\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    'subiste_nivel' => ['MARKETING', ['sube_nivel'], 'primer_nombre, nivel_promotor, enlace_portal',
+        "¡Felicitaciones, {{1}}! ⭐ Ya eres {{2}} de la red de Diana Lucía Montes. Mira lo que desbloqueaste en tu panel: {{3}}\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    'saludo_cumpleanos' => ['MARKETING', ['cumpleanos'], 'primer_nombre',
+        "¡Feliz cumpleaños, {{1}}! 🎂 Que este nuevo año de vida llegue lleno de salud y alegrías para ti y tu familia. Un abrazo grande de Diana Lucía Montes y todo el equipo.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    'saludo_profesion' => ['MARKETING', ['profesion'], 'primer_nombre, profesion',
+        "¡Feliz día, {{1}}! 🎉 Hoy celebramos a quienes, como tú, se dedican a {{2}}. Gracias por todo lo que aportas a Garzón con tu trabajo. Con cariño, Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    'saludo_dia_mujer' => ['MARKETING', ['mujer', 'madre'], 'primer_nombre',
+        "¡Feliz día, {{1}}! 💜 Hoy y siempre, gracias por tu fuerza y por todo lo que haces por tu familia y por Garzón. Un abrazo de Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    'saludo_dia_hombre' => ['MARKETING', ['hombre', 'padre'], 'primer_nombre',
+        "¡Feliz día, {{1}}! 💪 Gracias por tu esfuerzo diario por tu familia y por Garzón. Un saludo de Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    'saludo_amor_amistad' => ['MARKETING', ['amor_amistad'], 'primer_nombre',
+        "¡Feliz Amor y Amistad, {{1}}! 💕 Gracias por ser parte de esta red de amigos que cree en Garzón. Un abrazo de Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    'saludo_fecha_especial' => ['MARKETING', ['navidad', 'anio_nuevo'], 'primer_nombre',
+        "¡Hola, {{1}}! En esta fecha tan especial te enviamos un saludo lleno de cariño y buenos deseos para ti y los tuyos. Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+];
+
+/**
+ * Revisa una plantilla antes de enviarla a Meta (las mismas reglas con que Meta rechaza).
+ * Devuelve el error o null.
+ */
+function wa_error_plantilla(string $nombre, string $cuerpo, int $numCampos): ?string
+{
+    if (!preg_match('/^[a-z0-9_]{1,512}$/', $nombre)) return 'El nombre solo puede tener minúsculas, números y guion bajo (ej. saludo_cumpleanos).';
+    $cuerpo = trim($cuerpo);
+    if ($cuerpo === '') return 'Escribe el texto de la plantilla.';
+    if (mb_strlen($cuerpo) > 1024) return 'El texto no puede pasar de 1.024 caracteres.';
+    preg_match_all('/\{\{\s*([^}]*?)\s*\}\}/', $cuerpo, $m);
+    $nums = array_map('strval', $m[1]);
+    foreach ($nums as $v) if (!ctype_digit($v)) return 'Usa variables numeradas: {{1}}, {{2}}…';
+    $unicas = array_values(array_unique(array_map('intval', $nums)));
+    sort($unicas);
+    if ($unicas && $unicas !== range(1, count($unicas))) return 'Las variables deben ir en orden y sin saltos: {{1}}, {{2}}, {{3}}…';
+    if (count($unicas) !== $numCampos) return 'Asigna un dato a cada variable del texto (' . count($unicas) . ' variable' . (count($unicas) === 1 ? '' : 's') . ').';
+    if (preg_match('/^\{\{/', $cuerpo) || preg_match('/\}\}$/', $cuerpo)) return 'Meta rechaza textos que empiezan o terminan con una variable. Agrega texto antes o después.';
+    if (preg_match('/\}\}\s*\{\{/', $cuerpo)) return 'Meta rechaza dos variables seguidas. Pon texto entre ellas.';
+    $palabras = count(preg_split('/\s+/u', trim(preg_replace('/\{\{\s*\d+\s*\}\}/', ' ', $cuerpo))) ?: []);
+    if ($palabras < 3 * count($unicas) + 1) return 'Hay demasiadas variables para tan poco texto: Meta pide al menos ' . (3 * count($unicas) + 1) . ' palabras fijas.';
+    return null;
+}
+
+/**
+ * Crea la plantilla en Meta (queda "En revisión") y la guarda aquí con sus
+ * variables ya asignadas. $campos = datos de WA_VARIABLES en el orden de {{1}}, {{2}}…
+ * Devuelve ['ok' => bool, 'msg' => string, 'estado' => ?string, 'categoria' => ?string].
+ */
+function wa_crear_plantilla(PDO $db, string $nombre, string $idioma, string $categoria, string $cuerpo, array $campos): array
+{
+    if (!wa_cfg('WA_WABA_ID') || !wa_cfg('WA_TOKEN')) return ['ok' => false, 'msg' => 'Faltan WA_WABA_ID y WA_TOKEN en config.php.'];
+    if (!isset(WA_CATEGORIAS[$categoria]) || $categoria === 'AUTHENTICATION') return ['ok' => false, 'msg' => 'Elige la categoría: servicio o marketing.'];
+    if (!isset(WA_IDIOMAS[$idioma])) return ['ok' => false, 'msg' => 'Idioma no válido.'];
+    foreach ($campos as $c) if (!isset(WA_VARIABLES[$c])) return ['ok' => false, 'msg' => 'Asigna un dato válido a cada variable.'];
+    $cuerpo = trim(str_replace("\r\n", "\n", $cuerpo));
+    if ($error = wa_error_plantilla($nombre, $cuerpo, count($campos))) return ['ok' => false, 'msg' => $error];
+
+    $cuerpoMeta = ['type' => 'BODY', 'text' => $cuerpo];
+    if ($campos) $cuerpoMeta['example'] = ['body_text' => [array_map(fn($c) => WA_EJEMPLOS[$c] ?? 'Ejemplo', $campos)]];
+    [$http, $j] = wa_api('POST', wa_cfg('WA_WABA_ID') . '/message_templates', [
+        'name' => $nombre, 'language' => $idioma, 'category' => $categoria, 'components' => [$cuerpoMeta],
+    ]);
+    if ($http !== 200 || empty($j['id'])) {
+        $e = $j['error'] ?? [];
+        return ['ok' => false, 'msg' => 'Meta no aceptó la plantilla: ' . ($e['error_user_msg'] ?? $e['message'] ?? "HTTP $http")
+                                     . (!empty($e['error_user_title']) ? ' (' . $e['error_user_title'] . ')' : '')];
+    }
+    $estado = $j['status'] ?? 'PENDING';
+    $final  = $j['category'] ?? $categoria;
+    $p = ['n' => $nombre, 'i' => $idioma, 'c' => $final, 's' => $categoria, 'e' => $estado, 'b' => $cuerpo,
+          'v' => count($campos), 'f' => implode(',', $campos) ?: null];
+    $sol = esquema_tiene($db, 'wa_plantillas', 'categoria_solicitada');
+    $db->prepare(
+        'INSERT INTO wa_plantillas (nombre, idioma, categoria, ' . ($sol ? 'categoria_solicitada, ' : '') . 'estado_meta, cuerpo, num_variables, variables, compatible)
+         VALUES (:n, :i, :c, ' . ($sol ? ':s, ' : '') . ':e, :b, :v, :f, 1)
+         ON DUPLICATE KEY UPDATE categoria = VALUES(categoria), ' . ($sol ? 'categoria_solicitada = VALUES(categoria_solicitada), ' : '') . '
+                                 estado_meta = VALUES(estado_meta), cuerpo = VALUES(cuerpo), num_variables = VALUES(num_variables),
+                                 variables = VALUES(variables), compatible = 1'
+    )->execute($sol ? $p : array_diff_key($p, ['s' => 1]));
+    return ['ok' => true, 'msg' => '', 'estado' => $estado, 'categoria' => $final];
+}
+
+/** Asigna la plantilla a sus ocasiones sugeridas que aún no tienen plantilla (sin activarlas). */
+function wa_vincular_ocasiones(PDO $db, string $nombre, string $idioma, array $ocasiones): int
+{
+    if (!$ocasiones) return 0;
+    $st = $db->prepare('SELECT id FROM wa_plantillas WHERE nombre = :n AND idioma = :i');
+    $st->execute(['n' => $nombre, 'i' => $idioma]);
+    $id = $st->fetchColumn();
+    if (!$id) return 0;
+    $n = 0;
+    $up = $db->prepare('UPDATE wa_ocasiones SET plantilla_id = :p WHERE clave = :c AND plantilla_id IS NULL');
+    foreach ($ocasiones as $clave) { $up->execute(['p' => $id, 'c' => $clave]); $n += $up->rowCount(); }
+    return $n;
+}
+
+/**
+ * Datos de la cuenta de WhatsApp en Meta para conectarla: números (con su
+ * identificador) y si la app está suscrita a la cuenta (sin esto no llegan
+ * los estados entregado/leído al webhook).
+ */
+function wa_info_cuenta(): array
+{
+    $r = ['numeros' => [], 'suscrita' => null, 'apps' => [], 'error' => null];
+    if (!wa_cfg('WA_WABA_ID') || !wa_cfg('WA_TOKEN')) { $r['error'] = 'Faltan WA_WABA_ID y WA_TOKEN en config.php.'; return $r; }
+    [$http, $j] = wa_api('GET', wa_cfg('WA_WABA_ID') . '/phone_numbers?fields=id,display_phone_number,verified_name,quality_rating,code_verification_status,name_status,messaging_limit_tier');
+    if ($http !== 200) { $r['error'] = 'Meta respondió: ' . ($j['error']['message'] ?? "HTTP $http"); return $r; }
+    $r['numeros'] = $j['data'] ?? [];
+    [$http, $j] = wa_api('GET', wa_cfg('WA_WABA_ID') . '/subscribed_apps');
+    if ($http === 200) {
+        $r['apps'] = array_map(fn($a) => $a['whatsapp_business_api_data']['name'] ?? ($a['name'] ?? 'app'), $j['data'] ?? []);
+        $r['suscrita'] = (bool)$r['apps'];
+    }
+    return $r;
+}
+
+/** Suscribe la app a la cuenta de WhatsApp para recibir los estados en el webhook. */
+function wa_suscribir_app(): array
+{
+    if (!wa_cfg('WA_WABA_ID') || !wa_cfg('WA_TOKEN')) return [false, 'Faltan WA_WABA_ID y WA_TOKEN en config.php.'];
+    [$http, $j] = wa_api('POST', wa_cfg('WA_WABA_ID') . '/subscribed_apps');
+    return $http === 200 && !empty($j['success'])
+        ? [true, '']
+        : [false, 'Meta respondió: ' . ($j['error']['message'] ?? "HTTP $http")];
+}

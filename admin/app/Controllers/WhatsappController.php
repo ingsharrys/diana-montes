@@ -59,6 +59,8 @@ class WhatsappController extends Controller
         Auth::requerirRol('direccion', 'coordinador');
         $datos = $this->comun('plantillas', 'WhatsApp · Plantillas');
         if ($datos['disponible']) $datos += ['plantillas' => (new WhatsApp())->plantillas()];
+        $datos['borrador'] = Session::get('wa_borrador');
+        Session::set('wa_borrador', null);
         $this->vista('whatsapp/plantillas', $datos);
     }
 
@@ -174,6 +176,49 @@ class WhatsappController extends Controller
         $this->redirigir('whatsapp/plantillas');
     }
 
+    /**
+     * Crea una plantilla en Meta desde la plataforma (queda "En revisión").
+     * Con una sugerida, además la deja asignada a sus ocasiones.
+     */
+    public function crearenmeta(): void
+    {
+        $this->accion('whatsapp/plantillas');
+        $db = Database::conexion();
+        $nombre    = strtolower(trim((string)($_POST['nombre'] ?? '')));
+        $categoria = (string)($_POST['categoria'] ?? '');
+        $idioma    = (string)($_POST['idioma'] ?? 'es');
+        $cuerpo    = (string)($_POST['cuerpo'] ?? '');
+        $campos    = array_values(array_filter(array_map('strval', (array)($_POST['campos'] ?? [])), fn($c) => $c !== ''));
+        $sugerida  = WA_PLANTILLAS_SUGERIDAS[$nombre] ?? null;
+
+        $r = wa_crear_plantilla($db, $nombre, $idioma, $categoria, $cuerpo, $campos);
+        if (!$r['ok']) {
+            Session::flash('error', $r['msg']);
+            Session::set('wa_borrador', ['nombre' => $nombre, 'categoria' => $categoria, 'idioma' => $idioma, 'cuerpo' => $cuerpo, 'campos' => $campos]);
+            $this->redirigir('whatsapp/plantillas');
+        }
+        $vinculadas = $sugerida ? wa_vincular_ocasiones($db, $nombre, $idioma, $sugerida[1]) : 0;
+        Auditoria::registrar('wa_plantilla_creada', "$nombre ($idioma) · pedida " . $categoria . ' · Meta: ' . $r['categoria'] . ' ' . $r['estado']);
+        $cat = WA_CATEGORIAS[$r['categoria']] ?? $r['categoria'];
+        Session::flash('ok', 'Plantilla "' . $nombre . '" enviada a Meta: quedó ' . (['APPROVED' => 'APROBADA', 'PENDING' => 'EN REVISIÓN', 'REJECTED' => 'RECHAZADA'][$r['estado']] ?? $r['estado'])
+            . ' como ' . strtoupper($cat) . ($r['categoria'] !== $categoria ? ' (Meta la cambió de ' . (WA_CATEGORIAS[$categoria] ?? $categoria) . ')' : '') . '.'
+            . ($vinculadas ? " Ya quedó asignada a $vinculadas ocasión" . ($vinculadas === 1 ? '' : 'es') . '; actívala cuando esté aprobada.' : '')
+            . ' Pulsa "Traer plantillas de Meta" en unos minutos para ver si la aprobaron.');
+        $this->redirigir('whatsapp/plantillas');
+    }
+
+    /** Suscribe la app a la cuenta de WhatsApp (para que lleguen entregado/leído/respuestas al webhook). */
+    public function suscribir(): void
+    {
+        Auth::requerirRol('direccion');
+        if (!$this->esPost()) $this->redirigir('whatsapp/configuracion');
+        $this->validarCsrf();
+        [$ok, $error] = wa_suscribir_app();
+        Auditoria::registrar('wa_app_suscrita', $ok ? 'ok' : $error);
+        Session::flash($ok ? 'ok' : 'error', $ok ? 'Listo: la cuenta de WhatsApp quedó conectada al webhook de la plataforma.' : $error);
+        $this->redirigir('whatsapp/configuracion');
+    }
+
     /** Encola los saludos de hoy y envía la cola ahora mismo (sin esperar al cron). */
     public function procesar(): void
     {
@@ -197,13 +242,7 @@ class WhatsappController extends Controller
         if (!preg_match('/^3\d{9}$/', $tel) || !$p) { Session::flash('error', 'Escribe un celular válido (10 dígitos) y elige la plantilla.'); $this->redirigir('whatsapp/plantillas'); }
         if (!wa_configurado()) { Session::flash('error', 'Faltan las credenciales de WhatsApp en config.php.'); $this->redirigir('whatsapp/plantillas'); }
 
-        $ejemplo = [
-            'primer_nombre' => 'María', 'nombre' => 'María Pérez', 'profesion' => 'Docente', 'zona' => 'Centro',
-            'lider' => 'Carlos', 'enlace_panel' => LANDING_URL . '/mi/', 'enlace_invitacion' => LANDING_URL,
-            'invitado' => 'Ana P.', 'nivel_promotor' => 'Súper Promotor',
-            'tarea' => 'Reunión con vecinos del barrio', 'fecha_tarea' => 'sáb 18 oct, 4:00 p. m.',
-            'lugar_tarea' => 'Salón comunal', 'enlace_portal' => LANDING_URL . '/mi/',
-        ];
+        $ejemplo = WA_EJEMPLOS;
         $valores = array_map(fn($c) => $ejemplo[$c] ?? '-', array_filter(explode(',', (string)$p['variables'])));
         $r = wa_enviar_plantilla($tel, $p['nombre'], $p['idioma'], array_pad($valores, (int)$p['num_variables'], '-'));
         Auditoria::registrar('wa_prueba', $p['nombre'] . ' a ' . enmascarar($tel) . ' · ' . ($r['ok'] ? 'ok' : $r['codigo']));
@@ -213,20 +252,32 @@ class WhatsappController extends Controller
         $this->redirigir('whatsapp/plantillas');
     }
 
-    /** Consulta el número en Meta para comprobar las credenciales. */
+    /**
+     * Comprueba la conexión con Meta: la cuenta (números con su identificador y
+     * si la app está suscrita) y el número configurado (calidad y límite).
+     */
     public function conexion(): void
     {
         Auth::requerirRol('direccion');
         if (!$this->esPost()) $this->redirigir('whatsapp/configuracion');
         $this->validarCsrf();
-        if (!wa_configurado()) { Session::flash('error', 'Faltan WA_PHONE_NUMBER_ID y WA_TOKEN en config.php.'); $this->redirigir('whatsapp/configuracion'); }
-        [$http, $j] = wa_api('GET', wa_cfg('WA_PHONE_NUMBER_ID') . '?fields=display_phone_number,verified_name,quality_rating,messaging_limit_tier,name_status');
-        if ($http === 200) {
-            Session::set('wa_conexion', $j);
-            Session::flash('ok', 'Conexión correcta con WhatsApp.');
-        } else {
-            Session::flash('error', 'Meta respondió con error: ' . ($j['error']['message'] ?? "HTTP $http"));
+        if (!wa_cfg('WA_TOKEN') || (!wa_cfg('WA_WABA_ID') && !wa_cfg('WA_PHONE_NUMBER_ID'))) {
+            Session::flash('error', 'Pon al menos WA_TOKEN y WA_WABA_ID en config.php.');
+            $this->redirigir('whatsapp/configuracion');
         }
+        $info = ['cuenta' => null, 'numero' => null];
+        $errores = [];
+        if (wa_cfg('WA_WABA_ID')) {
+            $info['cuenta'] = wa_info_cuenta();
+            if ($info['cuenta']['error']) $errores[] = $info['cuenta']['error'];
+        }
+        if (wa_cfg('WA_PHONE_NUMBER_ID')) {
+            [$http, $j] = wa_api('GET', wa_cfg('WA_PHONE_NUMBER_ID') . '?fields=display_phone_number,verified_name,quality_rating,messaging_limit_tier,name_status');
+            if ($http === 200) $info['numero'] = $j;
+            else $errores[] = 'El número configurado: ' . ($j['error']['message'] ?? "HTTP $http");
+        }
+        Session::set('wa_conexion', $info);
+        Session::flash($errores ? 'error' : 'ok', $errores ? 'Meta respondió con error: ' . implode(' · ', $errores) : 'Conexión correcta con Meta.');
         $this->redirigir('whatsapp/configuracion');
     }
 }

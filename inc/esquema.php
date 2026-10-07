@@ -200,6 +200,8 @@ function esquema_pasos(): array
             fn(PDO $db) => !esquema_tiene($db, 'wa_ocasiones') ? false
                 : (bool)$db->query("SELECT COUNT(*) FROM wa_ocasiones WHERE clave = 'invitacion_evento'")->fetchColumn()],
 
+        ['wa_plantillas', 'categoria_solicitada', 'ALTER TABLE wa_plantillas ADD COLUMN categoria_solicitada VARCHAR(20) NULL', 'categoría pedida de las plantillas de WhatsApp'],
+
         // ---------- Sin duplicados: la base de datos rechaza un documento o celular repetido ----------
         // Si ya hay repetidos, el paso no se aplica y se listan para que el equipo los corrija.
         ['simpatizantes', null, 'ALTER TABLE simpatizantes ADD UNIQUE KEY uq_simp_documento (documento)', 'documento único (sin duplicados)',
