@@ -3,7 +3,8 @@
  * División territorial de Garzón (Huila): barrios y veredas para el registro.
  * Fuente: Plan de Desarrollo "Garzón Adelante" 2024-2027 (Acuerdo 012 de 2024),
  * verificación del 6 de octubre de 2026 (Excel de la campaña): 107 unidades
- * urbanas, 12 corregimientos (centros poblados) y 93 veredas y sectores.
+ * urbanas, 12 corregimientos (centros poblados) y 93 veredas y sectores, más
+ * 7 barrios y asentamientos del PBOT 2018 que el PDM no lista.
  *
  * [nombre, tipo, clase, grupo]. Los nombres son únicos: cuando una vereda se
  * llama igual que un barrio o que su centro poblado se le agrega "(vereda)".
@@ -126,6 +127,14 @@ const ZONAS_GARZON = [
     ['Bosques del Café', 'urbano', 'Urbanización', 'Zona Centro Sur Oriental'],
     ['Octavio Martínez', 'urbano', 'Urbanización', 'Zona Centro Sur Oriental'],
     ['San Carlos', 'urbano', 'Urbanización', 'Zona Centro Sur Oriental'],
+    // Barrios del PBOT 2018 que no figuran en el PDM 2024-2027 (hoja PBOT_94_barrios del Excel)
+    ['Cristo Rey', 'urbano', 'Barrio', 'Zona por confirmar (PBOT 2018)'],
+    ['Nueva Esperanza Real', 'urbano', 'Barrio', 'Zona por confirmar (PBOT 2018)'],
+    ['San Lorenzo', 'urbano', 'Barrio', 'Zona por confirmar (PBOT 2018)'],
+    ['Alto Garzón', 'urbano', 'Asentamiento', 'Zona por confirmar (PBOT 2018)'],
+    ['Brisas del Oriente', 'urbano', 'Asentamiento', 'Zona por confirmar (PBOT 2018)'],
+    ['Pastranista e Israelitas', 'urbano', 'Asentamiento', 'Zona por confirmar (PBOT 2018)'],
+    ['San Felipe', 'urbano', 'Asentamiento', 'Zona por confirmar (PBOT 2018)'],
     // Corregimiento Descanso
     ['Descanso', 'rural', 'Centro poblado', 'Corregimiento Descanso'],
     ['Filo de Guayabal', 'rural', 'Vereda', 'Corregimiento Descanso'],

@@ -212,56 +212,154 @@
     + 'em[hidden]{display:none!important}'
     + '[aria-invalid="true"]{border-color:#E34948!important;background:#FFF7F8!important}'
     + 'label.has-error{border-color:#F7C4CE!important}'
-    + 'input.v-buscar{width:100%;margin-bottom:6px;font-size:15px}';
+    + '.s2-oculto{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;margin:0!important;padding:0!important;border:0!important}'
+    + '.s2{position:relative;width:100%}'
+    + '.s2-boton{width:100%;display:flex;align-items:center;gap:8px;text-align:left;border:1.5px solid var(--linea,var(--line,#E9EBF2));border-radius:12px;padding:12px 13px;font:inherit;font-size:16px;background:var(--fondo-2,#FCFBFE);color:var(--ink,#101226);cursor:pointer;min-height:48px}'
+    + '.s2-vacio .s2-texto{color:#8A90A2}'
+    + '.s2-texto{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+    + '.s2-flecha{color:#8A90A2;transition:transform .15s}'
+    + '.s2-abierto .s2-boton,.s2-boton:focus{border-color:var(--rosa,var(--violeta,#7C3AED));outline:none;background:#fff;box-shadow:0 0 0 4px rgba(224,24,108,.10)}'
+    + '.s2-abierto .s2-flecha{transform:rotate(180deg)}'
+    + 'select[aria-invalid="true"] + .s2 .s2-boton{border-color:#E34948;background:#FFF7F8}'
+    + '.s2-panel{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:60;background:#fff;border:1.5px solid var(--rosa,var(--violeta,#7C3AED));border-radius:12px;box-shadow:0 18px 40px rgba(16,18,38,.18);padding:8px}'
+    + '.s2-panel[hidden]{display:none}'
+    + '.s2-buscar{width:100%;border:1.5px solid var(--linea,var(--line,#E9EBF2));border-radius:9px;padding:10px 12px;font:inherit;font-size:16px;background:#fff;color:var(--ink,#101226)}'
+    + '.s2-buscar:focus{outline:none;border-color:var(--rosa,var(--violeta,#7C3AED))}'
+    + '.s2-lista{list-style:none;margin:6px 0 0;padding:0;max-height:260px;overflow-y:auto;overscroll-behavior:contain;position:relative}'
+    + '.s2-grupo{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--violeta,#7C3AED);padding:9px 8px 3px;position:sticky;top:0;background:#fff}'
+    + '.s2-op{padding:9px 10px;border-radius:8px;cursor:pointer;font-size:15px;line-height:1.3}'
+    + '.s2-op.s2-activa{background:var(--rosa-soft,#F3EEFD)}'
+    + '.s2-op.s2-elegida{font-weight:700}'
+    + '.s2-op mark{background:#FFE58A;color:inherit;border-radius:3px;padding:0 1px}'
+    + '.s2-nada{padding:12px 10px;color:#8A90A2;font-size:14px}';
   document.head.appendChild(css);
 
-  /* ---------- buscador para listas largas: <select data-buscar="Texto de ayuda"> ---------- */
-  function sinTildes(t) { return t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+  /* ---------- Lista con buscador al estilo Select2: <select data-buscar="Texto de ayuda"> ----------
+     El <select> original sigue en el formulario (se envía y se valida igual); encima se dibuja un
+     botón que abre un panel con caja de búsqueda y la lista agrupada. Sin dependencias. */
+  function sinTildes(t) { return String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+  function escapar(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  var s2Abierto = null, s2Id = 0;
 
   function buscador(sel) {
     if (sel.dataset.vBuscar) return;
     sel.dataset.vBuscar = '1';
-    // copia de las opciones originales (con sus grupos) para reconstruir la lista al filtrar
+    var id = 's2-' + (++s2Id);
     var vacia = sel.querySelector('option[value=""]');
-    var vaciaTxt = vacia ? vacia.textContent : '';
-    var grupos = [];
-    Array.prototype.forEach.call(sel.children, function (n) {
-      if (n.tagName === 'OPTGROUP') {
-        grupos.push({ label: n.label, ops: Array.prototype.map.call(n.children, function (o) { return [o.value, o.textContent]; }) });
-      } else if (n.value !== '') {
-        grupos.push({ label: null, ops: [[n.value, n.textContent]] });
-      }
+    var textoVacio = vacia ? vacia.textContent.trim() : 'Selecciona…';
+    var permiteVacio = !!vacia && !sel.required;          // ej. "Sin zona específica"
+    var items = [];                                       // [{v, t, g, n}] t = texto, g = grupo, n = texto para buscar
+    Array.prototype.forEach.call(sel.querySelectorAll('option'), function (o) {
+      if (o.value === '' && !permiteVacio) return;
+      var g = o.parentNode.tagName === 'OPTGROUP' ? o.parentNode.label : '';
+      items.push({ v: o.value, t: o.textContent.trim(), g: g, n: sinTildes(o.textContent + ' ' + g) });
     });
-    var caja = document.createElement('input');
-    caja.type = 'search';
-    caja.className = 'v-buscar';
-    caja.placeholder = sel.dataset.buscar || 'Buscar…';
-    caja.setAttribute('aria-label', caja.placeholder);
-    caja.autocomplete = 'off';
-    sel.parentNode.insertBefore(caja, sel);
 
-    function pintar(q) {
-      var actual = sel.value, total = 0, unica = null;
-      sel.innerHTML = '';
-      var v = document.createElement('option'); v.value = ''; v.textContent = vaciaTxt || 'Selecciona…'; sel.appendChild(v);
-      grupos.forEach(function (g) {
-        var cabe = q ? sinTildes((g.label || '') + ' ').indexOf(q) !== -1 : true;
-        var ops = g.ops.filter(function (o) { return cabe || sinTildes(o[1]).indexOf(q) !== -1; });
-        if (!ops.length) return;
-        var destino = sel;
-        if (g.label) { destino = document.createElement('optgroup'); destino.label = g.label; sel.appendChild(destino); }
-        ops.forEach(function (o) {
-          var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1];
-          destino.appendChild(op); total++; unica = o[0];
-        });
-      });
-      if (q && !total) v.textContent = 'Sin resultados para "' + caja.value + '"';
-      else if (q) v.textContent = total + ' resultado' + (total === 1 ? '' : 's') + ': elige aquí';
-      else v.textContent = vaciaTxt || 'Selecciona…';
-      if (q && total === 1) { sel.value = unica; sel.dispatchEvent(new Event('change', { bubbles: true })); }
-      else sel.value = Array.prototype.some.call(sel.options, function (o) { return o.value === actual; }) ? actual : '';
+    var caja = document.createElement('div');
+    caja.className = 's2';
+    caja.innerHTML =
+      '<button type="button" class="s2-boton" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="' + id + '-lista">'
+      + '<span class="s2-texto"></span><span class="s2-flecha" aria-hidden="true">▾</span></button>'
+      + '<div class="s2-panel" hidden>'
+      + '<input type="search" class="s2-buscar" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="' + escapar(sel.dataset.buscar || 'Buscar…') + '" aria-label="' + escapar(sel.dataset.buscar || 'Buscar') + '" aria-controls="' + id + '-lista">'
+      + '<ul class="s2-lista" role="listbox" id="' + id + '-lista"></ul></div>';
+    sel.insertAdjacentElement('afterend', caja);
+    sel.classList.add('s2-oculto');
+    sel.tabIndex = -1;
+    var boton = caja.querySelector('.s2-boton'), texto = caja.querySelector('.s2-texto');
+    var panel = caja.querySelector('.s2-panel'), busca = caja.querySelector('.s2-buscar'), lista = caja.querySelector('.s2-lista');
+    var etiqueta = sel.id && document.querySelector('label[for="' + sel.id + '"]');
+    if (etiqueta) { boton.id = id + '-boton'; etiqueta.setAttribute('for', boton.id); }
+    var activo = -1, visibles = [];
+
+    function rotulo() {
+      var o = sel.selectedOptions[0];
+      var vacio = !o || (o.value === '' && !permiteVacio);
+      texto.textContent = vacio ? textoVacio : o.textContent.trim();
+      caja.classList.toggle('s2-vacio', vacio);
     }
-    caja.addEventListener('input', function () { pintar(sinTildes(caja.value.trim())); });
+
+    function marcar(t, q) {
+      if (!q) return escapar(t);
+      var base = sinTildes(t), i = base.indexOf(q);
+      if (i < 0) return escapar(t);
+      return escapar(t.slice(0, i)) + '<mark>' + escapar(t.slice(i, i + q.length)) + '</mark>' + escapar(t.slice(i + q.length));
+    }
+
+    function pintar() {
+      var q = sinTildes(busca.value.trim()), html = '', grupo = null;
+      visibles = items.filter(function (it) { return !q || it.n.indexOf(q) !== -1; });
+      visibles.forEach(function (it, i) {
+        if (it.g !== grupo) { grupo = it.g; if (grupo) html += '<li class="s2-grupo" role="presentation">' + escapar(grupo) + '</li>'; }
+        html += '<li class="s2-op' + (it.v === sel.value ? ' s2-elegida' : '') + '" role="option" id="' + id + '-' + i + '" data-i="' + i + '" aria-selected="' + (it.v === sel.value) + '">' + marcar(it.t, q) + '</li>';
+      });
+      lista.innerHTML = html || '<li class="s2-nada">No encontramos "' + escapar(busca.value.trim()) + '". Prueba con otra palabra o elige "Otra".</li>';
+      var elegida = visibles.findIndex(function (it) { return it.v === sel.value; });
+      mover(q ? 0 : Math.max(elegida, 0), !q);
+    }
+
+    function mover(i, centrar) {
+      var ops = lista.querySelectorAll('.s2-op');
+      if (!ops.length) { activo = -1; busca.removeAttribute('aria-activedescendant'); return; }
+      activo = Math.max(0, Math.min(i, ops.length - 1));
+      ops.forEach(function (li) { li.classList.remove('s2-activa'); });
+      var li = ops[activo];
+      li.classList.add('s2-activa');
+      busca.setAttribute('aria-activedescendant', li.id);
+      var arriba = li.offsetTop - lista.offsetTop, abajo = arriba + li.offsetHeight;
+      if (centrar) lista.scrollTop = arriba - lista.clientHeight / 2;
+      else if (arriba < lista.scrollTop) lista.scrollTop = arriba - 28;
+      else if (abajo > lista.scrollTop + lista.clientHeight) lista.scrollTop = abajo - lista.clientHeight;
+    }
+
+    function abrir() {
+      if (s2Abierto && s2Abierto !== cerrar) s2Abierto();
+      panel.hidden = false; caja.classList.add('s2-abierto'); boton.setAttribute('aria-expanded', 'true');
+      busca.value = ''; pintar();
+      s2Abierto = cerrar;
+      busca.focus({ preventScroll: true });   // ya: así las siguientes teclas caen en la búsqueda
+      // en el celular, que el panel quede a la vista por encima del teclado
+      var r = caja.getBoundingClientRect();
+      if (r.top > window.innerHeight * 0.35) window.scrollBy({ top: r.top - 90, behavior: 'smooth' });
+    }
+
+    function cerrar(devolverFoco) {
+      if (panel.hidden) return;
+      panel.hidden = true; caja.classList.remove('s2-abierto'); boton.setAttribute('aria-expanded', 'false');
+      if (s2Abierto === cerrar) s2Abierto = null;
+      if (devolverFoco) boton.focus();
+    }
+
+    function elegir(i) {
+      var it = visibles[i];
+      if (!it) return;
+      sel.value = it.v;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      rotulo(); cerrar(true);
+    }
+
+    boton.addEventListener('click', function () { panel.hidden ? abrir() : cerrar(true); });
+    boton.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrir(); }
+      else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); abrir(); busca.value = e.key; pintar(); }
+    });
+    busca.addEventListener('input', pintar);
+    busca.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); mover(activo + 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); mover(activo - 1); }
+      else if (e.key === 'Enter') { e.preventDefault(); elegir(activo); }
+      else if (e.key === 'Escape') { e.preventDefault(); cerrar(true); }
+      else if (e.key === 'Tab') cerrar(false);
+    });
+    lista.addEventListener('mousedown', function (e) { e.preventDefault(); });   // no quitar el foco de la caja
+    lista.addEventListener('click', function (e) {
+      var li = e.target.closest('.s2-op');
+      if (li) elegir(+li.dataset.i);
+    });
+    document.addEventListener('click', function (e) { if (!caja.contains(e.target)) cerrar(false); });
+    sel.addEventListener('change', rotulo);                 // por si el valor cambia desde el código
+    sel.addEventListener('focus', function () { boton.focus(); });
+    rotulo();
   }
 
   function iniciar() {
