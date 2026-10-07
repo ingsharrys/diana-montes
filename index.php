@@ -14,8 +14,9 @@ try {
     $zonas = db()->query('SELECT id, nombre, tipo FROM zonas ORDER BY tipo, nombre')->fetchAll();
     $profesiones = db()->query('SELECT id, nombre FROM profesiones ORDER BY id')->fetchAll();
     $pideGenero = esquema_tiene(db(), 'simpatizantes', 'genero');
+    $pideClave  = esquema_tiene(db(), 'simpatizantes', 'clave_hash'); // acceso al panel /mi/
 } catch (Throwable $e) {
-    $zonas = []; $profesiones = []; $pideGenero = false;
+    $zonas = []; $profesiones = []; $pideGenero = false; $pideClave = false;
 }
 $fechaMaxima = date('Y-m-d', strtotime('-' . EDAD_MINIMA . ' years'));
 $fechaMinima = date('Y-m-d', strtotime('-110 years'));
@@ -220,6 +221,13 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
   .promo-qr:empty{display:none}
   .promo-qr svg{width:100%;height:100%;display:block}
   .promo-panel{width:100%}
+  .acceso-box{background:#fff;border:1px solid #E4D9FB;border-radius:12px;padding:11px 13px;display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--gris)}
+  .acceso-box[hidden]{display:none}
+  .acceso-box b{color:var(--ink)}
+  .acceso-box > b{color:var(--violeta);font-size:13.5px}
+  .clave-wrap{position:relative}
+  .clave-wrap input{padding-right:52px}
+  .ver-clave{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;padding:6px 8px}
 
   /* footer */
   footer{background:var(--fondo-2);border-top:1px solid var(--linea);padding:38px 0 24px;color:var(--gris)}
@@ -442,6 +450,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
       <p><b>Responsable:</b> Campaña de Diana Lucía Montes a la Alcaldía de Garzón (Huila).</p>
       <p><b>Datos que pedimos:</b> nombre, documento, celular, barrio o vereda, ocupación, fecha de nacimiento, género y, solo si lo autorizas, tu ubicación aproximada.</p>
       <p><b>Para qué los usamos:</b> contactarte e informarte sobre la campaña y sus actividades, enviarte saludos en fechas especiales por WhatsApp y organizar el trabajo territorial. No vendemos ni cedemos tus datos.</p>
+      <p><b>Tu red:</b> quien te invitó verá tu nombre en su panel y, si es Promotor o más, podrá escribirte por WhatsApp para actividades de la campaña. Tú verás igual a las personas que invites.</p>
       <p><b>Tus derechos:</b> conocer, actualizar, rectificar y pedir que se eliminen tus datos, y revocar esta autorización en cualquier momento. Para dejar de recibir mensajes responde <b>SALIR</b> a cualquier mensaje de WhatsApp de la campaña.</p>
       <p><b>Seguridad:</b> los datos viajan cifrados y solo los consulta el equipo autorizado de la campaña.</p>
     </div>
@@ -527,6 +536,18 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
           <?php endif; ?>
         </div>
 
+        <?php if ($pideClave): ?>
+        <!-- acceso al panel personal: usuario = documento, clave = esta -->
+        <div class="campo">
+          <label for="f-clave">Crea una clave para tu panel <span style="font-weight:500;color:#9AA0AF">(tu usuario será tu documento)</span></label>
+          <div class="clave-wrap">
+            <input id="f-clave" type="password" name="clave" data-tipo="clave" minlength="<?= RED_CLAVE_MIN ?>" maxlength="72"
+                   autocomplete="new-password" placeholder="Mínimo <?= RED_CLAVE_MIN ?> caracteres" required data-msg="Crea una clave de al menos <?= RED_CLAVE_MIN ?> caracteres.">
+            <button type="button" class="ver-clave" aria-label="Mostrar clave">👁</button>
+          </div>
+        </div>
+        <?php endif; ?>
+
         <!-- ubicación aproximada: opcional, solo con permiso explícito -->
         <label class="consent geo">
           <input type="checkbox" name="ubicacion" value="1" id="f-geo">
@@ -565,8 +586,13 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
             <button type="button" class="btn btn-soft" id="promoCopiar">🔗 Copiar enlace</button>
           </div>
           <div class="promo-qr" id="promoQr"></div>
-          <a class="btn btn-rosa promo-panel" id="promoPanel">⭐ Abrir mi panel de promotor</a>
-          <span class="promo-nota">Guarda el enlace de tu panel: ahí verás a cuántos has invitado y tu puesto en el ranking.</span>
+          <div class="acceso-box" id="accesoBox" hidden>
+            <b>🔑 Tu acceso a tu panel</b>
+            <span>Entra cuando quieras en <b id="accesoUrl"></b></span>
+            <span>Usuario: <b id="accesoUsuario"></b> (tu documento) · Clave: la que acabas de crear</span>
+          </div>
+          <a class="btn btn-rosa promo-panel" id="promoPanel">⭐ Entrar a mi panel</a>
+          <span class="promo-nota">En tu panel verás tu red, tus puntos, tus tareas y tu puesto en el ranking.</span>
         </div>
       </div>
     </div>
@@ -676,7 +702,12 @@ geo.addEventListener('change', () => {
 function mostrarPromotor(p) {
   const base   = location.origin + location.pathname.replace(/[^/]*$/, '');
   const enlace = base + '?ref=' + encodeURIComponent(p.codigo) + '#sumate';
-  const panel  = base + 'promotor.php?t=' + encodeURIComponent(p.token);
+  const panel  = base + 'mi/?t=' + encodeURIComponent(p.token);
+  if (p.usuario) {
+    document.getElementById('accesoUsuario').textContent = p.usuario;
+    document.getElementById('accesoUrl').textContent = (location.host + location.pathname.replace(/[^/]*$/, '') + 'mi').replace(/^www\./, '');
+    document.getElementById('accesoBox').hidden = false;
+  }
 
   document.getElementById('promoLink').textContent = enlace;
   document.getElementById('promoWa').href = 'https://wa.me/?text=' + encodeURIComponent(
@@ -699,6 +730,14 @@ function mostrarPromotor(p) {
   };
   document.body.appendChild(s);
 }
+
+/* ---------- mostrar u ocultar la clave ---------- */
+document.querySelectorAll('.ver-clave').forEach(b => b.addEventListener('click', () => {
+  const i = b.parentNode.querySelector('input');
+  i.type = i.type === 'password' ? 'text' : 'password';
+  b.textContent = i.type === 'password' ? '👁' : '🙈';
+  b.setAttribute('aria-label', i.type === 'password' ? 'Mostrar clave' : 'Ocultar clave');
+}));
 
 /* ---------- política de datos ---------- */
 const modalPolitica = document.getElementById('modalPolitica');

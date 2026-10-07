@@ -78,7 +78,17 @@
       if (el.dataset.max && n > +el.dataset.max) return 'El número máximo es ' + el.dataset.max + '.';
       return '';
     },
-    texto: function (v) { return v.trim().length < 2 ? 'Escribe al menos 2 caracteres.' : ''; }
+    texto: function (v) { return v.trim().length < 2 ? 'Escribe al menos 2 caracteres.' : ''; },
+    clave: function (v, el) {
+      var min = el.minLength > 0 ? el.minLength : 6;
+      if (v.length < min) return 'La clave debe tener al menos ' + min + ' caracteres.';
+      if (/^(.)\1+$/.test(v)) return 'La clave no puede ser un solo carácter repetido.';
+      return '';
+    },
+    repetir: function (v, el) {
+      var otro = document.getElementById(el.dataset.igual);
+      return otro && otro.value !== v ? 'Las dos claves no coinciden.' : '';
+    }
   };
 
   function tipo(el) { return el.dataset.tipo || (el.type === 'email' ? 'correo' : ''); }

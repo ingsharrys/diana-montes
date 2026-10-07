@@ -79,7 +79,7 @@ $pendienteTxt = $soloLider ? 'Disponible cuando la dirección actualice la plata
         <span class="stat-ico"><?= icono('megafono') ?></span>
       </div>
       <p class="muted small nota"><?= num($promotores['activos']) ?> ya invitaron al menos a una persona.
-        Promotor: <?= PROMOTOR_NIVELES[1][0] ?>+ invitados · Súper: <?= PROMOTOR_NIVELES[2][0] ?>+.</p>
+        Promotor: <?= PROMOTOR_NIVELES[1][0] ?>+ puntos · Súper: <?= PROMOTOR_NIVELES[2][0] ?>+ (<?= RED_PUNTOS_INVITADO ?> por invitado, más tareas validadas).</p>
     <?php endif; ?>
   </section>
 </div>
@@ -192,7 +192,7 @@ $pendienteTxt = $soloLider ? 'Disponible cuando la dirección actualice la plata
     <?php else: ?>
     <table>
       <tr><th>#</th><th>Promotor</th><th>Zona</th><th style="text-align:right">Invitados</th></tr>
-      <?php foreach ($topPromotores as $i => $p): $nv = promotor_nivel((int)$p['invitados']); ?>
+      <?php foreach ($topPromotores as $i => $p): $nv = promotor_nivel(red_puntos_fila($p)); ?>
       <tr>
         <td class="muted"><?= ['🥇', '🥈', '🥉'][$i] ?? ($i + 1) ?></td>
         <td><b><?= e($p['nombre']) ?></b><br><span class="muted small"><?= $nv['actual'][2] . ' ' . e($nv['actual'][1]) ?> · red de <?= e($p['lider']) ?></span></td>

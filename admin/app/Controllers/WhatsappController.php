@@ -199,8 +199,10 @@ class WhatsappController extends Controller
 
         $ejemplo = [
             'primer_nombre' => 'María', 'nombre' => 'María Pérez', 'profesion' => 'Docente', 'zona' => 'Centro',
-            'lider' => 'Carlos', 'enlace_panel' => LANDING_URL . '/promotor.php', 'enlace_invitacion' => LANDING_URL,
+            'lider' => 'Carlos', 'enlace_panel' => LANDING_URL . '/mi/', 'enlace_invitacion' => LANDING_URL,
             'invitado' => 'Ana P.', 'nivel_promotor' => 'Súper Promotor',
+            'tarea' => 'Reunión con vecinos del barrio', 'fecha_tarea' => 'sáb 18 oct, 4:00 p. m.',
+            'lugar_tarea' => 'Salón comunal', 'enlace_portal' => LANDING_URL . '/mi/',
         ];
         $valores = array_map(fn($c) => $ejemplo[$c] ?? '-', array_filter(explode(',', (string)$p['variables'])));
         $r = wa_enviar_plantilla($tel, $p['nombre'], $p['idioma'], array_pad($valores, (int)$p['num_variables'], '-'));

@@ -15,13 +15,18 @@
 require_once __DIR__ . '/esquema.php';
 require_once __DIR__ . '/validacion.php';
 require_once __DIR__ . '/whatsapp.php';
+require_once __DIR__ . '/red.php';
 
-/** Niveles de la gamificación: [invitados mínimos, nombre, emoji]. */
+/**
+ * Niveles de la gamificación: [puntos mínimos, nombre, emoji].
+ * Con 10 puntos por invitado equivalen a 3, 10 y 25 invitados; las tareas
+ * validadas suman puntos extra (ver inc/red.php).
+ */
 const PROMOTOR_NIVELES = [
-    [0,  'Simpatizante',   '🤍'],
-    [3,  'Promotor',       '⭐'],
-    [10, 'Súper Promotor', '🚀'],
-    [25, 'Embajador',      '🏆'],
+    [0,   'Simpatizante',   '🤍'],
+    [30,  'Promotor',       '⭐'],
+    [100, 'Súper Promotor', '🚀'],
+    [250, 'Embajador',      '🏆'],
 ];
 
 /** ¿Está activa la red de promotores? (existen las columnas del enlace personal) */
@@ -111,8 +116,8 @@ function promotor_nuevo_token(): string
 }
 
 /**
- * Nivel actual según invitados directos.
- * Devuelve: actual [min,nombre,emoji], siguiente (o null), faltan, progreso (0-100).
+ * Nivel actual según los puntos.
+ * Devuelve: actual [min,nombre,emoji], siguiente (o null), faltan (puntos), progreso (0-100).
  */
 function promotor_nivel(int $invitados): array
 {

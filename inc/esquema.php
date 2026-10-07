@@ -149,6 +149,57 @@ function esquema_pasos(): array
               KEY idx_wa_ent_tel (telefono)
             ) DEFAULT CHARSET=utf8mb4", 'respuestas recibidas por WhatsApp'],
 
+        // ---------- Portal del simpatizante: acceso con clave, puntos y tareas ----------
+        ['simpatizantes', 'clave_hash',     'ALTER TABLE simpatizantes ADD COLUMN clave_hash VARCHAR(255) NULL', 'acceso de simpatizantes a su panel'],
+        ['simpatizantes', 'clave_cambiar',  'ALTER TABLE simpatizantes ADD COLUMN clave_cambiar TINYINT(1) NOT NULL DEFAULT 0', 'acceso de simpatizantes a su panel'],
+        ['simpatizantes', 'clave_intentos', 'ALTER TABLE simpatizantes ADD COLUMN clave_intentos TINYINT UNSIGNED NOT NULL DEFAULT 0, ADD COLUMN clave_bloqueo DATETIME NULL', 'acceso de simpatizantes a su panel'],
+        ['simpatizantes', 'ultimo_acceso',  'ALTER TABLE simpatizantes ADD COLUMN ultimo_acceso DATETIME NULL', 'acceso de simpatizantes a su panel'],
+        ['simpatizantes', 'puntos',         'ALTER TABLE simpatizantes ADD COLUMN puntos INT UNSIGNED NOT NULL DEFAULT 0, ADD KEY idx_simp_puntos (puntos)', 'puntos y niveles de promotor'],
+        ['tareas', null, "CREATE TABLE IF NOT EXISTS tareas (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              tipo VARCHAR(20) NOT NULL,
+              titulo VARCHAR(150) NOT NULL,
+              descripcion TEXT NULL,
+              lugar VARCHAR(200) NULL,
+              fecha DATETIME NULL,
+              meta INT UNSIGNED NULL,
+              puntos SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+              puntos_asistencia SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+              alcance ENUM('asignada','abierta','red') NOT NULL DEFAULT 'asignada',
+              nivel_minimo TINYINT UNSIGNED NOT NULL DEFAULT 0,
+              zona_id INT NULL,
+              lider_id INT NULL,
+              creada_por_usuario INT NULL,
+              creada_por_simpatizante INT NULL,
+              estado ENUM('abierta','cerrada','cancelada') NOT NULL DEFAULT 'abierta',
+              created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              KEY idx_tarea_estado (estado),
+              KEY idx_tarea_creador_s (creada_por_simpatizante),
+              KEY idx_tarea_lider (lider_id)
+            ) DEFAULT CHARSET=utf8mb4", 'tareas y convocatorias'],
+        ['tarea_asignaciones', null, "CREATE TABLE IF NOT EXISTS tarea_asignaciones (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              tarea_id INT NOT NULL,
+              simpatizante_id INT NOT NULL,
+              rol ENUM('responsable','asistente') NOT NULL DEFAULT 'responsable',
+              estado ENUM('pendiente','aceptada','rechazada','hecha','validada','no_valida') NOT NULL DEFAULT 'pendiente',
+              resultado INT UNSIGNED NULL,
+              nota VARCHAR(500) NULL,
+              asignada_por_usuario INT NULL,
+              asignada_por_simpatizante INT NULL,
+              validada_por INT NULL,
+              created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              actualizada_at DATETIME NULL,
+              UNIQUE KEY uq_tarea_persona (tarea_id, simpatizante_id),
+              KEY idx_asig_simp (simpatizante_id, estado)
+            ) DEFAULT CHARSET=utf8mb4", 'tareas y convocatorias'],
+        ['wa_ocasiones', 'tarea_asignada', "INSERT IGNORE INTO wa_ocasiones (clave, nombre, tipo) VALUES
+              ('tarea_asignada',    'Te asignaron una tarea',        'evento'),
+              ('invitacion_evento', 'Invitación a reunión o evento', 'evento')",
+            'avisos de tareas por WhatsApp',
+            fn(PDO $db) => !esquema_tiene($db, 'wa_ocasiones') ? false
+                : (bool)$db->query("SELECT COUNT(*) FROM wa_ocasiones WHERE clave = 'invitacion_evento'")->fetchColumn()],
+
         // ---------- Sin duplicados: la base de datos rechaza un documento o celular repetido ----------
         // Si ya hay repetidos, el paso no se aplica y se listan para que el equipo los corrija.
         ['simpatizantes', null, 'ALTER TABLE simpatizantes ADD UNIQUE KEY uq_simp_documento (documento)', 'documento único (sin duplicados)',
@@ -299,6 +350,8 @@ function esquema_actualizar(PDO $db, array &$avisos = []): array
     if ($n > 0) $aplicados[] = "enlaces para $n simpatizantes";
     $n = esquema_completar_profundidad($db);
     if ($n > 0) $aplicados[] = "nivel de red para $n simpatizantes";
+    $n = red_recalcular_todos($db);
+    if ($n > 0) $aplicados[] = "puntos de $n promotores";
     return $aplicados;
 }
 
@@ -366,6 +419,10 @@ function simpatizante_insertar(PDO $db, array $d): array
     try {
         wa_eventos_registro($db, $id, isset($d['referido_por']) ? (int)$d['referido_por'] : null);
     } catch (Throwable $e) { /* un fallo de la cola no puede impedir el registro */ }
+    // Puntos de quien invitó (si sube de nivel, se encola su felicitación)
+    if (!empty($d['referido_por'])) {
+        try { red_actualizar_puntos($db, (int)$d['referido_por']); } catch (Throwable $e) { /* nunca frena el registro */ }
+    }
 
     return [
         'id'     => $id,

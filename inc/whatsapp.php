@@ -29,6 +29,10 @@ const WA_VARIABLES = [
     'enlace_invitacion' => 'Su enlace para invitar',
     'invitado'          => 'Quién se unió a su red (ocasión "Alguien se unió a tu red")',
     'nivel_promotor'    => 'Nivel alcanzado (ocasión "Subiste de nivel")',
+    'tarea'             => 'Título de la tarea o evento (ocasiones de tareas)',
+    'fecha_tarea'       => 'Fecha de la tarea o evento',
+    'lugar_tarea'       => 'Lugar de la tarea o evento',
+    'enlace_portal'     => 'Enlace para entrar a su panel (/mi)',
 ];
 
 /** Palabras con las que una persona se da de baja o vuelve a suscribirse. */
@@ -88,12 +92,7 @@ function wa_eventos_registro(PDO $db, int $nuevoId, ?int $referidoPor): void
     wa_evento($db, 'bienvenida', $nuevoId);
     if ($referidoPor) {
         wa_evento($db, 'nuevo_invitado', $referidoPor, (string)$nuevoId);
-        $st = $db->prepare('SELECT COUNT(*) FROM simpatizantes WHERE referido_por = :p');
-        $st->execute(['p' => $referidoPor]);
-        $invitados = (int)$st->fetchColumn();
-        foreach (array_slice(PROMOTOR_NIVELES, 1) as [$umbral]) {
-            if ($invitados === (int)$umbral) wa_evento($db, 'sube_nivel', $referidoPor, (string)$umbral);
-        }
+        // La subida de nivel la encola red_actualizar_puntos() al sumar los puntos del invitado
     }
 }
 
@@ -281,7 +280,7 @@ function wa_valores(PDO $db, array $m, ?string $variables): array
             case 'profesion':     $v = $m['profesion'] ?? ''; break;
             case 'zona':          $v = $m['zona'] ?? ''; break;
             case 'lider':         $v = $m['lider'] ?? ''; break;
-            case 'enlace_panel':  $v = $m['token_panel'] ? "$landing/promotor.php?t={$m['token_panel']}" : $landing; break;
+            case 'enlace_panel':  $v = $m['token_panel'] ? "$landing/mi/?t={$m['token_panel']}" : $landing; break;
             case 'enlace_invitacion': $v = $m['codigo_promotor'] ? "$landing/?ref={$m['codigo_promotor']}#sumate" : $landing; break;
             case 'invitado':
                 $st = $db->prepare('SELECT nombre FROM simpatizantes WHERE id = :id');
@@ -289,8 +288,17 @@ function wa_valores(PDO $db, array $m, ?string $variables): array
                 $v = promotor_nombre_corto((string)$st->fetchColumn()) ?: 'una persona';
                 break;
             case 'nivel_promotor':
-                $v = promotor_nivel((int)($partes[1] ?? 0))['actual'][1];
+                // Mensajes encolados antes de los puntos guardaban invitados (3, 10, 25)
+                $umbral = (int)($partes[1] ?? 0);
+                $umbral = [3 => 30, 10 => 100, 25 => 250][$umbral] ?? $umbral;
+                $v = promotor_nivel($umbral)['actual'][1];
                 break;
+            case 'tarea': case 'fecha_tarea': case 'lugar_tarea':
+                $t = red_tarea_de_asignacion($db, (int)($partes[1] ?? 0));
+                $v = !$t ? '' : ($campo === 'tarea' ? $t['titulo']
+                     : ($campo === 'fecha_tarea' ? (red_fecha($t['fecha']) ?: 'por definir') : ($t['lugar'] ?: 'por definir')));
+                break;
+            case 'enlace_portal': $v = "$landing/mi/"; break;
             default: $v = '';
         }
         $valores[] = $v;

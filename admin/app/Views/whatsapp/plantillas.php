@@ -21,6 +21,10 @@ $sugeridas = [
      "¡{{1}}, buenas noticias! 🎉 {{2}} se unió a la red gracias a tu invitación. Mira tu avance y tu puesto en el ranking aquí: {{3}}\n\nSi no deseas recibir más mensajes, responde SALIR."],
     ['subiste_nivel', 'Marketing', 'primer_nombre, nivel_promotor, enlace_panel',
      "¡Felicitaciones, {{1}}! ⭐ Ya eres {{2}} de la red de Diana Lucía Montes. Sigue invitando y sube en el ranking: {{3}}\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    ['tarea_asignada', 'Utility', 'primer_nombre, tarea, fecha_tarea, enlace_portal',
+     "Hola, {{1}}. Tienes una nueva tarea en la red de Diana Lucía Montes: {{2}} (fecha: {{3}}). Revísala y cuéntanos si la puedes hacer en tu panel: {{4}}\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    ['invitacion_evento', 'Utility', 'primer_nombre, tarea, fecha_tarea, lugar_tarea, enlace_portal',
+     "Hola, {{1}}. Te invitamos a {{2}} el {{3}} en {{4}}. Confirma si asistirás desde tu panel: {{5}}\n\nSi no deseas recibir más mensajes, responde SALIR."],
 ];
 ?>
 

@@ -23,7 +23,7 @@
         <?php if ($o['tipo'] === 'cumpleanos'): ?>El día de su cumpleaños
         <?php elseif ($o['tipo'] === 'profesion'): ?>El día de su profesión (<a href="<?= url('catalogos') ?>">fechas en Catálogos</a>)
         <?php elseif ($o['tipo'] === 'evento'): ?>
-          <?= ['bienvenida' => 'Al registrarse', 'nuevo_invitado' => 'Al promotor, cuando alguien se registra con su enlace', 'sube_nivel' => 'Al promotor, al llegar a ' . PROMOTOR_NIVELES[1][0] . ', ' . PROMOTOR_NIVELES[2][0] . ' o ' . PROMOTOR_NIVELES[3][0] . ' invitados'][$o['clave']] ?? 'Al ocurrir' ?>
+          <?= ['bienvenida' => 'Al registrarse', 'nuevo_invitado' => 'Al promotor, cuando alguien se registra con su enlace', 'sube_nivel' => 'Al promotor, al llegar a ' . PROMOTOR_NIVELES[1][0] . ', ' . PROMOTOR_NIVELES[2][0] . ' o ' . PROMOTOR_NIVELES[3][0] . ' puntos', 'tarea_asignada' => 'Cuando el equipo o su promotor le asigna una tarea', 'invitacion_evento' => 'Cuando lo invitan a una reunión o evento'][$o['clave']] ?? 'Al ocurrir' ?>
         <?php else: ?><?= e(wa_regla_texto($o['regla'])) ?><?php if ($o['proxima']): ?><br><span class="muted">próxima: <?= $o['proxima']->format('d/m/Y') ?></span><?php endif; ?>
         <?php endif; ?>
       </td>
