@@ -344,3 +344,39 @@ function red_fecha(?string $fecha, bool $hora = true): string
     if ($hora && date('H:i', $t) !== '00:00') $txt .= ', ' . str_replace(['am', 'pm'], ['a. m.', 'p. m.'], date('g:i a', $t));
     return $txt;
 }
+
+/* ======================= Acciones de la persona sobre sus tareas (web y app) ======================= */
+
+/** Acepta o rechaza una tarea o invitación propia. $respuesta: 'aceptar' | 'rechazar'. */
+function red_responder(PDO $db, int $simpatizanteId, int $asignacionId, string $respuesta): bool
+{
+    $nuevo = ['aceptar' => 'aceptada', 'rechazar' => 'rechazada'][$respuesta] ?? null;
+    if (!$nuevo) return false;
+    $st = $db->prepare("UPDATE tarea_asignaciones a JOIN tareas t ON t.id = a.tarea_id
+                        SET a.estado = :e, a.actualizada_at = NOW()
+                        WHERE a.id = :a AND a.simpatizante_id = :s AND t.estado = 'abierta'
+                          AND a.estado IN ('pendiente','aceptada','rechazada')");
+    $st->execute(['e' => $nuevo, 'a' => $asignacionId, 's' => $simpatizanteId]);
+    return $st->rowCount() > 0;
+}
+
+/** Reporta lo logrado en una tarea propia (queda "por validar"). */
+function red_reportar(PDO $db, int $simpatizanteId, int $asignacionId, $resultado, string $nota): bool
+{
+    $resultado = min(100000, (int)preg_replace('/\D/', '', (string)$resultado));
+    $nota = trim(mb_substr(preg_replace('/\s+/u', ' ', $nota), 0, 500));
+    $st = $db->prepare("UPDATE tarea_asignaciones a JOIN tareas t ON t.id = a.tarea_id
+                        SET a.estado = 'hecha', a.resultado = :r, a.nota = :n, a.actualizada_at = NOW()
+                        WHERE a.id = :a AND a.simpatizante_id = :s AND a.rol = 'responsable'
+                          AND t.estado = 'abierta' AND a.estado IN ('pendiente','aceptada','hecha')");
+    $st->execute(['r' => $resultado, 'n' => $nota ?: null, 'a' => $asignacionId, 's' => $simpatizanteId]);
+    return $st->rowCount() > 0;
+}
+
+/** Se apunta a una tarea abierta ($abiertas = las que puede tomar, indexadas por id). */
+function red_apuntarme(PDO $db, int $simpatizanteId, int $tareaId, array $abiertas): bool
+{
+    if (!isset($abiertas[$tareaId])) return false;
+    $esEvento = TAREA_TIPOS[$abiertas[$tareaId]['tipo']][3] ?? false;
+    return red_asignar($db, $tareaId, [$simpatizanteId], null, null, false, $esEvento ? 'asistente' : 'responsable', 'aceptada') > 0;
+}

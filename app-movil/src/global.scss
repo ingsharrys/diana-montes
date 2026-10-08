@@ -1,0 +1,48 @@
+/* Estilos base de Ionic */
+@import '@ionic/angular/css/core.css';
+@import '@ionic/angular/css/normalize.css';
+@import '@ionic/angular/css/structure.css';
+@import '@ionic/angular/css/typography.css';
+@import '@ionic/angular/css/padding.css';
+@import '@ionic/angular/css/float-elements.css';
+@import '@ionic/angular/css/text-alignment.css';
+@import '@ionic/angular/css/text-transformation.css';
+@import '@ionic/angular/css/flex-utils.css';
+@import '@ionic/angular/css/display.css';
+
+/* ===== Estilos propios (campaña Diana Lucía Montes) ===== */
+:root {
+  --dm-grad: linear-gradient(120deg, #E0186C 0%, #7C3AED 100%);
+  --dm-fondo: #F6F5FA;
+  --dm-tinta: #101226;
+  --dm-gris: #5A6072;
+  --dm-linea: #E9EBF2;
+}
+ion-content { --background: var(--dm-fondo); }
+ion-toolbar.dm { --background: var(--dm-grad); --color: #fff; }
+ion-toolbar.dm ion-button { --color: #fff; }
+
+.tarjeta { background: #fff; border-radius: 18px; box-shadow: 0 1px 2px rgba(16,18,38,.05), 0 10px 28px rgba(16,18,38,.07); padding: 16px; margin: 0 0 14px; }
+.tarjeta h2 { font-size: 16px; font-weight: 800; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+.tarjeta h2 .der { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--dm-gris); }
+.muted { color: var(--dm-gris); }
+.small { font-size: 12.5px; }
+.vacio { text-align: center; color: var(--dm-gris); padding: 14px 0; font-size: 14px; }
+.kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.kpis.cuatro { grid-template-columns: repeat(4, 1fr); }
+.kpi { background: var(--dm-fondo); border-radius: 12px; padding: 10px 6px; text-align: center; }
+.kpi b { display: block; font-size: 22px; font-weight: 800; color: var(--dm-tinta); }
+.kpi span { font-size: 11px; color: var(--dm-gris); line-height: 1.2; display: block; }
+.barra { height: 12px; background: #FDEBF3; border-radius: 99px; overflow: hidden; margin: 12px 0 6px; }
+.barra i { display: block; height: 100%; background: var(--dm-grad); border-radius: 99px; }
+.etq { display: inline-block; font-size: 11px; font-weight: 800; border-radius: 99px; padding: 3px 9px; white-space: nowrap; }
+.etq.gris { background: #F0EEF6; color: #6B6580; } .etq.azul { background: #EAF2FD; color: #2a78d6; }
+.etq.oro { background: #FFF6E0; color: #B7791F; } .etq.verde { background: #E9F9EF; color: #16A34A; }
+.etq.rojo { background: #FDECEF; color: #B4123F; } .etq.violeta { background: #F3EEFD; color: #7C3AED; }
+.encabezado { background: var(--dm-grad); color: #fff; padding: 18px 16px 52px; }
+.encabezado small { display: block; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; opacity: .85; font-weight: 700; }
+.encabezado h1 { margin: 2px 0 0; font-size: 22px; font-weight: 800; }
+.sube { margin-top: -38px; padding: 0 14px; }
+.lista-limpia { margin: 0; padding: 0; list-style: none; }
+.error-campo { color: #B4123F; font-size: 12.5px; font-weight: 600; padding: 4px 16px 0; }
+ion-item.invalido { --border-color: #E34948; --highlight-color-focused: #E34948; }

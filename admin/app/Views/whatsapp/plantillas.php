@@ -129,6 +129,23 @@ $catTag = function (?string $cat, ?string $pedida = null): string {
   <?php endforeach; ?>
 </section>
 
+<?php [$otpNombre] = wa_plantilla_otp(); $otp = $porNombre[$otpNombre] ?? null; $otpEst = $otp ? ($estados[$otp['estado_meta'] ?? ''] ?? null) : null; ?>
+<section class="card" style="margin-top:16px">
+  <h3>📱 Código de acceso de la app móvil <span class="tag tag-grey small">Autenticación</span>
+    <?php if ($otpEst): ?><span class="tag <?= $otpEst[1] ?> small"><?= e($otpEst[0]) ?></span><?php endif; ?></h3>
+  <p class="muted small" style="line-height:1.6">Los simpatizantes entran a la app con su número de WhatsApp: les llega un código de 6 números con un botón “Copiar código”.
+    Meta exige una plantilla de categoría <b>Autenticación</b> (texto fijo de Meta: “<i>123456 es tu código de verificación. Por tu seguridad, no lo compartas.</i>”).
+    Nombre: <code><?= e($otpNombre) ?></code>.</p>
+  <?php if (!$otp || in_array($otp['estado_meta'], ['REJECTED', null], true)): ?>
+  <form method="post" action="<?= url('whatsapp/crearotp') ?>" style="margin-top:10px">
+    <?= \Core\Csrf::campo() ?>
+    <button class="btn btn-primary" type="submit" <?= $puedeCrear ? '' : 'disabled' ?>>Crear plantilla del código en Meta</button>
+  </form>
+  <?php else: ?>
+  <p class="small" style="margin-top:8px"><?= $otp['estado_meta'] === 'APPROVED' ? '✅ Lista: la app ya puede enviar códigos.' : 'En revisión: pulsa “Traer plantillas de Meta” en unos minutos.' ?></p>
+  <?php endif; ?>
+</section>
+
 <section class="card" style="margin-top:16px">
   <h3>Crear otra plantilla</h3>
   <?php $b = $borrador ?? []; ?>

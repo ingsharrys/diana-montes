@@ -665,3 +665,60 @@ function wa_suscribir_app(): array
         ? [true, '']
         : [false, 'Meta respondió: ' . ($j['error']['message'] ?? "HTTP $http")];
 }
+
+/* ======================= Código de acceso (OTP) para la app ======================= */
+
+/** Nombre e idioma de la plantilla de autenticación con botón "Copiar código". */
+function wa_plantilla_otp(): array
+{
+    return [(string)wa_cfg('WA_PLANTILLA_OTP', 'codigo_acceso'), (string)wa_cfg('WA_PLANTILLA_OTP_IDIOMA', 'es')];
+}
+
+/**
+ * Envía un código de acceso con la plantilla de autenticación. Meta pide el
+ * código en el cuerpo y en el botón de copiar.
+ */
+function wa_enviar_otp(string $telefono, string $codigo): array
+{
+    [$nombre, $idioma] = wa_plantilla_otp();
+    return wa_resultado(wa_api('POST', wa_cfg('WA_PHONE_NUMBER_ID') . '/messages', [
+        'messaging_product' => 'whatsapp',
+        'to'       => '57' . $telefono,
+        'type'     => 'template',
+        'template' => [
+            'name' => $nombre,
+            'language' => ['code' => $idioma],
+            'components' => [
+                ['type' => 'body', 'parameters' => [['type' => 'text', 'text' => $codigo]]],
+                ['type' => 'button', 'sub_type' => 'url', 'index' => '0', 'parameters' => [['type' => 'text', 'text' => $codigo]]],
+            ],
+        ],
+    ]));
+}
+
+/** Crea en Meta la plantilla de autenticación (categoría AUTHENTICATION) para los códigos de la app. */
+function wa_crear_plantilla_otp(PDO $db): array
+{
+    if (!wa_cfg('WA_WABA_ID') || !wa_cfg('WA_TOKEN')) return ['ok' => false, 'msg' => 'Faltan WA_WABA_ID y WA_TOKEN en config.php.'];
+    [$nombre, $idioma] = wa_plantilla_otp();
+    [$http, $j] = wa_api('POST', wa_cfg('WA_WABA_ID') . '/message_templates', [
+        'name' => $nombre, 'language' => $idioma, 'category' => 'AUTHENTICATION',
+        'components' => [
+            ['type' => 'BODY', 'add_security_recommendation' => true],
+            ['type' => 'FOOTER', 'code_expiration_minutes' => 10],
+            ['type' => 'BUTTONS', 'buttons' => [['type' => 'OTP', 'otp_type' => 'COPY_CODE', 'text' => 'Copiar código']]],
+        ],
+    ]);
+    if ($http !== 200 || empty($j['id'])) {
+        $e = $j['error'] ?? [];
+        return ['ok' => false, 'msg' => 'Meta no aceptó la plantilla: ' . ($e['error_user_msg'] ?? $e['message'] ?? "HTTP $http")];
+    }
+    // Se guarda como no utilizable en ocasiones: solo la usa el inicio de sesión de la app
+    $db->prepare(
+        "INSERT INTO wa_plantillas (nombre, idioma, categoria, estado_meta, cuerpo, num_variables, compatible)
+         VALUES (:n, :i, 'AUTHENTICATION', :e, :b, 1, 0)
+         ON DUPLICATE KEY UPDATE categoria = 'AUTHENTICATION', estado_meta = VALUES(estado_meta), compatible = 0"
+    )->execute(['n' => $nombre, 'i' => $idioma, 'e' => $j['status'] ?? 'PENDING',
+                'b' => '{{1}} es tu código de verificación. Por tu seguridad, no lo compartas. (Código de acceso a la app)']);
+    return ['ok' => true, 'msg' => '', 'estado' => $j['status'] ?? 'PENDING'];
+}

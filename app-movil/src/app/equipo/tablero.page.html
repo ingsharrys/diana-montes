@@ -1,0 +1,99 @@
+<ion-content>
+  <ion-refresher slot="fixed" (ionRefresh)="cargar($event)"><ion-refresher-content></ion-refresher-content></ion-refresher>
+  <div class="encabezado" style="padding-top: calc(env(safe-area-inset-top) + 18px)">
+    <small>Centro de mando{{ d()?.soloSuRed ? ' · tu red' : '' }}</small>
+    <h1>Hola, {{ auth.usuario()?.nombre }}</h1>
+  </div>
+  <div class="sube">
+    @if (error()) { <div class="tarjeta vacio">{{ error() }}<br><ion-button size="small" (click)="cargar()">Reintentar</ion-button></div> }
+    @if (!d() && !error()) { <div class="tarjeta vacio"><ion-spinner name="crescent"></ion-spinner></div> }
+    @if (d(); as d) {
+      <section class="tarjeta">
+        <h2>🎯 {{ d.soloSuRed ? 'Mi meta' : 'Progreso hacia la meta' }}</h2>
+        <div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:32px">{{ d.total | number }}</b><span class="muted">de {{ d.meta ? (d.meta | number) : 'sin meta' }} simpatizantes</span></div>
+        @if (d.meta) { <div class="barra"><i [style.width.%]="d.progreso ?? 0"></i></div><div class="small muted">{{ d.progreso }}% de la meta</div> }
+        @if (d.avance) { <p class="small" style="margin-bottom:0">Tu red: <b>{{ d.avance.vinculados }}</b> vinculados · puesto <b>#{{ d.avance.puesto }}</b> de {{ d.avance.equipo }} en el equipo</p> }
+      </section>
+
+      <section class="tarjeta">
+        <h2>📈 Últimos 7 días <span class="der">{{ totalSemana() }} registros</span></h2>
+        <div style="display:flex;align-items:flex-end;gap:6px;height:110px">
+          @for (s of d.semana; track s.fecha) {
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end">
+              <b style="font-size:12px">{{ s.total }}</b>
+              <i [style.height.%]="pct(s.total, maxSemana()) * .75" [style.background]="s.hoy ? '#E0186C' : '#7C3AED'" style="width:100%;min-height:3px;border-radius:6px 6px 2px 2px;display:block"></i>
+              <span class="small muted">{{ s.etiqueta }}</span>
+            </div>
+          }
+        </div>
+      </section>
+
+      <section class="tarjeta">
+        <h2>🗳️ Compromiso</h2>
+        @for (c of d.compromiso; track c.clave) {
+          <div style="margin:8px 0">
+            <div style="display:flex;justify-content:space-between;font-size:14px"><span>{{ c.nombre }}</span><b>{{ c.total | number }}</b></div>
+            <div class="barra" style="margin:4px 0 0;height:9px"><i [style.width.%]="pct(c.total, maxCompromiso())" [style.background]="c.seguro ? '#16A34A' : null"></i></div>
+          </div>
+        }
+        <div class="kpis" style="margin-top:12px">
+          <div class="kpi"><b>{{ d.calidad.seguros | number }}</b><span>votos seguros</span></div>
+          <div class="kpi"><b>{{ pct(d.calidad.con_puesto, d.calidad.total) }}%</b><span>con puesto y mesa</span></div>
+          @if (d.calidad.verificados !== null) { <div class="kpi"><b>{{ pct(d.calidad.verificados, d.calidad.total) }}%</b><span>verificados por llamada</span></div> }
+          @if (d.metaVotos) { <div class="kpi"><b>{{ pct(d.calidad.seguros, d.metaVotos) }}%</b><span>de la meta de votos</span></div> }
+        </div>
+      </section>
+
+      @if (d.tareas) {
+        <section class="tarjeta">
+          <h2>📋 Tareas de la red</h2>
+          <div class="kpis">
+            <div class="kpi"><b>{{ d.tareas.abiertas }}</b><span>abiertas</span></div>
+            <div class="kpi"><b [style.color]="d.tareas.por_validar ? '#B7791F' : null">{{ d.tareas.por_validar }}</b><span>reportes por validar</span></div>
+          </div>
+        </section>
+      }
+
+      @if (d.promotores) {
+        <section class="tarjeta">
+          <h2>🚀 Promotores</h2>
+          <div class="kpis cuatro" style="grid-template-columns:repeat(3,1fr)">
+            <div class="kpi"><b>{{ d.promotores.activos }}</b><span>ya invitaron</span></div>
+            <div class="kpi"><b>{{ d.promotores.promotores }}</b><span>promotores</span></div>
+            <div class="kpi"><b>{{ d.promotores.super }}</b><span>súper</span></div>
+          </div>
+          @for (p of d.topPromotores; track $index) {
+            <div style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--dm-linea);font-size:14px">
+              <b style="width:24px">{{ $index < 3 ? ['🥇','🥈','🥉'][$index] : $index + 1 }}</b>
+              <span style="flex:1">{{ p.nombre }} {{ p.nivelEmoji }}<br><span class="small muted">{{ p.zona }} · red de {{ p.lider }}</span></span>
+              <b>{{ p.invitados }}</b>
+            </div>
+          }
+        </section>
+      }
+
+      @if (d.rankingEquipo.length) {
+        <section class="tarjeta">
+          <h2>👥 Equipo</h2>
+          @for (u of d.rankingEquipo; track $index) {
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--dm-linea);font-size:14px">
+              <span>{{ u.nombre }} <span class="small muted">{{ u.rol }}</span></span><b>{{ u.vinculados }}{{ u.meta ? ' / ' + u.meta : '' }}</b>
+            </div>
+          }
+        </section>
+      }
+
+      @if (d.porZona.length) {
+        <section class="tarjeta">
+          <h2>📍 Zonas con más registros</h2>
+          @for (z of d.porZona; track z.nombre) {
+            <div style="margin:7px 0">
+              <div style="display:flex;justify-content:space-between;font-size:14px"><span>{{ z.nombre }}</span><b>{{ z.total }}</b></div>
+              <div class="barra" style="margin:4px 0 0;height:8px"><i [style.width.%]="pct(z.total, maxZona())"></i></div>
+            </div>
+          }
+        </section>
+      }
+    }
+  </div>
+</ion-content>

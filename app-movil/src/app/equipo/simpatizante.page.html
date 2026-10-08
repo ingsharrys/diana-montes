@@ -1,0 +1,56 @@
+<ion-header>
+  <ion-toolbar class="dm">
+    <ion-buttons slot="start"><ion-back-button defaultHref="/equipo/simpatizantes" text=""></ion-back-button></ion-buttons>
+    <ion-title>{{ s()?.nombre ?? 'Simpatizante' }}</ion-title>
+  </ion-toolbar>
+</ion-header>
+<ion-content class="ion-padding">
+  @if (error()) { <div class="tarjeta vacio">{{ error() }}</div> }
+  @if (!s() && !error()) { <div class="vacio"><ion-spinner name="crescent"></ion-spinner></div> }
+  @if (s(); as s) {
+    <section class="tarjeta">
+      <h2>{{ s.nivelEmoji }} {{ s.nombre }}</h2>
+      @if (s.telefonoCompleto) {
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <ion-button style="flex:1" fill="outline" (click)="llamar()"><ion-icon slot="start" name="call-outline"></ion-icon>Llamar</ion-button>
+          <ion-button style="flex:1" color="success" (click)="whatsapp()"><ion-icon slot="start" name="logo-whatsapp"></ion-icon>WhatsApp</ion-button>
+        </div>
+      }
+      <ion-list lines="full">
+        <ion-item><ion-label><p>Documento</p><h3>{{ s.documento }}</h3></ion-label></ion-item>
+        <ion-item><ion-label><p>Celular</p><h3>{{ s.telefono }}</h3></ion-label></ion-item>
+        <ion-item><ion-label><p>Barrio o vereda</p><h3>{{ s.zona }}</h3></ion-label></ion-item>
+        <ion-item><ion-label><p>Profesión</p><h3>{{ s.profesion }}</h3></ion-label></ion-item>
+        <ion-item><ion-label><p>Nacimiento · género</p><h3>{{ s.fechaNacimiento ? (s.fechaNacimiento | date:'dd/MM/yyyy') : '—' }} · {{ s.genero ?? '—' }}</h3></ion-label></ion-item>
+        <ion-item><ion-label><p>Líder</p><h3>{{ s.lider }}</h3></ion-label></ion-item>
+        <ion-item><ion-label><p>Red</p><h3>{{ s.nivelPromotor }} · {{ s.puntos }} puntos · invitó a {{ s.invitados }}{{ s.invitadoPor ? ' · lo invitó ' + s.invitadoPor : '' }}</h3></ion-label></ion-item>
+        <ion-item><ion-label><p>Registrado</p><h3>{{ s.registrado | date:'dd/MM/yyyy h:mm a' }}</h3></ion-label></ion-item>
+      </ion-list>
+    </section>
+
+    <section class="tarjeta">
+      <h2>✓ Completar y verificar</h2>
+      <ion-list lines="full">
+        <ion-item>
+          <ion-select label="Puesto de votación" labelPlacement="stacked" [(ngModel)]="form.puesto_id" placeholder="Sin puesto" interface="action-sheet" cancelText="Cancelar">
+            <ion-select-option [value]="null">Sin puesto</ion-select-option>
+            @for (p of cat()?.puestos ?? []; track p.id) { <ion-select-option [value]="p.id">{{ p.nombre }}{{ p.mesas ? ' (' + p.mesas + ' mesas)' : '' }}</ion-select-option> }
+          </ion-select>
+        </ion-item>
+        <ion-item>
+          <ion-input label="Mesa" labelPlacement="stacked" inputmode="numeric" maxlength="4" [value]="form.mesa" (ionInput)="limpiarMesa($event)" placeholder="Ej: 12"></ion-input>
+        </ion-item>
+        <ion-item>
+          <ion-select label="Compromiso" labelPlacement="stacked" [(ngModel)]="form.nivel" interface="action-sheet" cancelText="Cancelar">
+            @for (c of cat()?.compromisos ?? []; track c.clave) { <ion-select-option [value]="c.clave">{{ c.nombre }}</ion-select-option> }
+          </ion-select>
+        </ion-item>
+        <ion-item>
+          <ion-toggle [(ngModel)]="form.verificado">Llamé y confirmé</ion-toggle>
+        </ion-item>
+      </ion-list>
+      @if (s.verificadoAt) { <p class="small muted">Verificado el {{ s.verificadoAt | date:'dd/MM/yyyy' }}.</p> }
+      <ion-button expand="block" (click)="guardar()">Guardar</ion-button>
+    </section>
+  }
+</ion-content>

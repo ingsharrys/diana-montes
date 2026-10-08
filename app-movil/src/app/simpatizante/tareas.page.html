@@ -1,0 +1,85 @@
+<ion-header><ion-toolbar class="dm"><ion-title>Mis tareas</ion-title></ion-toolbar></ion-header>
+<ion-content class="ion-padding">
+  <ion-refresher slot="fixed" (ionRefresh)="cargar($event)"><ion-refresher-content></ion-refresher-content></ion-refresher>
+  @if (error()) { <div class="tarjeta vacio">{{ error() }}</div> }
+  @if (!d() && !error()) { <div class="tarjeta vacio"><ion-spinner name="crescent"></ion-spinner></div> }
+
+  <ng-template #tarjeta let-t>
+    <article style="border:1px solid var(--dm-linea);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <span style="width:40px;height:40px;border-radius:12px;background:#FDEBF3;display:flex;align-items:center;justify-content:center;font-size:20px;flex:none">{{ t.emoji }}</span>
+        <div style="flex:1;min-width:0">
+          <b style="font-size:15px">{{ t.titulo }}</b>
+          <div class="small muted">{{ t.esInvitacion ? 'Invitación' : t.tipoNombre }}{{ t.fechaTexto ? ' · 📅 ' + t.fechaTexto : '' }}{{ t.lugar ? ' · 📍 ' + t.lugar : '' }}{{ t.meta && !t.esInvitacion ? ' · 🎯 meta ' + t.meta : '' }}</div>
+          @if (t.asignadaPor) { <div class="small muted">De: {{ t.asignadaPor }}</div> }
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+          @if (t.estadoTexto) { <span class="etq" [class]="t.color ?? 'gris'">{{ t.estadoTexto }}</span> }
+          @if (t.puntos) { <span class="etq violeta">+{{ t.puntos }} pts</span> }
+        </div>
+      </div>
+      @if (t.descripcion) { <p style="font-size:14px;white-space:pre-line;margin:8px 0 0">{{ t.descripcion }}</p> }
+      @if (t.estado === 'hecha' && !t.esInvitacion) { <p class="small muted">Reportaste {{ t.resultado }} {{ t.queReportar }}. El equipo lo validará pronto.</p> }
+      @if (t.abierta) {
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+          @if (t.asignacion === null) {
+            <ion-button size="small" (click)="apuntarme(t)">{{ t.esInvitacion ? '🙋 Asistiré' : '🙋 Me apunto' }}</ion-button>
+          }
+          @if (t.estado === 'pendiente' || t.estado === 'rechazada') {
+            <ion-button size="small" (click)="responder(t, 'aceptar')">{{ t.esInvitacion ? '✓ Asistiré' : '✓ La haré' }}</ion-button>
+            @if (t.estado === 'pendiente') { <ion-button size="small" fill="outline" color="medium" (click)="responder(t, 'rechazar')">No puedo</ion-button> }
+          }
+          @if (!t.esInvitacion && (t.estado === 'aceptada' || t.estado === 'hecha')) {
+            <ion-button size="small" color="secondary" (click)="reportar(t)">{{ t.estado === 'hecha' ? 'Corregir reporte' : 'Reportar lo que hice' }}</ion-button>
+          }
+          @if (t.estado === 'aceptada') {
+            <ion-button size="small" fill="clear" color="medium" (click)="responder(t, 'rechazar')">{{ t.esInvitacion ? 'Ya no podré ir' : 'Ya no puedo' }}</ion-button>
+          }
+        </div>
+      }
+    </article>
+  </ng-template>
+
+  @if (d(); as d) {
+    @if (d.puedeConvocar || d.puedeAsignar) {
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        @if (d.puedeConvocar) { <ion-button color="secondary" style="flex:1" (click)="abrirWeb('?p=convocar')">📣 Convocar reunión</ion-button> }
+        @if (d.puedeAsignar) { <ion-button fill="outline" style="flex:1" (click)="abrirWeb('?p=asignar')">🧩 Asignar tarea</ion-button> }
+      </div>
+    }
+    <section class="tarjeta">
+      <h2>📬 Por responder <span class="der">{{ d.porResponder.length }}</span></h2>
+      @if (!d.porResponder.length) { <p class="vacio">No tienes tareas nuevas. 🙌</p> }
+      @for (t of d.porResponder; track t.asignacion) { <ng-container *ngTemplateOutlet="tarjeta; context: { $implicit: t }"></ng-container> }
+    </section>
+    <section class="tarjeta">
+      <h2>🏃 En curso <span class="der">{{ d.enCurso.length }}</span></h2>
+      @if (!d.enCurso.length) { <p class="vacio">Cuando aceptes una tarea aparecerá aquí.</p> }
+      @for (t of d.enCurso; track t.asignacion) { <ng-container *ngTemplateOutlet="tarjeta; context: { $implicit: t }"></ng-container> }
+    </section>
+    @if (d.abiertas.length) {
+      <section class="tarjeta">
+        <h2>🙋 Tareas abiertas <span class="der">apúntate</span></h2>
+        @for (t of d.abiertas; track t.tarea) { <ng-container *ngTemplateOutlet="tarjeta; context: { $implicit: t }"></ng-container> }
+      </section>
+    }
+    @if (d.organizo.length) {
+      <section class="tarjeta">
+        <h2>🗂️ Lo que organizo</h2>
+        @for (o of d.organizo; track o.tarea) {
+          <div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--dm-linea)">
+            <span style="font-size:20px">{{ o.emoji }}</span>
+            <div style="flex:1"><b>{{ o.titulo }}</b><div class="small muted">{{ o.fechaTexto }} · {{ o.esConvocatoria ? o.confirmados + ' de ' + o.invitados + ' confirmados' : o.cumplidas + ' de ' + o.responsables + ' la cumplieron' }}</div></div>
+            <ion-button size="small" fill="clear" (click)="abrirWeb('?p=convocatoria&id=' + o.tarea)">Ver</ion-button>
+          </div>
+        }
+      </section>
+    }
+    @if (d.historial.length) {
+      <section class="tarjeta">
+        <h2>🗃️ Historial</h2>
+        @for (t of d.historial; track t.asignacion) { <ng-container *ngTemplateOutlet="tarjeta; context: { $implicit: t }"></ng-container> }
+      </section>
+    }
+  }
+</ion-content>

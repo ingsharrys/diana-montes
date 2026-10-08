@@ -1,0 +1,6 @@
+node_modules/
+www/
+.angular/
+android/app/build/
+ios/App/Pods/
+*.log
