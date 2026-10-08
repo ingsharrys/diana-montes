@@ -182,21 +182,31 @@ class Insights extends Model
      * Devuelve nodos [{n: nombre, t: 'raiz'|'equipo'|'simp', g: grupo de color (-1 = sin color), v: invitados}],
      * enlaces [[hijo, padre]] por índice, la leyenda del equipo y totales.
      */
-    public function grafoRed(int $max = 600): array
+    /**
+     * Grafo "quién trajo a quién". Con $detalle cada nodo trae además lo que
+     * muestra el panel de la página Red: id, nombre completo (nc), zona (z),
+     * compromiso (c), puntos (p), fecha de registro (f) y rol del equipo (r).
+     */
+    public function grafoRed(int $max = 600, bool $detalle = false): array
     {
         [$w, $p] = $this->alcance();
         $conRef = $this->tiene('referido_por');
+        $extra = $detalle
+            ? ', s.nivel, s.created_at, ' . ($this->tiene('puntos') ? 's.puntos' : 'NULL AS puntos') . ', z.nombre AS zona'
+            : '';
+        $join = $detalle ? ' LEFT JOIN zonas z ON z.id = s.zona_id' : '';
         $simp = $this->consultar(
-            'SELECT s.id, s.nombre, s.lider_id, ' . ($conRef ? 's.referido_por' : 'NULL') . " AS referido_por
-             FROM simpatizantes s WHERE 1=1 $w ORDER BY s.id DESC LIMIT " . (int)$max, $p
+            'SELECT s.id, s.nombre, s.lider_id, ' . ($conRef ? 's.referido_por' : 'NULL') . " AS referido_por $extra
+             FROM simpatizantes s $join WHERE 1=1 $w ORDER BY s.id DESC LIMIT " . (int)$max, $p
         );
 
         $nodos = []; $enlaces = []; $indice = [];
-        $agregar = function (string $clave, string $nombre, string $tipo, int $grupo) use (&$nodos, &$indice): int {
+        $agregar = function (string $clave, string $nombre, string $tipo, int $grupo, array $mas = []) use (&$nodos, &$indice, $detalle): int {
             $indice[$clave] = count($nodos);
-            $nodos[] = ['n' => $nombre, 't' => $tipo, 'g' => $grupo, 'v' => 0];
+            $nodos[] = ['n' => $nombre, 't' => $tipo, 'g' => $grupo, 'v' => 0] + ($detalle ? $mas : []);
             return $indice[$clave];
         };
+        $roles = ['direccion' => 'Dirección', 'coordinador' => 'Coordinador/a', 'lider' => 'Líder', 'digitador' => 'Digitador/a'];
 
         // Raíz y equipo
         $leyenda = [];
@@ -225,7 +235,7 @@ class Insights extends Model
                 $id = (int)$m['id'];
                 if (!isset($conRed[$id]) && !in_array($m['rol'], ['lider', 'coordinador'], true)) continue;
                 $grupoDe[$id] = $slot < 8 ? $slot : -1;
-                $agregar('u' . $id, $m['nombre'], 'equipo', $grupoDe[$id]);
+                $agregar('u' . $id, $m['nombre'], 'equipo', $grupoDe[$id], ['nc' => $m['nombre'], 'r' => $roles[$m['rol']] ?? $m['rol']]);
                 $leyenda[] = ['nombre' => $m['nombre'], 'g' => $grupoDe[$id], 'ids' => [$id]];
                 $slot++;
             }
@@ -239,7 +249,10 @@ class Insights extends Model
 
         // Simpatizantes: primero todos los nodos, luego los enlaces (el padre puede venir después)
         foreach ($simp as $s) {
-            $agregar('s' . $s['id'], promotor_nombre_corto($s['nombre']), 'simp', $grupoDe[(int)$s['lider_id']] ?? -1);
+            $agregar('s' . $s['id'], promotor_nombre_corto($s['nombre']), 'simp', $grupoDe[(int)$s['lider_id']] ?? -1, [
+                'id' => (int)$s['id'], 'nc' => $s['nombre'], 'z' => $s['zona'] ?? null, 'c' => $s['nivel'] ?? null,
+                'p' => isset($s['puntos']) ? (int)$s['puntos'] : null, 'f' => isset($s['created_at']) ? substr((string)$s['created_at'], 0, 10) : null,
+            ]);
         }
         $conteoLeyenda = [];
         foreach ($simp as $s) {
