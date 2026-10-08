@@ -33,6 +33,7 @@ const WA_VARIABLES = [
     'fecha_tarea'       => 'Fecha de la tarea o evento',
     'lugar_tarea'       => 'Lugar de la tarea o evento',
     'enlace_portal'     => 'Enlace para entrar a su panel (/mi)',
+    'puesto_votacion'   => 'Puesto y mesa de votación',
 ];
 
 require_once __DIR__ . '/datos_personales.php';
@@ -307,6 +308,12 @@ function wa_valores(PDO $db, array $m, ?string $variables): array
                      : ($campo === 'fecha_tarea' ? (red_fecha($t['fecha']) ?: 'por definir') : ($t['lugar'] ?: 'por definir')));
                 break;
             case 'enlace_portal': $v = "$landing/mi/"; break;
+            case 'puesto_votacion':
+                // Meta no acepta variables vacías: si aún no se sabe el puesto, se indica dónde consultarlo
+                $v = !empty($m['puesto'])
+                    ? $m['puesto'] . (($m['mesa'] ?? '') !== '' ? ', mesa ' . $m['mesa'] : '')
+                    : 'el que te asignó la Registraduría (consúltalo con tu cédula en registraduria.gov.co)';
+                break;
             default: $v = '';
         }
         $valores[] = $v;
@@ -338,7 +345,7 @@ function wa_procesar_cola(PDO $db, int $max = 50): array
 
         $lote = $db->query(
             "SELECT m.id, m.clave, m.intentos, s.nombre, s.telefono, s.token_panel, s.codigo_promotor, s.wa_baja_at,
-                    pr.nombre AS profesion, z.nombre AS zona, u.nombre AS lider,
+                    pr.nombre AS profesion, z.nombre AS zona, u.nombre AS lider, pv.nombre AS puesto, s.mesa,
                     pl.nombre AS plantilla, pl.idioma, pl.variables
              FROM wa_mensajes m
              JOIN simpatizantes s     ON s.id = m.simpatizante_id
@@ -347,6 +354,7 @@ function wa_procesar_cola(PDO $db, int $max = 50): array
              LEFT JOIN profesiones pr ON pr.id = s.profesion_id
              LEFT JOIN zonas z        ON z.id = s.zona_id
              LEFT JOIN usuarios u     ON u.id = s.lider_id
+             LEFT JOIN puestos_votacion pv ON pv.id = s.puesto_id
              WHERE m.estado = 'pendiente'
              ORDER BY m.id LIMIT " . min($max, $cupo)
         )->fetchAll(PDO::FETCH_ASSOC);
@@ -539,6 +547,7 @@ const WA_EJEMPLOS = [
     'lider' => 'Carlos', 'enlace_panel' => 'https://dianamontes.com/mi/', 'enlace_invitacion' => 'https://dianamontes.com/',
     'invitado' => 'Ana P.', 'nivel_promotor' => 'Súper Promotor', 'tarea' => 'Reunión con vecinos del barrio',
     'fecha_tarea' => 'sáb 18 oct, 4:00 p. m.', 'lugar_tarea' => 'Salón comunal', 'enlace_portal' => 'https://dianamontes.com/mi/',
+    'puesto_votacion' => 'IE Normal Superior, mesa 12',
 ];
 
 /** Categorías de Meta y cómo se muestran. */
@@ -572,14 +581,47 @@ const WA_PLANTILLAS_SUGERIDAS = [
         "¡Feliz cumpleaños, {{1}}! 🎂 Que este nuevo año de vida llegue lleno de salud y alegrías para ti y tu familia. Un abrazo grande de Diana Lucía Montes y todo el equipo.\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'saludo_profesion' => ['MARKETING', ['profesion'], 'primer_nombre, profesion',
         "¡Feliz día, {{1}}! 🎉 Hoy celebramos a quienes, como tú, se dedican a {{2}}. Gracias por todo lo que aportas a Garzón con tu trabajo. Con cariño, Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
-    'saludo_dia_mujer' => ['MARKETING', ['mujer', 'madre'], 'primer_nombre',
+    'saludo_dia_mujer' => ['MARKETING', ['mujer'], 'primer_nombre',
         "¡Feliz día, {{1}}! 💜 Hoy y siempre, gracias por tu fuerza y por todo lo que haces por tu familia y por Garzón. Un abrazo de Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
-    'saludo_dia_hombre' => ['MARKETING', ['hombre', 'padre'], 'primer_nombre',
+    'saludo_dia_hombre' => ['MARKETING', ['hombre'], 'primer_nombre',
         "¡Feliz día, {{1}}! 💪 Gracias por tu esfuerzo diario por tu familia y por Garzón. Un saludo de Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'saludo_amor_amistad' => ['MARKETING', ['amor_amistad'], 'primer_nombre',
         "¡Feliz Amor y Amistad, {{1}}! 💕 Gracias por ser parte de esta red de amigos que cree en Garzón. Un abrazo de Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
-    'saludo_fecha_especial' => ['MARKETING', ['navidad', 'anio_nuevo'], 'primer_nombre',
+    'saludo_dia_madre' => ['MARKETING', ['madre'], 'primer_nombre',
+        "¡Feliz Día de la Madre, {{1}}! 🌷 Gracias por tu amor, tu entrega y por sacar adelante a tu familia todos los días. Hoy Garzón te celebra. Un abrazo con cariño de Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    'saludo_dia_padre' => ['MARKETING', ['padre'], 'primer_nombre',
+        "¡Feliz Día del Padre, {{1}}! 👨‍👧 Gracias por tu esfuerzo, tu ejemplo y por estar siempre para los tuyos. Que pases un día muy especial en familia. Un saludo de Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    'saludo_navidad' => ['MARKETING', ['navidad'], 'primer_nombre',
+        "¡Feliz Navidad, {{1}}! 🎄 Que esta noche llegue llena de paz, unión y alegría para ti y toda tu familia. Gracias por ser parte de esta red que sueña con un mejor Garzón. Con cariño, Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    'saludo_anio_nuevo' => ['MARKETING', ['anio_nuevo'], 'primer_nombre',
+        "¡Feliz Año Nuevo, {{1}}! 🎆 Que el año que empieza te traiga salud, trabajo y muchas razones para sonreír. Gracias por acompañarnos; lo mejor para Garzón está por venir. Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    'saludo_fecha_especial' => ['MARKETING', [], 'primer_nombre',
         "¡Hola, {{1}}! En esta fecha tan especial te enviamos un saludo lleno de cariño y buenos deseos para ti y los tuyos. Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    'vispera_eleccion' => ['MARKETING', ['vispera_eleccion'], 'primer_nombre, puesto_votacion',
+        "Hola, {{1}}. ¡Mañana es el gran día para Garzón! 🗳️ Tu lugar de votación es {{2}}. Recuerda llevar tu cédula original y madrugar para votar con calma. Cuento contigo. Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    'recordatorio_votacion' => ['MARKETING', ['dia_eleccion'], 'primer_nombre, puesto_votacion',
+        "¡Buenos días, {{1}}! Hoy elegimos el futuro de Garzón 🗳️ Tu lugar de votación es {{2}}. Lleva tu cédula original; las mesas abren a las 8:00 a. m. y cierran a las 4:00 p. m. ¡Gracias por tu apoyo! Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+];
+
+/** Para qué sirve cada plantilla sugerida (se muestra en el tablero de estado). */
+const WA_PLANTILLAS_USO = [
+    'registro_exitoso' => 'Bienvenida y acceso al panel al registrarse',
+    'nuevo_invitado_red' => 'Aviso al promotor cuando alguien se une a su red',
+    'tarea_asignada' => 'Aviso de una tarea nueva',
+    'invitacion_evento' => 'Invitación a reunión o evento',
+    'subiste_nivel' => 'Felicitación al subir de nivel',
+    'saludo_cumpleanos' => 'Cumpleaños',
+    'saludo_profesion' => 'Día de su profesión u oficio',
+    'saludo_dia_mujer' => 'Día de la Mujer (8 de marzo)',
+    'saludo_dia_hombre' => 'Día del Hombre (19 de marzo)',
+    'saludo_dia_madre' => 'Día de la Madre',
+    'saludo_dia_padre' => 'Día del Padre',
+    'saludo_amor_amistad' => 'Amor y Amistad',
+    'saludo_navidad' => 'Navidad',
+    'saludo_anio_nuevo' => 'Año Nuevo',
+    'saludo_fecha_especial' => 'Cualquier otra fecha que crees',
+    'vispera_eleccion' => 'Víspera de elecciones (con su puesto y mesa)',
+    'recordatorio_votacion' => 'Día de elecciones (con su puesto y mesa)',
 ];
 
 /**
@@ -687,6 +729,33 @@ function wa_suscribir_app(): array
     return $http === 200 && !empty($j['success'])
         ? [true, '']
         : [false, 'Meta respondió: ' . ($j['error']['message'] ?? "HTTP $http")];
+}
+
+/**
+ * Crea en Meta todas las plantillas que la plataforma necesita y aún no existen
+ * (o fueron rechazadas no se tocan: hay que ajustar su texto). Incluye la del
+ * código de acceso de la app. Devuelve [[nombre, ok, mensaje], …].
+ */
+function wa_crear_faltantes(PDO $db): array
+{
+    $existentes = [];
+    foreach ($db->query('SELECT nombre, estado_meta FROM wa_plantillas')->fetchAll(PDO::FETCH_ASSOC) as $p) $existentes[$p['nombre']] = $p['estado_meta'];
+    $r = [];
+    [$otp] = wa_plantilla_otp();
+    if (!isset($existentes[$otp])) {
+        $x = wa_crear_plantilla_otp($db);
+        $r[] = [$otp, $x['ok'], $x['ok'] ? 'enviada (Autenticación)' : $x['msg']];
+    }
+    foreach (WA_PLANTILLAS_SUGERIDAS as $nombre => [$cat, $ocasiones, $vars, $texto]) {
+        if (isset($existentes[$nombre])) {
+            if ($existentes[$nombre] === 'REJECTED') $r[] = [$nombre, false, 'Meta la rechazó antes: ajusta su texto y envíala desde la lista.'];
+            continue;
+        }
+        $x = wa_crear_plantilla($db, $nombre, 'es', $cat, $texto, array_map('trim', explode(',', $vars)));
+        if ($x['ok']) wa_vincular_ocasiones($db, $nombre, 'es', $ocasiones);
+        $r[] = [$nombre, $x['ok'], $x['ok'] ? 'enviada (' . (WA_CATEGORIAS[$x['categoria']] ?? $x['categoria']) . ')' : $x['msg']];
+    }
+    return $r;
 }
 
 /* ======================= Código de acceso (OTP) para la app ======================= */
