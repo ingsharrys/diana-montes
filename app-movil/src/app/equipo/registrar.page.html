@@ -1,121 +1,180 @@
-<ion-header><ion-toolbar class="dm"><ion-title>Registrar simpatizante</ion-title></ion-toolbar></ion-header>
-<ion-content class="ion-padding">
-  @if (!cat()) { <div class="vacio"><ion-spinner name="crescent"></ion-spinner></div> }
-  @else {
-  @let c = cat()!;
-  @let e = errores();
-  <section class="tarjeta">
-    <h2>👤 Datos personales</h2>
-    <ion-list lines="full">
-      <ion-item [class.con-error]="e['nombre']">
-        <ion-input label="Nombre completo *" labelPlacement="stacked" autocapitalize="words" maxlength="120" placeholder="Ej: María Fernanda Rojas"
-          [value]="f.nombre" (ionInput)="limpiar('nombre', $event)"></ion-input>
-      </ion-item>
-      @if (e['nombre']) { <div class="error-campo">{{ e['nombre'] }}</div> }
-      <ion-item [class.con-error]="e['documento']">
-        <ion-input label="Cédula / documento *" labelPlacement="stacked" inputmode="numeric" maxlength="10" placeholder="Solo números"
-          [value]="f.documento" (ionInput)="limpiar('documento', $event)"></ion-input>
-      </ion-item>
-      @if (e['documento']) { <div class="error-campo">{{ e['documento'] }}</div> }
-      <ion-item [class.con-error]="e['telefono']">
-        <ion-input label="Celular / WhatsApp *" labelPlacement="stacked" type="tel" inputmode="tel" placeholder="3XX XXX XXXX"
-          [value]="f.telefono" (ionInput)="limpiar('telefono', $event)"></ion-input>
-      </ion-item>
-      @if (e['telefono']) { <div class="error-campo">{{ e['telefono'] }}</div> }
-      <ion-item [class.con-error]="e['fecha_nacimiento']">
-        <ion-input label="Fecha de nacimiento *" labelPlacement="stacked" type="date" [max]="hoy"
-          [(ngModel)]="f.fecha_nacimiento" (ionInput)="quitarError('fecha_nacimiento')"></ion-input>
-      </ion-item>
-      @if (e['fecha_nacimiento']) { <div class="error-campo">{{ e['fecha_nacimiento'] }}</div> }
-      @if (c.generos.length) {
-        <ion-item [class.con-error]="e['genero']">
-          <ion-select label="Género *" labelPlacement="stacked" placeholder="Selecciona" interface="action-sheet" cancelText="Cancelar"
-            [(ngModel)]="f.genero" (ionChange)="quitarError('genero')">
-            @for (g of c.generos; track g.clave) { <ion-select-option [value]="g.clave">{{ g.nombre }}</ion-select-option> }
-          </ion-select>
-        </ion-item>
-        @if (e['genero']) { <div class="error-campo">{{ e['genero'] }}</div> }
+<ion-header class="ion-no-border">
+  <ion-toolbar class="dm">
+    <div class="cabeza">
+      @if (!listo()) {
+        <small>Paso {{ paso() + 1 }} de {{ pasos.length }} · {{ pasos[paso()].sub }}</small>
+        <h1>{{ pasos[paso()].titulo }}</h1>
+        <div class="progreso">
+          @for (p of pasos; track $index) {
+            <button type="button" class="tramo" [class.hecho]="$index < paso()" [class.actual]="$index === paso()" (click)="irA($index)" [attr.aria-label]="p.titulo"></button>
+          }
+        </div>
+      } @else {
+        <small>Registro de simpatizantes</small>
+        <h1>¡Listo!</h1>
       }
-      <ion-item button detail [class.con-error]="e['zona_id']" (click)="zonaAbierta.set(true)">
-        <ion-label>
-          <p>Barrio o vereda *</p>
-          <h3>{{ zonaNombre() || 'Buscar barrio o vereda…' }}</h3>
-        </ion-label>
-      </ion-item>
-      @if (e['zona_id']) { <div class="error-campo">{{ e['zona_id'] }}</div> }
-      <ion-item [class.con-error]="e['profesion_id']">
-        <ion-select label="Profesión u oficio *" labelPlacement="stacked" placeholder="Selecciona" interface="action-sheet" cancelText="Cancelar"
-          [(ngModel)]="f.profesion_id" (ionChange)="quitarError('profesion_id')">
-          @for (p of c.profesiones; track p.id) { <ion-select-option [value]="p.id">{{ p.nombre }}</ion-select-option> }
-        </ion-select>
-      </ion-item>
-      @if (e['profesion_id']) { <div class="error-campo">{{ e['profesion_id'] }}</div> }
-    </ion-list>
-  </section>
+    </div>
+  </ion-toolbar>
+</ion-header>
 
-  <section class="tarjeta">
-    <h2>🗳️ Votación y compromiso</h2>
-    <ion-list lines="full">
-      <ion-item [class.con-error]="e['puesto_id']">
-        <ion-select label="Puesto de votación" labelPlacement="stacked" placeholder="Opcional" interface="action-sheet" cancelText="Cancelar" [(ngModel)]="f.puesto_id">
-          <ion-select-option [value]="null">Sin puesto</ion-select-option>
-          @for (p of c.puestos; track p.id) { <ion-select-option [value]="p.id">{{ p.nombre }}</ion-select-option> }
-        </ion-select>
-      </ion-item>
-      @if (e['puesto_id']) { <div class="error-campo">{{ e['puesto_id'] }}</div> }
-      <ion-item [class.con-error]="e['mesa']">
-        <ion-input label="Mesa" labelPlacement="stacked" inputmode="numeric" maxlength="4" placeholder="Opcional"
-          [value]="f.mesa" (ionInput)="limpiar('mesa', $event)"></ion-input>
-      </ion-item>
-      @if (e['mesa']) { <div class="error-campo">{{ e['mesa'] }}</div> }
-      <ion-item>
-        <ion-select label="Compromiso" labelPlacement="stacked" interface="action-sheet" cancelText="Cancelar" [(ngModel)]="f.nivel">
-          @for (k of c.compromisos; track k.clave) { <ion-select-option [value]="k.clave">{{ k.nombre }}</ion-select-option> }
-        </ion-select>
-      </ion-item>
-      @if (!auth.usuario()?.permisos?.soloSuRed) {
-        <ion-item [class.con-error]="e['lider_id']">
-          <ion-select label="Líder que vincula *" labelPlacement="stacked" placeholder="Selecciona" interface="action-sheet" cancelText="Cancelar"
-            [(ngModel)]="f.lider_id" (ionChange)="quitarError('lider_id')">
-            @for (l of c.lideres; track l.id) { <ion-select-option [value]="l.id">{{ l.nombre }}</ion-select-option> }
-          </ion-select>
-        </ion-item>
-        @if (e['lider_id']) { <div class="error-campo">{{ e['lider_id'] }}</div> }
+<ion-content>
+  @if (!cat()) {
+    <div class="cargando"><ion-spinner name="crescent"></ion-spinner></div>
+  } @else if (listo(); as ok) {
+    <div class="exito">
+      <div class="sello"><ion-icon name="checkmark"></ion-icon></div>
+      <h2>{{ ok.nombre }} ya está en la red</h2>
+      <p>El registro quedó guardado. Si autorizó los mensajes, le llegará la bienvenida por WhatsApp.</p>
+      <button type="button" class="btn primario" (click)="otro()">Registrar otra persona</button>
+      <button type="button" class="btn suave" (click)="verLista()">Ver simpatizantes</button>
+    </div>
+  } @else {
+    @let c = cat()!;
+    @let e = errores();
+    <div class="hoja">
+
+      @if (paso() === 0) {
+        <label class="campo" [class.error]="e['nombre']">
+          <span class="etq">Nombre completo</span>
+          <span class="caja"><ion-icon name="person-outline"></ion-icon>
+            <input [value]="f.nombre" (input)="limpiar('nombre', $event)" autocapitalize="words" autocomplete="off" maxlength="120" placeholder="Ej: María Fernanda Rojas">
+          </span>
+          @if (e['nombre']) { <em>{{ e['nombre'] }}</em> }
+        </label>
+
+        <label class="campo" [class.error]="e['documento']">
+          <span class="etq">Cédula</span>
+          <span class="caja"><ion-icon name="id-card-outline"></ion-icon>
+            <input [value]="f.documento" (input)="limpiar('documento', $event)" inputmode="numeric" maxlength="10" placeholder="Solo números">
+          </span>
+          @if (e['documento']) { <em>{{ e['documento'] }}</em> }
+        </label>
+
+        <label class="campo" [class.error]="e['telefono']">
+          <span class="etq">Celular / WhatsApp</span>
+          <span class="caja"><ion-icon name="logo-whatsapp"></ion-icon>
+            <input [value]="celularVisible()" (input)="limpiar('telefono', $event)" type="tel" inputmode="tel" placeholder="3XX XXX XXXX">
+          </span>
+          @if (e['telefono']) { <em>{{ e['telefono'] }}</em> }
+        </label>
+
+        <label class="campo" [class.error]="e['fecha_nacimiento']">
+          <span class="etq">Fecha de nacimiento</span>
+          <span class="caja"><ion-icon name="calendar-outline"></ion-icon>
+            <input type="date" [max]="hoy" [(ngModel)]="f.fecha_nacimiento" (ngModelChange)="quitarError('fecha_nacimiento')">
+          </span>
+          @if (e['fecha_nacimiento']) { <em>{{ e['fecha_nacimiento'] }}</em> }
+        </label>
+
+        @if (c.generos.length) {
+          <div class="campo" [class.error]="e['genero']">
+            <span class="etq">Género</span>
+            <div class="chips">
+              @for (g of c.generos; track g.clave) {
+                <button type="button" class="chip" [class.on]="f.genero === g.clave" (click)="set('genero', g.clave)">{{ g.nombre }}</button>
+              }
+            </div>
+            @if (e['genero']) { <em>{{ e['genero'] }}</em> }
+          </div>
+        }
       }
-      <ion-item lines="none" [class.con-error]="e['consentimiento']">
-        <ion-checkbox labelPlacement="end" justify="start" [(ngModel)]="f.consentimiento" (ionChange)="quitarError('consentimiento')">
-          <span class="ion-text-wrap small">La persona autoriza el tratamiento de sus datos personales (Ley 1581 de 2012).</span>
-        </ion-checkbox>
-      </ion-item>
-      @if (e['consentimiento']) { <div class="error-campo">{{ e['consentimiento'] }}</div> }
-    </ion-list>
-  </section>
-  <ion-button expand="block" size="large" (click)="guardar()">Guardar registro</ion-button>
 
-  <ion-modal [isOpen]="zonaAbierta()" (didDismiss)="zonaAbierta.set(false)">
-    <ng-template>
-      <ion-header>
-        <ion-toolbar class="dm">
-          <ion-title>Barrio o vereda</ion-title>
-          <ion-buttons slot="end"><ion-button (click)="zonaAbierta.set(false)">Cerrar</ion-button></ion-buttons>
-        </ion-toolbar>
-        <ion-toolbar>
-          <ion-searchbar placeholder="Escribe para buscar…" [value]="buscarZona()" (ionInput)="buscarZona.set($any($event).detail.value ?? '')"></ion-searchbar>
-        </ion-toolbar>
-      </ion-header>
-      <ion-content>
-        @for (g of grupos(); track g.grupo) {
-          <ion-item-group>
-            <ion-item-divider sticky><ion-label>{{ g.grupo }} ({{ g.zonas.length }})</ion-label></ion-item-divider>
-            @for (z of g.zonas; track z.id) {
-              <ion-item button (click)="elegirZona(z)" [color]="z.id === f.zona_id ? 'light' : undefined">
-                <ion-label>{{ z.nombre }}</ion-label>
-              </ion-item>
+      @if (paso() === 1) {
+        <div class="campo" [class.error]="e['zona_id']">
+          <span class="etq">Barrio o vereda</span>
+          <button type="button" class="elegir" (click)="elegirZona()">
+            <span class="ico"><ion-icon name="location-outline"></ion-icon></span>
+            <span class="txt">@if (zonaNombre()) { <b>{{ zonaNombre() }}</b> } @else { <i>Buscar barrio o vereda</i> }</span>
+            <ion-icon name="chevron-forward" class="flecha"></ion-icon>
+          </button>
+          @if (e['zona_id']) { <em>{{ e['zona_id'] }}</em> }
+        </div>
+
+        <div class="campo" [class.error]="e['profesion_id']">
+          <span class="etq">Profesión u oficio</span>
+          <button type="button" class="elegir" (click)="elegirProfesion()">
+            <span class="ico violeta"><ion-icon name="briefcase-outline"></ion-icon></span>
+            <span class="txt">@if (profesionNombre()) { <b>{{ profesionNombre() }}</b> } @else { <i>Elegir profesión</i> }</span>
+            <ion-icon name="chevron-forward" class="flecha"></ion-icon>
+          </button>
+          <small class="ayuda">Con la profesión le enviamos saludos en su día.</small>
+          @if (e['profesion_id']) { <em>{{ e['profesion_id'] }}</em> }
+        </div>
+      }
+
+      @if (paso() === 2) {
+        <div class="campo" [class.error]="e['nivel']">
+          <span class="etq">Nivel de compromiso</span>
+          <div class="niveles">
+            @for (k of c.compromisos; track k.clave) {
+              <button type="button" class="nivel" [class.on]="f.nivel === k.clave" (click)="set('nivel', k.clave)">
+                <span class="emo">{{ info[k.clave]?.[0] ?? '•' }}</span>
+                <span class="txt"><b>{{ k.nombre }}</b><small>{{ info[k.clave]?.[1] ?? '' }}</small></span>
+                <span class="radio"></span>
+              </button>
             }
-          </ion-item-group>
-        } @empty { <p class="vacio">No encontramos «{{ buscarZona() }}».</p> }
-      </ion-content>
-    </ng-template>
-  </ion-modal>
+          </div>
+        </div>
+
+        <div class="fila">
+          <div class="campo grande" [class.error]="e['puesto_id']">
+            <span class="etq">Puesto de votación <i class="opc">opcional</i></span>
+            <button type="button" class="elegir" (click)="elegirPuesto()">
+              <span class="ico verde"><ion-icon name="flag-outline"></ion-icon></span>
+              <span class="txt">@if (puestoNombre()) { <b>{{ puestoNombre() }}</b> } @else { <i>Aún no lo sabe</i> }</span>
+              <ion-icon name="chevron-forward" class="flecha"></ion-icon>
+            </button>
+            @if (e['puesto_id']) { <em>{{ e['puesto_id'] }}</em> }
+          </div>
+          <label class="campo mesa" [class.error]="e['mesa']">
+            <span class="etq">Mesa</span>
+            <span class="caja"><ion-icon name="grid-outline"></ion-icon>
+              <input [value]="f.mesa" (input)="limpiar('mesa', $event)" inputmode="numeric" maxlength="4" placeholder="—">
+            </span>
+          </label>
+        </div>
+        @if (e['mesa']) { <em class="suelto">{{ e['mesa'] }}</em> }
+
+        @if (pideLider) {
+          <div class="campo" [class.error]="e['lider_id']">
+            <span class="etq">Líder que lo vincula</span>
+            <button type="button" class="elegir" (click)="elegirLider()">
+              <span class="ico oro"><ion-icon name="people-outline"></ion-icon></span>
+              <span class="txt">@if (liderNombre()) { <b>{{ liderNombre() }}</b> } @else { <i>Elegir líder</i> }</span>
+              <ion-icon name="chevron-forward" class="flecha"></ion-icon>
+            </button>
+            @if (e['lider_id']) { <em>{{ e['lider_id'] }}</em> }
+          </div>
+        }
+
+        <button type="button" class="permiso" [class.on]="f.consentimiento" [class.error]="e['consentimiento']" (click)="aceptar()">
+          <span class="caja-check">@if (f.consentimiento) { <ion-icon name="checkmark"></ion-icon> }</span>
+          <span><b><ion-icon name="shield-checkmark-outline"></ion-icon> Autorización de datos</b>
+            La persona autoriza el tratamiento de sus datos personales por la campaña (Ley 1581 de 2012).</span>
+        </button>
+        @if (e['consentimiento']) { <em class="suelto">{{ e['consentimiento'] }}</em> }
+
+        <div class="resumen">
+          <span>Resumen</span>
+          <b>{{ f.nombre || '—' }}</b>
+          <small>{{ celularVisible() || '—' }} · {{ zonaNombre() || '—' }} · {{ profesionNombre() || '—' }}</small>
+        </div>
+      }
+    </div>
   }
 </ion-content>
+
+@if (cat() && !listo()) {
+  <ion-footer class="ion-no-border">
+    <div class="pie">
+      @if (paso() > 0) {
+        <button type="button" class="btn suave atras" (click)="atras()"><ion-icon name="chevron-back"></ion-icon></button>
+      }
+      <button type="button" class="btn primario" (click)="siguiente()" [disabled]="guardando()">
+        @if (guardando()) { <ion-spinner name="crescent"></ion-spinner> }
+        @else if (paso() < pasos.length - 1) { Continuar <ion-icon name="chevron-forward"></ion-icon> }
+        @else { <ion-icon name="checkmark-circle"></ion-icon> Guardar registro }
+      </button>
+    </div>
+  </ion-footer>
+}

@@ -164,6 +164,7 @@ final class AuthApi
                     'verDatosCompletos' => in_array($rol, ['direccion', 'coordinador'], true),
                     'soloSuRed'         => $rol === 'lider',
                     'tareas'            => in_array($rol, ['direccion', 'coordinador', 'lider'], true),
+                    'catalogos'         => $rol === 'direccion',
                 ],
                 'panelWeb' => defined('APP_URL') ? APP_URL : null,
             ];

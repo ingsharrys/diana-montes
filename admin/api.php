@@ -20,6 +20,7 @@ use Api\Nucleo;
 use Api\AuthApi;
 use Api\MiApi;
 use Api\EquipoApi;
+use Api\CatalogosApi;
 
 Nucleo::cors();
 
@@ -59,6 +60,11 @@ $rutas = [
     'GET equipo/tarea'                => [[EquipoApi::class, 'tarea'], 'usuario'],
     'POST equipo/tareas/validar'      => [[EquipoApi::class, 'validar'], 'usuario'],
     'POST equipo/tareas/validar-todas' => [[EquipoApi::class, 'validarTodas'], 'usuario'],
+    'GET equipo/catalogos/admin'      => [[CatalogosApi::class, 'listar'], 'usuario'],
+    'POST equipo/catalogos/zona'      => [[CatalogosApi::class, 'zona'], 'usuario'],
+    'POST equipo/catalogos/puesto'    => [[CatalogosApi::class, 'puesto'], 'usuario'],
+    'POST equipo/catalogos/profesion' => [[CatalogosApi::class, 'profesion'], 'usuario'],
+    'POST equipo/catalogos/eliminar'  => [[CatalogosApi::class, 'eliminar'], 'usuario'],
 ];
 
 $clave = "$metodo $ruta";

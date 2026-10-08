@@ -8,7 +8,7 @@ export type TipoCuenta = 'simpatizante' | 'usuario';
 
 export interface PerfilUsuario {
   id: number; nombre: string; email: string; rol: string;
-  permisos: { verDatosCompletos: boolean; soloSuRed: boolean; tareas: boolean };
+  permisos: { verDatosCompletos: boolean; soloSuRed: boolean; tareas: boolean; catalogos?: boolean };
   panelWeb: string | null;
 }
 export interface PerfilSimpatizante {
