@@ -207,6 +207,18 @@ class WhatsappController extends Controller
         $this->redirigir('whatsapp/plantillas');
     }
 
+    /** Crea en Meta la plantilla de autenticación con la que llegan los códigos de acceso de la app móvil. */
+    public function crearotp(): void
+    {
+        $this->accion('whatsapp/plantillas');
+        $r = wa_crear_plantilla_otp(Database::conexion());
+        Auditoria::registrar('wa_plantilla_otp', $r['ok'] ? ($r['estado'] ?? '') : $r['msg']);
+        Session::flash($r['ok'] ? 'ok' : 'error', $r['ok']
+            ? 'Plantilla del código de acceso enviada a Meta (categoría Autenticación). Cuando la aprueben, la app podrá enviar los códigos.'
+            : $r['msg']);
+        $this->redirigir('whatsapp/plantillas');
+    }
+
     /** Suscribe la app a la cuenta de WhatsApp (para que lleguen entregado/leído/respuestas al webhook). */
     public function suscribir(): void
     {

@@ -93,38 +93,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
         case 'responder': // aceptar o rechazar una tarea o invitación
             $resp = (string)($_POST['respuesta'] ?? '');
-            $nuevo = ['aceptar' => 'aceptada', 'rechazar' => 'rechazada'][$resp] ?? null;
-            $st = $db->prepare("UPDATE tarea_asignaciones a JOIN tareas t ON t.id = a.tarea_id
-                                SET a.estado = :e, a.actualizada_at = NOW()
-                                WHERE a.id = :a AND a.simpatizante_id = :s AND t.estado = 'abierta'
-                                  AND a.estado IN ('pendiente','aceptada','rechazada')");
-            $st->execute(['e' => $nuevo ?? 'x', 'a' => (int)($_POST['asig'] ?? 0), 's' => $id]);
-            portal_aviso($st->rowCount() ? 'ok' : 'error', $st->rowCount()
-                ? ($nuevo === 'aceptada' ? '¡Gracias! Quedó anotado. 💜' : 'Entendido, quedó anotado que no puedes.')
+            $ok = red_responder($db, $id, (int)($_POST['asig'] ?? 0), $resp);
+            portal_aviso($ok ? 'ok' : 'error', $ok
+                ? ($resp === 'aceptar' ? '¡Gracias! Quedó anotado. 💜' : 'Entendido, quedó anotado que no puedes.')
                 : 'No se pudo actualizar esa tarea.');
             portal_ir($volver);
 
         case 'reportar': // contar lo que se logró en la tarea
-            $resultado = (int)preg_replace('/\D/', '', (string)($_POST['resultado'] ?? ''));
-            $nota = trim(mb_substr(preg_replace('/\s+/u', ' ', (string)($_POST['nota'] ?? '')), 0, 500));
-            if ($resultado > 100000) $resultado = 100000;
-            $st = $db->prepare("UPDATE tarea_asignaciones a JOIN tareas t ON t.id = a.tarea_id
-                                SET a.estado = 'hecha', a.resultado = :r, a.nota = :n, a.actualizada_at = NOW()
-                                WHERE a.id = :a AND a.simpatizante_id = :s AND a.rol = 'responsable'
-                                  AND t.estado = 'abierta' AND a.estado IN ('pendiente','aceptada','hecha')");
-            $st->execute(['r' => $resultado, 'n' => $nota ?: null, 'a' => (int)($_POST['asig'] ?? 0), 's' => $id]);
-            portal_aviso($st->rowCount() ? 'ok' : 'error', $st->rowCount()
+            $ok = red_reportar($db, $id, (int)($_POST['asig'] ?? 0), $_POST['resultado'] ?? '', (string)($_POST['nota'] ?? ''));
+            portal_aviso($ok ? 'ok' : 'error', $ok
                 ? '¡Reporte enviado! Cuando el equipo lo valide sumarás tus puntos.'
                 : 'No se pudo enviar el reporte.');
             portal_ir($volver);
 
         case 'apuntarme': // tomar una tarea abierta
-            $tareaId = (int)($_POST['tarea'] ?? 0);
-            $abiertas = array_column(portal_tareas_abiertas($db, $yo), null, 'id');
-            if (!isset($abiertas[$tareaId])) { portal_aviso('error', 'Esa tarea ya no está disponible.'); portal_ir('tareas'); }
-            $esEvento = TAREA_TIPOS[$abiertas[$tareaId]['tipo']][3] ?? false;
-            red_asignar($db, $tareaId, [$id], null, null, false, $esEvento ? 'asistente' : 'responsable', 'aceptada');
-            portal_aviso('ok', '¡Te apuntaste! La encuentras en "Mis tareas".');
+            $ok = red_apuntarme($db, $id, (int)($_POST['tarea'] ?? 0), array_column(portal_tareas_abiertas($db, $yo), null, 'id'));
+            portal_aviso($ok ? 'ok' : 'error', $ok ? '¡Te apuntaste! La encuentras en "Mis tareas".' : 'Esa tarea ya no está disponible.');
             portal_ir('tareas');
 
         case 'convocar': // reunión o evento con la propia red (Súper Promotor+)

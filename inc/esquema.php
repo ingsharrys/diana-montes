@@ -205,6 +205,32 @@ function esquema_pasos(): array
         // ---------- Barrios y veredas de Garzón agrupados por zona urbana y corregimiento ----------
         ['zonas', 'clase', 'ALTER TABLE zonas ADD COLUMN grupo VARCHAR(60) NULL, ADD COLUMN clase VARCHAR(40) NULL', 'clasificación de cada barrio y vereda'],
         ['zonas', null, fn(PDO $db) => zonas_reemplazar($db), 'barrios, veredas y corregimientos de Garzón (Excel 2026)', fn(PDO $db) => zonas_garzon_cargadas($db)],
+        // ---------- App móvil: sesiones (tokens) e inicio con código por WhatsApp ----------
+        ['api_tokens', null, "CREATE TABLE IF NOT EXISTS api_tokens (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              token_hash CHAR(64) NOT NULL,
+              tipo ENUM('usuario','simpatizante') NOT NULL,
+              sujeto_id INT NOT NULL,
+              dispositivo VARCHAR(80) NULL,
+              creado_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              ultimo_uso DATETIME NULL,
+              expira_at DATETIME NOT NULL,
+              revocado TINYINT(1) NOT NULL DEFAULT 0,
+              UNIQUE KEY uq_api_token (token_hash),
+              KEY idx_api_sujeto (tipo, sujeto_id)
+            ) DEFAULT CHARSET=utf8mb4", 'sesiones de la app móvil'],
+        ['otp_codigos', null, "CREATE TABLE IF NOT EXISTS otp_codigos (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              telefono VARCHAR(10) NOT NULL,
+              codigo_hash CHAR(64) NOT NULL,
+              creado_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              expira_at DATETIME NOT NULL,
+              intentos TINYINT UNSIGNED NOT NULL DEFAULT 0,
+              usado TINYINT(1) NOT NULL DEFAULT 0,
+              ip VARCHAR(45) NULL,
+              KEY idx_otp_tel (telefono, creado_at),
+              KEY idx_otp_ip (ip, creado_at)
+            ) DEFAULT CHARSET=utf8mb4", 'inicio de sesión con código por WhatsApp (app)'],
         ['wa_plantillas', 'categoria_solicitada', 'ALTER TABLE wa_plantillas ADD COLUMN categoria_solicitada VARCHAR(20) NULL', 'categoría pedida de las plantillas de WhatsApp'],
 
         // ---------- Sin duplicados: la base de datos rechaza un documento o celular repetido ----------

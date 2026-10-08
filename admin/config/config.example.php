@@ -84,5 +84,10 @@ define('WA_WABA_ID',         '');   // Cuenta de WhatsApp Business (para traer p
 define('WA_TOKEN',           '');   // Token PERMANENTE de un usuario del sistema
 define('WA_APP_SECRET',      '');   // Clave secreta de la app (valida la firma del webhook)
 define('WA_VERIFY_TOKEN',    '');   // Frase que inventas y pegas también en Meta
+// App móvil: plantilla de autenticación para el código de acceso (se crea desde Admin › WhatsApp › Plantillas)
+// define('WA_PLANTILLA_OTP', 'codigo_acceso');
+// define('WA_PLANTILLA_OTP_IDIOMA', 'es');
+// Orígenes extra permitidos para la API de la app (además de los de Capacitor), separados por coma:
+// define('API_ORIGENES', '');
 define('WA_LIMITE_DIARIO',   250);  // Tope de mensajes por día (según el límite de tu número en Meta)
 // Opcionales: WA_HORA_ENVIO (9), WA_HORA_FIN (21), WA_LOTE (60), WA_ZONA_HORARIA ('America/Bogota'), WA_API_VERSION ('v23.0')

@@ -1,0 +1,62 @@
+<ion-content>
+  <div class="cabecera">
+    <div class="logo">D</div>
+    <h1>Red de Diana Lucía Montes</h1>
+    <p>Alcaldía de Garzón 2027</p>
+  </div>
+
+  <div class="caja">
+    <ion-segment [(ngModel)]="modo" (ionChange)="cambiarModo()" mode="ios">
+      <ion-segment-button value="whatsapp"><ion-label>Simpatizante</ion-label></ion-segment-button>
+      <ion-segment-button value="equipo"><ion-label>Equipo de campaña</ion-label></ion-segment-button>
+    </ion-segment>
+
+    @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+
+    @if (modo === 'whatsapp') {
+      @if (paso() === 'numero') {
+        <h2><ion-icon name="logo-whatsapp" color="success"></ion-icon> Entra con tu WhatsApp</h2>
+        <p class="ayuda">Te enviaremos un código de 6 números al WhatsApp con el que te registraste.</p>
+        <ion-item lines="full" class="campo">
+          <ion-input #tel label="Celular" labelPlacement="stacked" type="tel" inputmode="tel" autocomplete="tel-national"
+                     placeholder="3XX XXX XXXX" [value]="telefono" (ionInput)="limpiarTelefono($event.detail.value, tel)"
+                     (keyup.enter)="pedirCodigo()"></ion-input>
+        </ion-item>
+        <ion-button expand="block" class="principal" (click)="pedirCodigo()" [disabled]="enviando()">
+          @if (enviando()) { <ion-spinner name="crescent"></ion-spinner> } @else { Enviarme el código }
+        </ion-button>
+        <p class="pie">¿Aún no estás en la red? <a (click)="registrarme()">Regístrate aquí</a></p>
+      } @else {
+        <ion-button fill="clear" size="small" class="volver" (click)="cambiarNumero()"><ion-icon slot="start" name="arrow-back-outline"></ion-icon>Cambiar número</ion-button>
+        <h2>Escribe el código</h2>
+        <p class="ayuda">Si tu número está registrado, te llegó un código por WhatsApp al <b>{{ telefonoVisible }}</b>.</p>
+        @if (codigoPrueba()) { <p class="prueba">Modo de prueba (sin WhatsApp configurado): tu código es <b>{{ codigoPrueba() }}</b></p> }
+        <ion-item lines="full" class="campo">
+          <ion-input #cod label="Código de 6 números" labelPlacement="stacked" type="text" inputmode="numeric" autocomplete="one-time-code"
+                     maxlength="6" class="codigo" placeholder="••••••" [value]="codigo" (ionInput)="limpiarCodigo($event.detail.value, cod)"></ion-input>
+        </ion-item>
+        <ion-button expand="block" class="principal" (click)="verificar()" [disabled]="enviando()">
+          @if (enviando()) { <ion-spinner name="crescent"></ion-spinner> } @else { Ingresar }
+        </ion-button>
+        <ion-button expand="block" fill="clear" (click)="pedirCodigo()" [disabled]="espera() > 0 || enviando()">
+          @if (espera() > 0) { Reenviar código en {{ espera() }} s } @else { Reenviar código }
+        </ion-button>
+      }
+    } @else {
+      <h2><ion-icon name="lock-closed-outline" color="secondary"></ion-icon> Equipo de campaña</h2>
+      <p class="ayuda">Ingresa con el correo y la contraseña del panel de la campaña.</p>
+      <ion-item lines="full" class="campo">
+        <ion-input label="Correo" labelPlacement="stacked" type="email" inputmode="email" autocomplete="username" [(ngModel)]="email"></ion-input>
+      </ion-item>
+      <ion-item lines="full" class="campo">
+        <ion-input label="Contraseña" labelPlacement="stacked" type="password" autocomplete="current-password" [(ngModel)]="password" (keyup.enter)="ingresarEquipo()">
+          <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+        </ion-input>
+      </ion-item>
+      <ion-button expand="block" class="principal" color="secondary" (click)="ingresarEquipo()" [disabled]="enviando()">
+        @if (enviando()) { <ion-spinner name="crescent"></ion-spinner> } @else { Ingresar }
+      </ion-button>
+    }
+    <p class="pie small">🔒 Tu sesión queda guardada en este teléfono hasta que la cierres.</p>
+  </div>
+</ion-content>

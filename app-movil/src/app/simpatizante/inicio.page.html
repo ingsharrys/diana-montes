@@ -1,0 +1,80 @@
+<ion-content>
+  <ion-refresher slot="fixed" (ionRefresh)="cargar($event)"><ion-refresher-content></ion-refresher-content></ion-refresher>
+  <div class="encabezado" style="padding-top: calc(env(safe-area-inset-top) + 18px)">
+    <small>Red de Diana Lucía Montes</small>
+    <h1>¡Hola, {{ d()?.primerNombre ?? '…' }}!</h1>
+  </div>
+  <div class="sube">
+    @if (error()) { <div class="tarjeta vacio">{{ error() }}<br><ion-button size="small" (click)="cargar()">Reintentar</ion-button></div> }
+    @if (!d() && !error()) { <div class="tarjeta vacio"><ion-spinner name="crescent"></ion-spinner></div> }
+    @if (d(); as d) {
+      <section class="tarjeta">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:40px;line-height:1">{{ d.nivel.emoji }}</span>
+          <div style="flex:1">
+            <b style="font-size:20px">{{ d.nivel.nombre }}</b>
+            <div class="small muted">
+              @if (d.nivel.siguiente) { Te faltan <b>{{ d.nivel.faltan }} puntos</b> para ser {{ d.nivel.siguiente.nombre }} {{ d.nivel.siguiente.emoji }} }
+              @else { ¡Llegaste al nivel más alto! 💜 }
+            </div>
+          </div>
+          <div style="text-align:right"><b style="font-size:26px;color:var(--ion-color-primary)">{{ d.puntos }}</b><div class="small muted">puntos</div></div>
+        </div>
+        <div class="barra"><i [style.width.%]="d.nivel.progreso"></i></div>
+        <div class="kpis cuatro" style="margin-top:12px">
+          <div class="kpi"><b>{{ d.kpis.invitados }}</b><span>invitados por ti</span></div>
+          <div class="kpi"><b>{{ d.kpis.red }}</b><span>en tu red</span></div>
+          <div class="kpi"><b>{{ d.kpis.porHacer }}</b><span>tareas por hacer</span></div>
+          <div class="kpi"><b>{{ d.kpis.puesto ? '#' + d.kpis.puesto : '—' }}</b><span>en el ranking</span></div>
+        </div>
+      </section>
+
+      @if (d.proximas.length) {
+        <section class="tarjeta">
+          <h2>📌 Te esperan</h2>
+          @for (t of d.proximas; track t.asignacion) {
+            <div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--dm-linea)">
+              <span style="font-size:22px">{{ t.emoji }}</span>
+              <div style="flex:1;min-width:0"><b>{{ t.titulo }}</b><div class="small muted">{{ t.esInvitacion ? 'Invitación' : t.tipoNombre }}{{ t.fechaTexto ? ' · ' + t.fechaTexto : '' }}</div></div>
+              <span class="etq" [class]="t.color ?? 'gris'">{{ t.estado === 'pendiente' ? 'Responder' : 'En curso' }}</span>
+            </div>
+          }
+        </section>
+      }
+
+      <section class="tarjeta">
+        <h2>🔗 Tu enlace para invitar</h2>
+        <p class="small" style="word-break:break-all;background:var(--dm-fondo);border-radius:10px;padding:8px 10px;margin:0">{{ d.enlace }}</p>
+        <p class="small muted">Cada persona que se registre con tu enlace te suma <b>{{ d.puntosPor.invitado }} puntos</b>.</p>
+        <ion-button expand="block" color="success" (click)="invitarWhatsapp()"><ion-icon slot="start" name="logo-whatsapp"></ion-icon>Invitar por WhatsApp</ion-button>
+        <div style="display:flex;gap:8px">
+          <ion-button expand="block" fill="outline" style="flex:1" (click)="compartir()"><ion-icon slot="start" name="share-social-outline"></ion-icon>Compartir</ion-button>
+          <ion-button expand="block" fill="outline" style="flex:1" (click)="copiar()"><ion-icon slot="start" name="copy-outline"></ion-icon>Copiar</ion-button>
+        </div>
+      </section>
+
+      <section class="tarjeta">
+        <h2>🔓 Lo que puedes hacer</h2>
+        @for (p of d.permisos; track p.clave) {
+          <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--dm-linea)" [style.color]="p.desbloqueado ? null : 'var(--dm-gris)'">
+            <ion-icon [name]="p.desbloqueado ? 'checkmark-circle' : 'lock-closed'" [color]="p.desbloqueado ? 'success' : 'medium'"></ion-icon>
+            <span style="flex:1;font-size:14px">{{ p.texto }}</span>
+            @if (!p.desbloqueado) { <span class="small">{{ p.emoji }} {{ p.nivel }}</span> }
+          </div>
+        }
+      </section>
+
+      <section class="tarjeta">
+        <h2>🏆 Ranking de la red</h2>
+        @if (!d.ranking.length) { <p class="vacio">Aún nadie tiene puntos. ¡Sé el primero!</p> }
+        @for (r of d.ranking; track r.puesto) {
+          <div style="display:flex;gap:10px;padding:7px 6px;border-radius:8px" [style.background]="r.esYo ? '#FDEBF3' : null">
+            <b style="width:28px">{{ r.puesto <= 3 ? ['🥇','🥈','🥉'][r.puesto - 1] : r.puesto }}</b>
+            <span style="flex:1">{{ r.nombre }}{{ r.esYo ? ' (tú)' : '' }}</span><b>{{ r.puntos }} pts</b>
+          </div>
+        }
+        <p class="small muted">Niveles: @for (n of d.niveles; track n.nombre) { {{ n.emoji }} {{ n.nombre }} {{ n.puntos }} · } puntos. +{{ d.puntosPor.invitado }} por invitado, +{{ d.puntosPor.seguro }} si se confirma su voto y los puntos de cada tarea validada.</p>
+      </section>
+    }
+  </div>
+</ion-content>
