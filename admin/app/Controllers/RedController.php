@@ -16,7 +16,8 @@ class RedController extends Controller
 
         $this->vista('red/index', [
             'titulo' => 'Red de contactos',
-            'grafo'  => (new Insights($soloLider))->grafoRed(2500),
+            'grafo'  => (new Insights($soloLider))->grafoRed(2500, true),
+            'esLider' => $soloLider !== null,
         ]);
     }
 }
