@@ -105,6 +105,59 @@ class Catalogo extends Model
         } catch (\PDOException $e) { return false; }
     }
 
+    /** Edita una zona. Devuelve false si ya existe otra con el mismo nombre y clasificación. */
+    public function editarZona(int $id, string $nombre, string $tipo, string $clase): bool
+    {
+        try {
+            if (esquema_tiene($this->db, 'zonas', 'clase')) {
+                if ($this->consultarUno('SELECT id FROM zonas WHERE nombre = :n AND clase = :c AND id <> :id', ['n' => $nombre, 'c' => $clase, 'id' => $id])) return false;
+                $this->ejecutar('UPDATE zonas SET nombre = :n, tipo = :t, clase = :c WHERE id = :id', ['n' => $nombre, 't' => $tipo, 'c' => $clase, 'id' => $id]);
+                return true;
+            }
+            $this->ejecutar('UPDATE zonas SET nombre = :n, tipo = :t WHERE id = :id', ['n' => $nombre, 't' => $tipo, 'id' => $id]);
+            return true;
+        } catch (\PDOException $e) { return false; }
+    }
+
+    /** Crea (id 0) o edita un puesto. Mesas y potencial solo si ya existen las columnas. */
+    public function guardarPuesto(int $id, string $nombre, ?string $direccion, ?int $zonaId, ?int $mesas, ?int $potencial): bool
+    {
+        $extra = esquema_tiene($this->db, 'puestos_votacion', 'mesas');
+        $p = ['n' => $nombre, 'd' => $direccion, 'z' => $zonaId];
+        if ($extra) $p += ['m' => $mesas, 'po' => $potencial];
+        try {
+            if ($this->consultarUno('SELECT id FROM puestos_votacion WHERE nombre = :n AND id <> :id', ['n' => $nombre, 'id' => $id])) return false;
+            if ($id) {
+                $this->ejecutar('UPDATE puestos_votacion SET nombre = :n, direccion = :d, zona_id = :z' . ($extra ? ', mesas = :m, potencial = :po' : '') . ' WHERE id = :id', $p + ['id' => $id]);
+            } else {
+                $this->ejecutar($extra
+                    ? 'INSERT INTO puestos_votacion (nombre, direccion, zona_id, mesas, potencial) VALUES (:n, :d, :z, :m, :po)'
+                    : 'INSERT INTO puestos_votacion (nombre, direccion, zona_id) VALUES (:n, :d, :z)', $p);
+            }
+            return true;
+        } catch (\PDOException $e) { return false; }
+    }
+
+    public function editarProfesion(int $id, string $nombre, ?string $dia): bool
+    {
+        try {
+            if ($this->consultarUno('SELECT id FROM profesiones WHERE nombre = :n AND id <> :id', ['n' => $nombre, 'id' => $id])) return false;
+            $this->ejecutar('UPDATE profesiones SET nombre = :n, dia_celebracion = :d WHERE id = :id', ['n' => $nombre, 'd' => $dia, 'id' => $id]);
+            return true;
+        } catch (\PDOException $e) { return false; }
+    }
+
+    /** Puestos con todos sus datos (para editarlos desde la app). */
+    public function puestosCompletos(): array
+    {
+        $extra = esquema_tiene($this->db, 'puestos_votacion', 'mesas') ? 'p.mesas, p.potencial' : 'NULL AS mesas, NULL AS potencial';
+        return $this->consultar(
+            "SELECT p.id, p.nombre, p.direccion, p.zona_id, z.nombre AS zona, $extra,
+                    (SELECT COUNT(*) FROM simpatizantes s WHERE s.puesto_id = p.id) AS uso
+             FROM puestos_votacion p LEFT JOIN zonas z ON z.id = p.zona_id
+             ORDER BY p.nombre");
+    }
+
     /** Elimina un ítem SOLO si ningún registro lo usa (las FK protegen igual). */
     public function eliminar(string $tabla, int $id): bool
     {

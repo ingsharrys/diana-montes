@@ -26,6 +26,7 @@ export const routes: Routes = [
       { path: 'tareas', loadComponent: () => import('./equipo/tareas.page').then(m => m.TareasPage) },
       { path: 'tareas/:id', loadComponent: () => import('./equipo/tarea.page').then(m => m.TareaPage) },
       { path: 'mas', loadComponent: () => import('./equipo/mas.page').then(m => m.MasPage) },
+      { path: 'catalogos', loadComponent: () => import('./equipo/admin-catalogos.page').then(m => m.AdminCatalogosPage) },
       { path: '', pathMatch: 'full', redirectTo: 'tablero' },
     ],
   },

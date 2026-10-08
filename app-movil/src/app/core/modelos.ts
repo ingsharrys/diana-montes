@@ -73,3 +73,11 @@ export interface FilaTarea {
   id: number; titulo: string; tipoNombre: string; emoji: string; estado: string; alcance: string; fechaTexto: string; creador: string;
   total: number; aceptadas: number; porValidar: number; validadas: number; resultado: number; meta: number | null;
 }
+
+export interface ZonaAdmin { id: number; nombre: string; clase: string | null; grupo: string; uso: number; }
+export interface PuestoAdmin { id: number; nombre: string; direccion: string | null; zonaId: number | null; zona: string | null; mesas: number | null; potencial: number | null; uso: number; }
+export interface ProfesionAdmin { id: number; nombre: string; dia: string | null; uso: number; }
+export interface CatalogosAdmin {
+  clases: { clave: string; nombre: string }[];
+  zonas: ZonaAdmin[]; puestos: PuestoAdmin[]; profesiones: ProfesionAdmin[];
+}
