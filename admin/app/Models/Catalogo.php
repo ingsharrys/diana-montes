@@ -72,19 +72,14 @@ class Catalogo extends Model
              FROM profesiones p ORDER BY p.nombre");
     }
 
-    /** Zonas urbanas y corregimientos ya usados como grupo. */
-    public function gruposZona(): array
-    {
-        if (!esquema_tiene($this->db, 'zonas', 'grupo')) return [];
-        return array_column($this->consultar('SELECT DISTINCT tipo, grupo FROM zonas WHERE grupo IS NOT NULL ORDER BY tipo, grupo'), 'grupo');
-    }
-
-    public function crearZona(string $nombre, string $tipo, ?string $grupo = null): bool
+    /** Crea una zona. Lo único es nombre + clasificación (hay barrios y veredas con el mismo nombre). */
+    public function crearZona(string $nombre, string $tipo, string $clase = 'Barrio'): bool
     {
         try {
-            if (esquema_tiene($this->db, 'zonas', 'grupo')) {
-                $this->ejecutar('INSERT INTO zonas (nombre, tipo, grupo, clase) VALUES (:n, :t, :g, :c)',
-                    ['n' => $nombre, 't' => $tipo, 'g' => $grupo, 'c' => $tipo === 'rural' ? 'Vereda' : 'Barrio']);
+            if (esquema_tiene($this->db, 'zonas', 'clase')) {
+                $existe = $this->consultarUno('SELECT id FROM zonas WHERE nombre = :n AND clase = :c', ['n' => $nombre, 'c' => $clase]);
+                if ($existe) return false;
+                $this->ejecutar('INSERT INTO zonas (nombre, tipo, clase) VALUES (:n, :t, :c)', ['n' => $nombre, 't' => $tipo, 'c' => $clase]);
                 return true;
             }
             $this->ejecutar('INSERT INTO zonas (nombre, tipo) VALUES (:n, :t)', ['n' => $nombre, 't' => $tipo]);

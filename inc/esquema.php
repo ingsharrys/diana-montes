@@ -203,8 +203,8 @@ function esquema_pasos(): array
                 : (bool)$db->query("SELECT COUNT(*) FROM wa_ocasiones WHERE clave = 'invitacion_evento'")->fetchColumn()],
 
         // ---------- Barrios y veredas de Garzón agrupados por zona urbana y corregimiento ----------
-        ['zonas', 'grupo', 'ALTER TABLE zonas ADD COLUMN grupo VARCHAR(60) NULL, ADD COLUMN clase VARCHAR(40) NULL', 'zona urbana o corregimiento de cada barrio y vereda'],
-        ['zonas', null, zonas_garzon_sql(), 'barrios y veredas de Garzón (Plan de Desarrollo 2024-2027)', fn(PDO $db) => zonas_garzon_cargadas($db)],
+        ['zonas', 'clase', 'ALTER TABLE zonas ADD COLUMN grupo VARCHAR(60) NULL, ADD COLUMN clase VARCHAR(40) NULL', 'clasificación de cada barrio y vereda'],
+        ['zonas', null, fn(PDO $db) => zonas_reemplazar($db), 'barrios, veredas y corregimientos de Garzón (Excel 2026)', fn(PDO $db) => zonas_garzon_cargadas($db)],
         ['wa_plantillas', 'categoria_solicitada', 'ALTER TABLE wa_plantillas ADD COLUMN categoria_solicitada VARCHAR(20) NULL', 'categoría pedida de las plantillas de WhatsApp'],
 
         // ---------- Sin duplicados: la base de datos rechaza un documento o celular repetido ----------
@@ -347,7 +347,8 @@ function esquema_actualizar(PDO $db, array &$avisos = []): array
         // Revisión previa (p. ej. datos repetidos): si falla, el paso espera y los demás siguen
         if (isset($paso[5]) && ($aviso = ($paso[5])($db))) { $avisos[] = $aviso; continue; }
         [$tabla, $columna, $sql] = $paso;
-        foreach ((array)$sql as $sentencia) $db->exec($sentencia);
+        if ($sql instanceof Closure) $sql($db);                 // paso con lógica propia (p. ej. zonas)
+        else foreach ((array)$sql as $sentencia) $db->exec($sentencia);
         esquema_columnas($db, $tabla, true);
         compromiso_escala_nueva($db, true);
         $aplicados[] = isset($paso[4]) ? $paso[3] : ($columna ?? "tabla $tabla");
@@ -449,62 +450,185 @@ function simpatizante_error_nacimiento(string $fecha): ?string
     return null;
 }
 
-/* ======================= Barrios y veredas ======================= */
+/* ======================= Barrios, veredas y corregimientos ======================= */
 
-/**
- * Sentencias que cargan ZONAS_GARZON: agrega las que faltan y completa zona
- * urbana o corregimiento de las que ya existen con el mismo nombre (sus
- * registros no cambian). Deja la marca en configuración.
- */
-function zonas_garzon_sql(): array
+const ZONA_VERSION = 'excel-2026-v2';
+
+/** Clasificación tal cual el Excel → grupo del formulario (en este orden). */
+const ZONAS_GRUPOS = [
+    'Barrio'        => 'Barrios',
+    'Urbanización'  => 'Urbanizaciones',
+    'Asentamiento'  => 'Asentamientos',
+    'Corregimiento' => 'Corregimientos (centros poblados)',
+    'Vereda'        => 'Veredas',
+    'Sector de vereda' => 'Sectores de vereda',
+];
+
+function zona_texto_normal(string $t): string
 {
-    $q = fn(string $t) => "'" . str_replace(["\\", "'"], ["\\\\", "\\'"], $t) . "'";
-    $filas = array_map(fn($z) => '(' . implode(', ', array_map($q, $z)) . ')', ZONAS_GARZON);
-    return [
-        'INSERT INTO zonas (nombre, tipo, clase, grupo) VALUES ' . implode(",\n", $filas) . '
-         ON DUPLICATE KEY UPDATE tipo = VALUES(tipo), clase = VALUES(clase), grupo = VALUES(grupo)',
-        "INSERT INTO configuracion (clave, valor) VALUES ('zonas_garzon', '" . count(ZONAS_GARZON) . " zonas PDM 2024-2027')
-         ON DUPLICATE KEY UPDATE valor = VALUES(valor)",
-    ];
+    $t = mb_strtolower(trim(preg_replace('/\s+/u', ' ', $t)), 'UTF-8');
+    return strtr($t, ['á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n']);
 }
 
-/** ¿Ya se cargaron los barrios y veredas de Garzón? */
+/** ¿Ya se reemplazaron las zonas con la lista vigente del Excel? */
 function zonas_garzon_cargadas(PDO $db): bool
 {
-    if (!esquema_tiene($db, 'configuracion') || !esquema_tiene($db, 'zonas', 'grupo')) return false;
-    // La marca guarda cuántas zonas se cargaron: si la lista crece, se vuelve a ofrecer la actualización
-    $st = $db->prepare("SELECT valor FROM configuracion WHERE clave = 'zonas_garzon'");
+    if (!esquema_tiene($db, 'configuracion') || !esquema_tiene($db, 'zonas', 'clase')) return false;
+    $st = $db->prepare("SELECT valor FROM configuracion WHERE clave = 'zonas_version'");
     $st->execute();
-    return (int)$st->fetchColumn() >= count(ZONAS_GARZON);
+    return $st->fetchColumn() === ZONA_VERSION . ':' . count(ZONAS_GARZON);
 }
 
-/** Zonas en orden de presentación: casco urbano por zona, luego rural por corregimiento, "Otra" al final. */
+/**
+ * Reemplaza las zonas por las del Excel (nombre + clasificación) SIN perder datos:
+ *  - la zona que ya existe y coincide con una del Excel conserva su id (y sus registros);
+ *  - si dos zonas viejas caen en la misma, sus registros se pasan a una y la otra se borra;
+ *  - las zonas viejas que no están en el Excel se borran si nadie las usa; si alguien las usa
+ *    (o es "Otra") se conservan para no dañar sus datos;
+ *  - el nombre deja de ser único: lo único es nombre + clasificación (Las Mercedes barrio y vereda).
+ * Devuelve un resumen.
+ */
+function zonas_reemplazar(PDO $db): array
+{
+    // Columnas que apuntan a una zona (simpatizantes, puestos, usuarios, reuniones, tareas…)
+    $refs = $db->query(
+        "SELECT TABLE_NAME FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND COLUMN_NAME = 'zona_id' AND TABLE_NAME <> 'zonas'"
+    )->fetchAll(PDO::FETCH_COLUMN);
+
+    // 1) Índice: de "nombre único" a "nombre + clasificación únicos"
+    $indices = $db->query(
+        "SELECT INDEX_NAME, GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS cols, MAX(NON_UNIQUE) AS nu
+         FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'zonas'
+         GROUP BY INDEX_NAME"
+    )->fetchAll(PDO::FETCH_ASSOC);
+    $tieneNuevo = false;
+    foreach ($indices as $i) {
+        if ($i['INDEX_NAME'] === 'PRIMARY' || (int)$i['nu'] === 1) continue;
+        if ($i['cols'] === 'nombre') $db->exec('ALTER TABLE zonas DROP INDEX `' . str_replace('`', '', $i['INDEX_NAME']) . '`');
+        if ($i['cols'] === 'nombre,clase') $tieneNuevo = true;
+    }
+
+    // 2) Qué zona nueva le toca a cada zona vieja
+    $nuevas = [];
+    foreach (ZONAS_GARZON as $k => [$nombre, $clase]) $nuevas[$k] = ['nombre' => $nombre, 'clase' => $clase, 'n' => zona_texto_normal($nombre)];
+    $viejas = $db->query('SELECT id, nombre, tipo, clase FROM zonas ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
+    $uso = array_fill_keys(array_column($viejas, 'id'), 0);
+    foreach ($refs as $t) {
+        foreach ($db->query("SELECT zona_id, COUNT(*) FROM `$t` WHERE zona_id IS NOT NULL GROUP BY zona_id")->fetchAll(PDO::FETCH_NUM) as [$z, $c]) {
+            if (isset($uso[$z])) $uso[$z] += (int)$c;
+        }
+    }
+    $claseVieja = ['Centro poblado' => 'Corregimiento'];
+    $destino = [];   // id viejo => índice en $nuevas
+    foreach ($viejas as $v) {
+        // quita los sufijos de la carga anterior: "Las Mercedes (vereda)", "Providencia (centro poblado)"
+        $nombre = preg_replace('/\s*\((vereda|centro poblado)\)$/iu', '', $v['nombre'], 1, $quitado);
+        $clase  = $v['clase'] ? ($claseVieja[$v['clase']] ?? $v['clase']) : null;
+        if ($quitado && !$clase) $clase = stripos($v['nombre'], 'centro poblado') !== false ? 'Corregimiento' : 'Vereda';
+        $cands = array_keys(array_filter($nuevas, fn($z) => $z['n'] === zona_texto_normal($nombre)));
+        if (!$cands) continue;
+        $elegido = null;
+        foreach ($cands as $k) if ($clase && $nuevas[$k]['clase'] === $clase) $elegido = $k;
+        if ($elegido === null) {
+            // sin clasificación: lo urbano va al barrio (o lo urbano que haya); lo rural al corregimiento, luego a la vereda
+            $orden = $v['tipo'] === 'rural' ? ['Corregimiento', 'Vereda', 'Sector de vereda'] : ['Barrio'];
+            foreach ($orden as $c) foreach ($cands as $k) if ($elegido === null && $nuevas[$k]['clase'] === $c) $elegido = $k;
+            if ($elegido === null) {
+                $mismoTipo = array_filter($cands, fn($k) => in_array($nuevas[$k]['clase'], ZONAS_CLASES_RURALES, true) === ($v['tipo'] === 'rural'));
+                $elegido = $mismoTipo ? reset($mismoTipo) : $cands[0];
+            }
+        }
+        $destino[(int)$v['id']] = $elegido;
+    }
+
+    $r = ['conservadas' => 0, 'agregadas' => 0, 'unidas' => 0, 'borradas' => 0, 'fuera_del_excel' => []];
+    $db->beginTransaction();
+    try {
+        // 3) Nombres temporales para poder renombrar sin choques
+        $db->exec("UPDATE zonas SET nombre = CONCAT('~tmp~', id) WHERE id IN (" . implode(',', array_keys($destino) ?: [0]) . ')');
+        $porNueva = [];
+        foreach ($destino as $id => $k) $porNueva[$k][] = $id;
+
+        $act = $db->prepare('UPDATE zonas SET nombre = :n, clase = :c, tipo = :t, grupo = NULL WHERE id = :id');
+        $ins = $db->prepare('INSERT INTO zonas (nombre, clase, tipo) VALUES (:n, :c, :t)');
+        foreach ($nuevas as $k => $z) {
+            $tipo = in_array($z['clase'], ZONAS_CLASES_RURALES, true) ? 'rural' : 'urbano';
+            $ids = $porNueva[$k] ?? [];
+            if (!$ids) { $ins->execute(['n' => $z['nombre'], 'c' => $z['clase'], 't' => $tipo]); $r['agregadas']++; continue; }
+            // se queda la zona vieja con más registros; las demás le pasan los suyos
+            usort($ids, fn($a, $b) => [$uso[$b], $a] <=> [$uso[$a], $b]);
+            $queda = array_shift($ids);
+            $act->execute(['n' => $z['nombre'], 'c' => $z['clase'], 't' => $tipo, 'id' => $queda]);
+            $r['conservadas']++;
+            foreach ($ids as $sobra) {
+                foreach ($refs as $t) $db->prepare("UPDATE `$t` SET zona_id = :a WHERE zona_id = :b")->execute(['a' => $queda, 'b' => $sobra]);
+                $db->prepare('DELETE FROM zonas WHERE id = :id')->execute(['id' => $sobra]);
+                $r['unidas']++;
+            }
+        }
+
+        // 4) Zonas viejas que no están en el Excel
+        $borrar = $db->prepare('DELETE FROM zonas WHERE id = :id');
+        $otra = $db->prepare("UPDATE zonas SET clase = 'Otra', grupo = NULL WHERE id = :id");
+        foreach ($viejas as $v) {
+            $id = (int)$v['id'];
+            if (isset($destino[$id])) continue;
+            if ($uso[$id] > 0 || zona_texto_normal($v['nombre']) === 'otra') {
+                $otra->execute(['id' => $id]);
+                $r['fuera_del_excel'][] = $v['nombre'] . ' (' . $uso[$id] . ' registro' . ($uso[$id] === 1 ? '' : 's') . ')';
+            } else {
+                $borrar->execute(['id' => $id]);
+                $r['borradas']++;
+            }
+        }
+        // "Otra" siempre disponible para quien no encuentra su barrio o vereda
+        if (!(int)$db->query("SELECT COUNT(*) FROM zonas WHERE nombre = 'Otra'")->fetchColumn()) {
+            $db->exec("INSERT INTO zonas (nombre, clase, tipo) VALUES ('Otra', 'Otra', 'urbano')");
+        }
+
+        $db->prepare("INSERT INTO configuracion (clave, valor) VALUES ('zonas_version', :v) ON DUPLICATE KEY UPDATE valor = VALUES(valor)")
+           ->execute(['v' => ZONA_VERSION . ':' . count(ZONAS_GARZON)]);
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        throw $e;
+    }
+    if (!$tieneNuevo) $db->exec('ALTER TABLE zonas ADD UNIQUE KEY uq_zona_nombre_clase (nombre, clase)');
+    return $r;
+}
+
+/** Zonas en orden de presentación: barrios, urbanizaciones…, corregimientos, veredas; "Otra" al final. */
 function zonas_listar(PDO $db): array
 {
-    $conGrupo = esquema_tiene($db, 'zonas', 'grupo');
-    return $db->query($conGrupo
-        ? "SELECT id, nombre, tipo, grupo, clase FROM zonas
-           ORDER BY (nombre = 'Otra'), tipo, grupo IS NULL, grupo, (clase = 'Centro poblado') DESC, nombre"
-        : "SELECT id, nombre, tipo, NULL AS grupo, NULL AS clase FROM zonas ORDER BY (nombre = 'Otra'), tipo, nombre"
+    if (!esquema_tiene($db, 'zonas', 'clase')) {
+        return $db->query("SELECT id, nombre, tipo, NULL AS clase FROM zonas ORDER BY (nombre = 'Otra'), tipo, nombre")->fetchAll(PDO::FETCH_ASSOC);
+    }
+    $orden = implode(', ', array_map(fn($c) => $db->quote($c), array_keys(ZONAS_GRUPOS)));
+    return $db->query(
+        "SELECT id, nombre, tipo, clase FROM zonas
+         ORDER BY (nombre = 'Otra'), tipo, FIELD(clase, $orden) = 0, FIELD(clase, $orden), (clase = 'Otra'), nombre"
     )->fetchAll(PDO::FETCH_ASSOC);
 }
 
-/** Etiqueta del grupo (optgroup) de una zona. */
+/** Grupo (optgroup) de una zona según su clasificación. */
 function zona_grupo_etiqueta(array $z): string
 {
-    if ($z['nombre'] === 'Otra') return 'Otra';
-    $base = $z['tipo'] === 'rural' ? 'Zona rural' : 'Casco urbano';
-    return $z['grupo'] ? $base . ' · ' . $z['grupo'] : $base;
+    if (zona_texto_normal((string)$z['nombre']) === 'otra') return 'Otra';
+    $clase = (string)($z['clase'] ?? '');
+    if (isset(ZONAS_GRUPOS[$clase])) return ZONAS_GRUPOS[$clase];
+    if ($clase === 'Otra') return 'Otras zonas';
+    if ($clase === '') return $z['tipo'] === 'rural' ? 'Zona rural' : 'Casco urbano';
+    return $z['tipo'] === 'rural' ? 'Otros rurales' : 'Otros desarrollos urbanos';
 }
 
-/** Nombre visible de una zona (aclara los centros poblados). */
+/** Nombre visible: tal cual el Excel (la clasificación la muestra el buscador al lado). */
 function zona_etiqueta(array $z): string
 {
-    $n = (string)$z['nombre'];
-    return ($z['clase'] ?? '') === 'Centro poblado' && !str_contains($n, 'centro poblado') ? $n . ' (centro poblado)' : $n;
+    return (string)$z['nombre'];
 }
 
-/** <option> agrupados por zona urbana y corregimiento. */
+/** <option> agrupados por clasificación; data-clase la muestra el buscador junto al nombre. */
 function zonas_opciones(array $zonas, $seleccionada = null): string
 {
     $html = '';
@@ -516,8 +640,17 @@ function zonas_opciones(array $zonas, $seleccionada = null): string
             $html .= '<optgroup label="' . e($g) . '">';
             $grupo = $g;
         }
-        $html .= '<option value="' . (int)$z['id'] . '"' . ((int)$seleccionada === (int)$z['id'] ? ' selected' : '') . '>'
+        $html .= '<option value="' . (int)$z['id'] . '"' . ((int)$seleccionada === (int)$z['id'] ? ' selected' : '')
+               . ($z['clase'] && $z['clase'] !== 'Otra' ? ' data-clase="' . e($z['clase']) . '"' : '') . '>'
                . e(zona_etiqueta($z)) . '</option>';
     }
     return $html . ($grupo !== null ? '</optgroup>' : '');
+}
+
+/** Expresión SQL del nombre de una zona para listados: aclara veredas y corregimientos ("La Jagua · vereda"). */
+function zona_sql_nombre(PDO $db, string $alias = 'z'): string
+{
+    if (!esquema_tiene($db, 'zonas', 'clase')) return "$alias.nombre";
+    return "CONCAT($alias.nombre, CASE WHEN $alias.clase IN ('Vereda', 'Corregimiento', 'Sector de vereda')"
+         . " THEN CONCAT(' · ', LOWER($alias.clase)) ELSE '' END)";
 }

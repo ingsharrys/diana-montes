@@ -45,12 +45,12 @@
       <?= \Core\Csrf::campo() ?>
       <div class="cf-fila">
         <input name="nombre" data-tipo="texto" minlength="3" maxlength="120" placeholder="Nombre del barrio o vereda" required>
+        <?php if ($clasesZona): ?>
+        <select name="clase" style="max-width:150px" aria-label="Clasificación"><?php foreach ($clasesZona as $c): ?><option value="<?= e($c) ?>"><?= e($c) ?></option><?php endforeach; ?></select>
+        <?php else: ?>
         <select name="tipo" style="max-width:110px"><option value="urbano">Urbano</option><option value="rural">Rural</option></select>
+        <?php endif; ?>
       </div>
-      <?php if ($gruposZona): ?>
-      <input name="grupo" list="grupos-zona" data-tipo="texto" maxlength="60" placeholder="Zona urbana o corregimiento (ej. Zona Norte, Corregimiento Majo)">
-      <datalist id="grupos-zona"><?php foreach ($gruposZona as $g): ?><option value="<?= e($g) ?>"><?php endforeach; ?></datalist>
-      <?php endif; ?>
       <button type="submit">＋ Agregar zona</button>
     </form>
     <input type="search" class="cat-buscar" placeholder="Buscar barrio o vereda…" aria-label="Buscar barrio o vereda"
