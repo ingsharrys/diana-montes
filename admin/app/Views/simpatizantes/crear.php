@@ -66,7 +66,7 @@
 
       <label class="field <?= isset($errores['profesion_id']) ? 'has-error' : '' ?>">
         <span>Profesión u ocupación * <b class="gold">(clave para mensajes)</b></span>
-        <select name="profesion_id" required data-msg="Selecciona la profesión: es la clave de los mensajes.">
+        <select name="profesion_id" required data-buscar="Buscar profesión u oficio…" data-msg="Selecciona la profesión: es la clave de los mensajes.">
           <option value="">Selecciona…</option>
           <?php foreach ($profesiones as $p): ?>
             <option value="<?= (int)$p['id'] ?>" <?= (int)($v['profesion_id'] ?? 0) === (int)$p['id'] ? 'selected' : '' ?>><?= e($p['nombre']) ?></option>

@@ -10,6 +10,7 @@
  */
 
 require_once __DIR__ . '/zonas_garzon.php';
+require_once __DIR__ . '/profesiones_lista.php';
 
 /** Opciones de género: valor guardado => etiqueta visible. */
 const GENEROS = [
@@ -205,6 +206,7 @@ function esquema_pasos(): array
         // ---------- Barrios y veredas de Garzón agrupados por zona urbana y corregimiento ----------
         ['zonas', 'clase', 'ALTER TABLE zonas ADD COLUMN grupo VARCHAR(60) NULL, ADD COLUMN clase VARCHAR(40) NULL', 'clasificación de cada barrio y vereda'],
         ['zonas', null, fn(PDO $db) => zonas_reemplazar($db), 'barrios, veredas y corregimientos de Garzón (Excel 2026)', fn(PDO $db) => zonas_garzon_cargadas($db)],
+        ['profesiones', null, fn(PDO $db) => profesiones_cargar($db), 'lista completa de profesiones y oficios', fn(PDO $db) => profesiones_cargadas($db)],
         // ---------- App móvil: sesiones (tokens) e inicio con código por WhatsApp ----------
         ['api_tokens', null, "CREATE TABLE IF NOT EXISTS api_tokens (
               id INT AUTO_INCREMENT PRIMARY KEY,

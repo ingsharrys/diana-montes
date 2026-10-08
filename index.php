@@ -12,7 +12,7 @@ session_start();
 /* Catálogos desde la BD (con respaldo por si la BD no responde) */
 try {
     $zonas = zonas_listar(db());   // agrupadas por zona urbana y corregimiento
-    $profesiones = db()->query('SELECT id, nombre FROM profesiones ORDER BY id')->fetchAll();
+    $profesiones = db()->query("SELECT id, nombre FROM profesiones ORDER BY (nombre = 'Otra'), nombre")->fetchAll();
     $pideGenero = esquema_tiene(db(), 'simpatizantes', 'genero');
     $pideClave  = esquema_tiene(db(), 'simpatizantes', 'clave_hash'); // acceso al panel /mi/
 } catch (Throwable $e) {
@@ -510,7 +510,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
           </div>
           <div class="campo">
             <label for="f-prof">¿A qué te dedicas?</label>
-            <select id="f-prof" name="profesion_id" required data-msg="Cuéntanos a qué te dedicas.">
+            <select id="f-prof" name="profesion_id" required data-buscar="Escribe tu profesión u oficio…" data-msg="Cuéntanos a qué te dedicas.">
               <option value="">Selecciona…</option>
               <?php foreach ($profesiones as $p): ?>
               <option value="<?= (int)$p['id'] ?>"><?= e($p['nombre']) ?></option>
