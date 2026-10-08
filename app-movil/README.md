@@ -37,7 +37,27 @@ npx cap sync android
 npx cap open android                   # Android Studio → Build › Generate Signed App Bundle / APK
 ```
 
-Para iPhone, el proceso es el mismo con `ios` en lugar de `android`; se necesita un Mac con Xcode.
+## Compilar para iPhone (iOS)
+
+El proyecto de Xcode ya está en `ios/`. Usa Swift Package Manager, así que no hace falta CocoaPods, y ya trae los íconos y la pantalla de inicio. Solo se puede compilar en un Mac con **Xcode 16 o superior** (Mac App Store).
+
+```bash
+cd app-movil
+npm install
+npm run ios        # compila la web, la copia a ios/ (cap sync) y abre Xcode
+```
+
+En Xcode:
+
+1. Selecciona el proyecto **App** › pestaña **Signing & Capabilities** › **Team**: tu cuenta de Apple. El identificador es `com.dianamontes.app`.
+2. **Probar en tu iPhone:** conéctalo por cable, elígelo arriba y oprime ▶.
+   - Con una cuenta de Apple gratuita, la app funciona 7 días; después hay que volver a instalarla.
+   - En el iPhone, la primera vez: Ajustes › General › VPN y gestión de dispositivos › confiar en el desarrollador.
+3. **Publicar** (TestFlight o App Store) requiere el Apple Developer Program (99 USD al año):
+   - en Xcode, elige **Any iOS Device (arm64)** › **Product › Archive** › **Distribute App** › **App Store Connect**;
+   - luego invita a los probadores desde TestFlight.
+
+Después de cambiar el código de la app, repite `npm run ios`, o `npm run build:prod && npx cap sync ios`.
 
 ## Configuración
 
