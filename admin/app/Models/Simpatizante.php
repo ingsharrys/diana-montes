@@ -53,7 +53,7 @@ class Simpatizante extends Model
               . (red_portal_listo($this->db) ? ', s.puntos, (s.clave_hash IS NOT NULL) AS tiene_clave, s.ultimo_acceso' : '')
             : '';
         $sql = 'SELECT s.id, s.nombre, s.documento, s.telefono, s.nivel, s.created_at,
-                       z.nombre AS zona, p.nombre AS profesion, u.nombre AS lider' . $extra . '
+                       ' . zona_sql_nombre($this->db) . ' AS zona, p.nombre AS profesion, u.nombre AS lider' . $extra . '
                 FROM simpatizantes s
                 JOIN zonas z        ON z.id = s.zona_id
                 JOIN profesiones p  ON p.id = s.profesion_id
@@ -207,7 +207,7 @@ class Simpatizante extends Model
         $joinVerif = $this->conVerificacion() ? 'LEFT JOIN usuarios v ON v.id = s.verificado_por' : '';
         return $this->consultar(
             "SELECT s.id, s.nombre, s.documento, s.telefono, s.nivel, s.puesto_id, s.mesa, s.lider_id,
-                    z.nombre AS zona, u.nombre AS lider, $verif
+                    " . zona_sql_nombre($this->db) . " AS zona, u.nombre AS lider, $verif
              FROM simpatizantes s
              LEFT JOIN zonas z  ON z.id = s.zona_id
              JOIN usuarios u    ON u.id = s.lider_id
@@ -289,9 +289,9 @@ class Simpatizante extends Model
     public function contarPorZona(): array
     {
         return $this->consultar(
-            'SELECT z.nombre, z.tipo, COUNT(s.id) total
-             FROM zonas z LEFT JOIN simpatizantes s ON s.zona_id = z.id
-             GROUP BY z.id, z.nombre, z.tipo ORDER BY total DESC'
+            'SELECT ' . zona_sql_nombre($this->db) . ' AS nombre, z.tipo,
+                    (SELECT COUNT(*) FROM simpatizantes s WHERE s.zona_id = z.id) AS total
+             FROM zonas z ORDER BY total DESC'
         );
     }
 

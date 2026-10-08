@@ -24,7 +24,7 @@ class CatalogosController extends Controller
             'puestos'     => $cat->puestosConUso(),
             'profesiones' => $cat->profesionesConUso(),
             'zonasSimple' => $cat->zonas(),
-            'gruposZona'  => $cat->gruposZona(),
+            'clasesZona'  => esquema_tiene(\Core\Database::conexion(), 'zonas', 'clase') ? array_keys(ZONAS_GRUPOS) : [],
         ]);
     }
 
@@ -35,16 +35,17 @@ class CatalogosController extends Controller
         $this->validarCsrf();
 
         $nombre = limpiar_texto_catalogo((string)($_POST['nombre'] ?? '')) ?? '';
-        $tipo   = ($_POST['tipo'] ?? '') === 'rural' ? 'rural' : 'urbano';
-        $grupo  = limpiar_texto_catalogo((string)($_POST['grupo'] ?? ''), 60);
+        $clase  = array_key_exists($_POST['clase'] ?? '', ZONAS_GRUPOS) ? $_POST['clase'] : 'Barrio';
+        $tipo   = in_array($clase, ZONAS_CLASES_RURALES, true) ? 'rural' : 'urbano';
+        if (isset($_POST['tipo'])) $tipo = $_POST['tipo'] === 'rural' ? 'rural' : 'urbano';   // antes de actualizar la plataforma
 
         if (mb_strlen($nombre) < 3) { Session::flash('error', 'Escribe el nombre del barrio o vereda (letras y números, sin símbolos raros).'); $this->redirigir('catalogos'); }
 
-        if ((new Catalogo())->crearZona($nombre, $tipo, $grupo)) {
-            Auditoria::registrar('catalogo_zona_creada', $nombre . ' (' . $tipo . ')');
+        if ((new Catalogo())->crearZona($nombre, $tipo, $clase)) {
+            Auditoria::registrar('catalogo_zona_creada', $nombre . ' (' . $clase . ')');
             Session::flash('ok', 'Zona "' . $nombre . '" creada: ya aparece en la landing.');
         } else {
-            Session::flash('error', 'Esa zona ya existe.');
+            Session::flash('error', 'Ya existe "' . $nombre . '" como ' . mb_strtolower($clase) . '.');
         }
         $this->redirigir('catalogos');
     }

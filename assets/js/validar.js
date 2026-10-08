@@ -227,7 +227,9 @@
     + '.s2-buscar:focus{outline:none;border-color:var(--rosa,var(--violeta,#7C3AED))}'
     + '.s2-lista{list-style:none;margin:6px 0 0;padding:0;max-height:260px;overflow-y:auto;overscroll-behavior:contain;position:relative}'
     + '.s2-grupo{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--violeta,#7C3AED);padding:9px 8px 3px;position:sticky;top:0;background:#fff}'
-    + '.s2-op{padding:9px 10px;border-radius:8px;cursor:pointer;font-size:15px;line-height:1.3}'
+    + '.s2-op{padding:9px 10px;border-radius:8px;cursor:pointer;font-size:15px;line-height:1.3;display:flex;align-items:center;justify-content:space-between;gap:8px}'
+    + '.s2-clase{flex:none;font-size:11px;font-weight:700;color:#6B6580;background:#F0EEF6;border-radius:99px;padding:2px 8px;white-space:nowrap}'
+    + '.s2-clase[hidden]{display:none}'
     + '.s2-op.s2-activa{background:var(--rosa-soft,#F3EEFD)}'
     + '.s2-op.s2-elegida{font-weight:700}'
     + '.s2-op mark{background:#FFE58A;color:inherit;border-radius:3px;padding:0 1px}'
@@ -252,21 +254,22 @@
     Array.prototype.forEach.call(sel.querySelectorAll('option'), function (o) {
       if (o.value === '' && !permiteVacio) return;
       var g = o.parentNode.tagName === 'OPTGROUP' ? o.parentNode.label : '';
-      items.push({ v: o.value, t: o.textContent.trim(), g: g, n: sinTildes(o.textContent + ' ' + g) });
+      var c = o.dataset.clase || '';
+      items.push({ v: o.value, t: o.textContent.trim(), g: g, c: c, n: sinTildes(o.textContent + ' ' + c + ' ' + g) });
     });
 
     var caja = document.createElement('div');
     caja.className = 's2';
     caja.innerHTML =
       '<button type="button" class="s2-boton" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="' + id + '-lista">'
-      + '<span class="s2-texto"></span><span class="s2-flecha" aria-hidden="true">▾</span></button>'
+      + '<span class="s2-texto"></span><span class="s2-clase s2-clase-boton" hidden></span><span class="s2-flecha" aria-hidden="true">▾</span></button>'
       + '<div class="s2-panel" hidden>'
       + '<input type="search" class="s2-buscar" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="' + escapar(sel.dataset.buscar || 'Buscar…') + '" aria-label="' + escapar(sel.dataset.buscar || 'Buscar') + '" aria-controls="' + id + '-lista">'
       + '<ul class="s2-lista" role="listbox" id="' + id + '-lista"></ul></div>';
     sel.insertAdjacentElement('afterend', caja);
     sel.classList.add('s2-oculto');
     sel.tabIndex = -1;
-    var boton = caja.querySelector('.s2-boton'), texto = caja.querySelector('.s2-texto');
+    var boton = caja.querySelector('.s2-boton'), texto = caja.querySelector('.s2-texto'), claseBoton = caja.querySelector('.s2-clase-boton');
     var panel = caja.querySelector('.s2-panel'), busca = caja.querySelector('.s2-buscar'), lista = caja.querySelector('.s2-lista');
     var etiqueta = sel.id && document.querySelector('label[for="' + sel.id + '"]');
     if (etiqueta) { boton.id = id + '-boton'; etiqueta.setAttribute('for', boton.id); }
@@ -276,6 +279,8 @@
       var o = sel.selectedOptions[0];
       var vacio = !o || (o.value === '' && !permiteVacio);
       texto.textContent = vacio ? textoVacio : o.textContent.trim();
+      claseBoton.textContent = !vacio && o.dataset.clase ? o.dataset.clase : '';
+      claseBoton.hidden = !claseBoton.textContent;
       caja.classList.toggle('s2-vacio', vacio);
     }
 
@@ -291,7 +296,8 @@
       visibles = items.filter(function (it) { return !q || it.n.indexOf(q) !== -1; });
       visibles.forEach(function (it, i) {
         if (it.g !== grupo) { grupo = it.g; if (grupo) html += '<li class="s2-grupo" role="presentation">' + escapar(grupo) + '</li>'; }
-        html += '<li class="s2-op' + (it.v === sel.value ? ' s2-elegida' : '') + '" role="option" id="' + id + '-' + i + '" data-i="' + i + '" aria-selected="' + (it.v === sel.value) + '">' + marcar(it.t, q) + '</li>';
+        html += '<li class="s2-op' + (it.v === sel.value ? ' s2-elegida' : '') + '" role="option" id="' + id + '-' + i + '" data-i="' + i + '" aria-selected="' + (it.v === sel.value) + '">'
+          + '<span>' + marcar(it.t, q) + '</span>' + (it.c ? '<span class="s2-clase">' + escapar(it.c) + '</span>' : '') + '</li>';
       });
       lista.innerHTML = html || '<li class="s2-nada">No encontramos "' + escapar(busca.value.trim()) + '". Prueba con otra palabra o elige "Otra".</li>';
       var elegida = visibles.findIndex(function (it) { return it.v === sel.value; });
