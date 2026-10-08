@@ -203,6 +203,14 @@ function esquema_pasos(): array
             fn(PDO $db) => !esquema_tiene($db, 'wa_ocasiones') ? false
                 : (bool)$db->query("SELECT COUNT(*) FROM wa_ocasiones WHERE clave = 'invitacion_evento'")->fetchColumn()],
 
+        // Elecciones territoriales: último domingo de octubre de 2027 (31 oct). Quedan inactivas hasta que la dirección las active.
+        ['wa_ocasiones', null, "INSERT IGNORE INTO wa_ocasiones (clave, nombre, tipo, regla) VALUES
+              ('vispera_eleccion', 'Víspera de elecciones (30 oct 2027)', 'fecha', '10-30'),
+              ('dia_eleccion',     'Día de elecciones (31 oct 2027)',     'fecha', '10-31')",
+            'recordatorios de votación por WhatsApp',
+            fn(PDO $db) => !esquema_tiene($db, 'wa_ocasiones') ? false
+                : (bool)$db->query("SELECT COUNT(*) FROM wa_ocasiones WHERE clave = 'dia_eleccion'")->fetchColumn()],
+
         // ---------- Barrios y veredas de Garzón agrupados por zona urbana y corregimiento ----------
         ['zonas', 'clase', 'ALTER TABLE zonas ADD COLUMN grupo VARCHAR(60) NULL, ADD COLUMN clase VARCHAR(40) NULL', 'clasificación de cada barrio y vereda'],
         ['zonas', null, fn(PDO $db) => zonas_reemplazar($db), 'barrios, veredas y corregimientos de Garzón (Excel 2026)', fn(PDO $db) => zonas_garzon_cargadas($db)],

@@ -36,6 +36,42 @@ $catTag = function (?string $cat, ?string $pedida = null): string {
   </section>
 </div>
 
+<?php
+[$otpNombre] = wa_plantilla_otp();
+$necesarias = [$otpNombre => ['AUTHENTICATION', 'Código de acceso a la app móvil']];
+foreach (WA_PLANTILLAS_SUGERIDAS as $n => [$cat]) $necesarias[$n] = [$cat, WA_PLANTILLAS_USO[$n] ?? ''];
+$faltan = array_filter(array_keys($necesarias), fn($n) => !isset($porNombre[$n]));
+$aprobadas = array_filter(array_keys($necesarias), fn($n) => ($porNombre[$n]['estado_meta'] ?? '') === 'APPROVED');
+?>
+<section class="card" style="margin-top:16px">
+  <h3>Plantillas que necesita la plataforma
+    <span class="tag tag-green small"><?= count($aprobadas) ?> de <?= count($necesarias) ?> aprobadas</span>
+    <?php if ($faltan): ?><span class="tag tag-gold small"><?= count($faltan) ?> sin crear</span><?php endif; ?></h3>
+  <p class="muted small" style="line-height:1.6;margin-bottom:10px">Cada aviso y saludo automático necesita su plantilla aprobada por Meta.
+    <?php if ($esDireccion && $faltan): ?>Con el botón se envían a Meta todas las que faltan, con su texto, categoría y variables, y quedan asignadas a su ocasión. Puedes revisar o ajustar cada texto más abajo antes de enviarla.<?php endif; ?></p>
+  <?php if ($esDireccion && $faltan): ?>
+  <form method="post" action="<?= url('whatsapp/creartodas') ?>" style="margin-bottom:12px"
+        onsubmit="return confirm('Se enviarán a Meta <?= count($faltan) ?> plantillas para revisión. ¿Continuar?')">
+    <?= \Core\Csrf::campo() ?>
+    <button class="btn btn-primary" type="submit" <?= $puedeCrear ? '' : 'disabled title="Falta WA_WABA_ID o WA_TOKEN"' ?>>✨ <?= count($faltan) === 1 ? 'Crear en Meta la plantilla que falta' : 'Crear en Meta las ' . count($faltan) . ' plantillas que faltan' ?></button>
+    <?php if (!$puedeCrear): ?><span class="small" style="color:var(--bad);margin-left:8px">Primero configura WA_WABA_ID y WA_TOKEN (pestaña Configuración).</span><?php endif; ?>
+  </form>
+  <?php endif; ?>
+  <div class="tbl-wrap">
+  <table class="cola">
+    <tr><th>Plantilla</th><th>Para qué</th><th>Categoría</th><th>Estado en Meta</th></tr>
+    <?php foreach ($necesarias as $n => [$cat, $uso]): $ya = $porNombre[$n] ?? null; $est = $ya ? ($estados[$ya['estado_meta'] ?? ''] ?? null) : null; ?>
+    <tr>
+      <td><b><?= e($n) ?></b></td>
+      <td class="small"><?= e($uso) ?></td>
+      <td><?= $ya ? $catTag($ya['categoria'], $ya['categoria_solicitada'] ?? $cat) : '<span class="tag ' . ($cat === 'UTILITY' ? 'tag-blue' : ($cat === 'AUTHENTICATION' ? 'tag-grey' : 'tag-gold')) . ' small">' . e(WA_CATEGORIAS[$cat] ?? $cat) . '</span>' ?></td>
+      <td><?= $est ? '<span class="tag ' . $est[1] . ' small">' . e($est[0]) . '</span>' : ($ya ? '<span class="tag tag-grey small">' . e((string)$ya['estado_meta']) . '</span>' : '<span class="tag tag-gold small">Sin crear</span>') ?></td>
+    </tr>
+    <?php endforeach; ?>
+  </table>
+  </div>
+</section>
+
 <?php if ($esDireccion): ?>
 <section class="card" style="margin-top:16px">
   <h3>Enviar una prueba</h3>

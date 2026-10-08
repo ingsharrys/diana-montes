@@ -207,6 +207,21 @@ class WhatsappController extends Controller
         $this->redirigir('whatsapp/plantillas');
     }
 
+    /** Crea en Meta, de una vez, todas las plantillas que faltan (incluida la del código de la app). */
+    public function creartodas(): void
+    {
+        $this->accion('whatsapp/plantillas');
+        $r = wa_crear_faltantes(Database::conexion());
+        if (!$r) { Session::flash('ok', 'No falta ninguna: todas las plantillas ya están creadas en Meta.'); $this->redirigir('whatsapp/plantillas'); }
+        $ok = array_filter($r, fn($x) => $x[1]);
+        $mal = array_filter($r, fn($x) => !$x[1]);
+        Auditoria::registrar('wa_plantillas_todas', count($ok) . ' enviadas, ' . count($mal) . ' con error');
+        if ($ok) Session::flash('ok', count($ok) . ' plantilla' . (count($ok) === 1 ? '' : 's') . ' enviada' . (count($ok) === 1 ? '' : 's')
+            . ' a Meta (' . implode(', ', array_map(fn($x) => $x[0], $ok)) . '). Quedan en revisión: pulsa "Traer plantillas de Meta" en unos minutos.');
+        if ($mal) Session::flash('error', implode(' · ', array_map(fn($x) => $x[0] . ': ' . $x[2], $mal)));
+        $this->redirigir('whatsapp/plantillas');
+    }
+
     /** Crea en Meta la plantilla de autenticación con la que llegan los códigos de acceso de la app móvil. */
     public function crearotp(): void
     {
