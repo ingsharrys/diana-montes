@@ -13,7 +13,7 @@ class Catalogo extends Model
 
     public function profesiones(): array
     {
-        return $this->consultar('SELECT id, nombre FROM profesiones ORDER BY nombre');
+        return $this->consultar("SELECT id, nombre FROM profesiones ORDER BY (nombre = 'Otra'), nombre");
     }
 
     public function puestos(): array
@@ -69,7 +69,7 @@ class Catalogo extends Model
         return $this->consultar(
             "SELECT p.id, p.nombre, p.dia_celebracion,
                     (SELECT COUNT(*) FROM simpatizantes s WHERE s.profesion_id = p.id) AS uso
-             FROM profesiones p ORDER BY p.nombre");
+             FROM profesiones p ORDER BY (p.nombre = 'Otra'), p.nombre");
     }
 
     /** Crea una zona. Lo único es nombre + clasificación (hay barrios y veredas con el mismo nombre). */
