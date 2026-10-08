@@ -231,7 +231,30 @@ function esquema_pasos(): array
               KEY idx_otp_tel (telefono, creado_at),
               KEY idx_otp_ip (ip, creado_at)
             ) DEFAULT CHARSET=utf8mb4", 'inicio de sesión con código por WhatsApp (app)'],
-        ['wa_plantillas', 'categoria_solicitada', 'ALTER TABLE wa_plantillas ADD COLUMN categoria_solicitada VARCHAR(20) NULL', 'categoría pedida de las plantillas de WhatsApp'],
+        // ---------- Datos personales: solicitudes de los titulares (eliminar, revocar, corregir, consultar) ----------
+        ['solicitudes_datos', null, "CREATE TABLE IF NOT EXISTS solicitudes_datos (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              radicado VARCHAR(12) NOT NULL,
+              tipo ENUM('eliminar','revocar','actualizar','consultar') NOT NULL,
+              canal ENUM('web','whatsapp','correo','otro') NOT NULL DEFAULT 'web',
+              nombre VARCHAR(120) NULL,
+              documento VARCHAR(20) NULL,
+              telefono VARCHAR(10) NULL,
+              correo VARCHAR(150) NULL,
+              detalle TEXT NULL,
+              simpatizante_id INT NULL,
+              coincide ENUM('total','documento','telefono','ninguna') NOT NULL DEFAULT 'ninguna',
+              estado ENUM('pendiente','atendida','cerrada') NOT NULL DEFAULT 'pendiente',
+              respuesta VARCHAR(500) NULL,
+              ip VARCHAR(45) NULL,
+              created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              atendida_at DATETIME NULL,
+              atendida_por INT NULL,
+              UNIQUE KEY uq_solicitud_radicado (radicado),
+              KEY idx_solicitud_estado (estado, created_at),
+              KEY idx_solicitud_ip (ip, created_at)
+            ) DEFAULT CHARSET=utf8mb4", 'solicitudes de datos personales (eliminar, corregir, revocar)'],
+        ['wa_plantillas', 'categoria_solicitada','ALTER TABLE wa_plantillas ADD COLUMN categoria_solicitada VARCHAR(20) NULL', 'categoría pedida de las plantillas de WhatsApp'],
 
         // ---------- Sin duplicados: la base de datos rechaza un documento o celular repetido ----------
         // Si ya hay repetidos, el paso no se aplica y se listan para que el equipo los corrija.
