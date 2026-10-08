@@ -35,6 +35,14 @@ const WA_VARIABLES = [
     'enlace_portal'     => 'Enlace para entrar a su panel (/mi)',
 ];
 
+require_once __DIR__ . '/datos_personales.php';
+
+/** Dirección pública del sitio (para los enlaces que van en los mensajes). */
+function wa_sitio(): string
+{
+    return rtrim((string)(defined('LANDING_URL') ? LANDING_URL : 'https://dianamontes.com'), '/');
+}
+
 /** Palabras con las que una persona se da de baja o vuelve a suscribirse. */
 const WA_PALABRAS_BAJA   = ['salir', 'baja', 'stop', 'cancelar', 'no mas', 'no quiero'];
 const WA_PALABRAS_VOLVER = ['volver', 'alta', 'suscribir'];
@@ -448,7 +456,22 @@ function wa_procesar_webhook(PDO $db, array $payload): array
                 $r['mensajes']++;
 
                 $palabra = wa_normalizar((string)$texto);
-                if ($simpId && in_array($palabra, WA_PALABRAS_BAJA, true)) {
+                if (in_array($palabra, WA_PALABRAS_ELIMINAR, true) && solicitudes_listas($db)) {
+                    // Pide borrar sus datos: deja de recibir mensajes ya y la solicitud llega a Admin › Datos personales
+                    $resp = 'No encontramos un registro con este número. Si te registraste con otro celular, haz la solicitud en ' . wa_sitio() . '/eliminar-datos/';
+                    if ($simpId) {
+                        $st = $db->prepare('SELECT nombre, documento FROM simpatizantes WHERE id = :id');
+                        $st->execute(['id' => $simpId]);
+                        $f = $st->fetch(PDO::FETCH_ASSOC) ?: [];
+                        $rad = solicitud_crear($db, ['tipo' => 'eliminar', 'canal' => 'whatsapp', 'nombre' => $f['nombre'] ?? '',
+                                                     'documento' => $f['documento'] ?? '', 'telefono' => $tel, 'detalle' => 'Escribió por WhatsApp: ' . mb_substr((string)$texto, 0, 200)]);
+                        $db->prepare('UPDATE simpatizantes SET wa_baja_at = NOW() WHERE id = :id AND wa_baja_at IS NULL')->execute(['id' => $simpId]);
+                        $db->prepare("UPDATE wa_mensajes SET estado = 'omitido', error_detalle = 'Pidió eliminar sus datos' WHERE simpatizante_id = :id AND estado = 'pendiente'")->execute(['id' => $simpId]);
+                        $r['bajas']++;
+                        $resp = "Recibimos tu solicitud para eliminar tus datos. Tu radicado es $rad. Ya no te enviaremos más mensajes y borraremos tus datos en máximo 15 días hábiles. Consulta el estado en " . wa_sitio() . '/eliminar-datos/';
+                    }
+                    if (wa_configurado()) wa_enviar_texto($tel, $resp);
+                } elseif ($simpId && in_array($palabra, WA_PALABRAS_BAJA, true)) {
                     $db->prepare('UPDATE simpatizantes SET wa_baja_at = NOW() WHERE id = :id AND wa_baja_at IS NULL')->execute(['id' => $simpId]);
                     $db->prepare("UPDATE wa_mensajes SET estado = 'omitido', error_detalle = 'Se dio de baja' WHERE simpatizante_id = :id AND estado = 'pendiente'")->execute(['id' => $simpId]);
                     $r['bajas']++;

@@ -16,6 +16,7 @@ $menu = [
     ['whatsapp',            'whatsapp',  'WhatsApp',      ['direccion', 'coordinador']],
     ['usuarios',            'equipo',    'Equipo',        ['direccion']],
     ['catalogos',           'catalogos', 'Catálogos',     ['direccion']],
+    ['datos',               'candado',   'Datos personales', ['direccion']],
 ];
 // Pestañas del centro de mando (las tres vistas de inteligencia de la red)
 $pestanas = ['dashboard' => 'Vista rápida', 'territorio' => 'Territorio', 'red' => 'Red de contactos', 'mapa' => 'Mapa'];

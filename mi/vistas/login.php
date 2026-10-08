@@ -26,4 +26,5 @@
     <p class="pie">¿Primera vez o no recuerdas tu clave?<br>Abre el <b>enlace de tu panel</b> que recibiste al registrarte, o pídele a tu líder una clave temporal.</p>
   </section>
   <p class="pie">¿Aún no estás en la red? <a href="../#sumate">Regístrate aquí</a></p>
+  <p class="pie"><a href="../privacidad/">Privacidad</a> · <a href="../terminos/">Condiciones</a> · <a href="../eliminar-datos/">Eliminar mis datos</a></p>
 </div>

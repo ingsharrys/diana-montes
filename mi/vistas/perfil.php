@@ -35,4 +35,4 @@
 </section>
 
 <a class="btn btn-soft btn-block" href="<?= e(portal_url('salir')) ?>">Cerrar sesión</a>
-<p class="pie">Para dejar de recibir mensajes de WhatsApp responde <b>SALIR</b> a cualquier mensaje de la campaña.</p>
+<p class="pie">Para dejar de recibir mensajes de WhatsApp responde <b>SALIR</b> a cualquier mensaje de la campaña. Para borrar tus datos entra a <a href="../eliminar-datos/">Eliminar mis datos</a>.</p>

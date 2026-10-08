@@ -238,6 +238,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
   .foot-col b{color:var(--ink);font-family:var(--head)}
   .foot-col a{text-decoration:none}
   .foot-col a:hover{color:var(--rosa)}
+  .foot-legal a{color:inherit;text-decoration:underline;text-underline-offset:2px}
   .foot-legal{border-top:1px solid var(--linea);margin-top:24px;padding-top:15px;font-size:11px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 
   .rv{opacity:0;transform:translateY(18px);transition:opacity .5s ease, transform .5s ease}
@@ -453,6 +454,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
       <p><b>Tu red:</b> quien te invitó verá tu nombre en su panel y, si es Promotor o más, podrá escribirte por WhatsApp para actividades de la campaña. Tú verás igual a las personas que invites.</p>
       <p><b>Tus derechos:</b> conocer, actualizar, rectificar y pedir que se eliminen tus datos, y revocar esta autorización en cualquier momento. Para dejar de recibir mensajes responde <b>SALIR</b> a cualquier mensaje de WhatsApp de la campaña.</p>
       <p><b>Seguridad:</b> los datos viajan cifrados y solo los consulta el equipo autorizado de la campaña.</p>
+      <p>Lee la <a href="/privacidad/" target="_blank">política de privacidad completa</a> y las <a href="/terminos/" target="_blank">condiciones del servicio</a>. Para borrar tus datos: <a href="/eliminar-datos/" target="_blank">dianamontes.com/eliminar-datos</a>.</p>
     </div>
     <button class="btn btn-rosa" type="button" data-cerrar style="width:100%;margin-top:14px">Entendido</button>
   </div>
@@ -617,7 +619,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
     </div>
     <div class="foot-legal">
       <span>© <?= date('Y') ?> Campaña Diana Lucía Montes · Garzón, Huila</span>
-      <span>Política de tratamiento de datos · Ley 1581 de 2012</span>
+      <span><a href="/privacidad/">Política de privacidad</a> · <a href="/terminos/">Condiciones del servicio</a> · <a href="/eliminar-datos/">Eliminar mis datos</a></span>
     </div>
   </div>
 </footer>
