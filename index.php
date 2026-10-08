@@ -76,8 +76,40 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
   .nav{display:flex;align-items:center;justify-content:space-between;height:68px;gap:16px}
   .logo{display:flex;align-items:center;gap:11px;text-decoration:none}
   .logo-mark{width:40px;height:40px;border-radius:13px;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--head);font-weight:800;font-size:17px;flex:none}
-  .logo b{font-family:var(--head);font-size:16px;font-weight:800;line-height:1.15;display:block}
-  .logo span{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--rosa);font-weight:700}
+  .logo-txt b{font-family:var(--head);font-size:16px;font-weight:800;line-height:1.15;display:block;color:var(--ink);white-space:nowrap}
+  .logo-txt small{display:block;font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--rosa);font-weight:700;white-space:nowrap}
+  .nav-acc{display:flex;align-items:center;gap:10px}
+  .btn-user{width:44px;height:44px;border-radius:50%;border:1.5px solid var(--linea);background:#fff;color:var(--ink);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:var(--sombra);transition:border-color .2s, color .2s, transform .12s}
+  .btn-user:hover,.btn-user[aria-expanded="true"]{border-color:var(--rosa);color:var(--rosa)}
+  .btn-user:active{transform:scale(.94)}
+  .btn-user svg{width:22px;height:22px}
+
+  /* hoja "Ingresar" (abajo en el celular, junto al ícono en el computador) */
+  .hoja-bg{position:fixed;inset:0;z-index:95;background:rgba(16,18,38,.45);backdrop-filter:blur(3px);opacity:0;transition:opacity .2s}
+  .hoja-bg[hidden]{display:none}
+  .hoja-bg.abierta{opacity:1}
+  .hoja{position:fixed;z-index:96;background:#fff;box-shadow:0 30px 80px rgba(16,18,38,.3);padding:22px 20px 20px;
+        right:max(16px,calc((100vw - 1120px)/2 + 16px));top:76px;width:380px;border-radius:24px;transform:translateY(-8px);opacity:0;transition:transform .22s ease, opacity .22s ease}
+  .hoja-bg.abierta .hoja{transform:none;opacity:1}
+  .hoja-asa{display:none}
+  .hoja h3{font-size:20px;font-weight:800;margin-bottom:2px}
+  .hoja > p{font-size:13.5px;color:var(--gris);margin-bottom:14px}
+  .acceso{display:flex;align-items:center;gap:14px;text-decoration:none;border:1.5px solid var(--linea);border-radius:18px;padding:14px;margin-bottom:10px;transition:border-color .15s, background .15s, transform .12s}
+  .acceso:hover{border-color:var(--rosa);background:#FFF8FB}
+  .acceso:active{transform:scale(.98)}
+  .acceso .ac-i{width:48px;height:48px;border-radius:15px;display:flex;align-items:center;justify-content:center;flex:none}
+  .acceso .ac-i svg{width:24px;height:24px}
+  .acceso.simp .ac-i{background:var(--rosa-soft);color:var(--rosa)}
+  .acceso.equipo .ac-i{background:var(--violeta-soft);color:var(--violeta)}
+  .acceso .ac-t{flex:1;min-width:0}
+  .acceso b{display:block;font-family:var(--head);font-size:15.5px;color:var(--ink)}
+  .acceso span.d{display:block;font-size:12.5px;color:var(--gris);line-height:1.4;margin-top:2px}
+  .acceso .fl{color:#B8BACA;font-size:20px;font-weight:700}
+  .hoja-pie{text-align:center;font-size:13px;color:var(--gris);margin-top:6px}
+  .hoja-pie a{color:var(--rosa);font-weight:700}
+
+  /* barra inferior (solo celular) */
+  .tabbar{display:none}
   .nav-links{display:flex;gap:4px;align-items:center;list-style:none;background:var(--fondo-2);border:1px solid var(--linea);border-radius:99px;padding:5px}
   .nav-links a{text-decoration:none;font-weight:600;font-size:13.5px;color:var(--gris);padding:8px 15px;border-radius:99px}
   .nav-links a:hover{background:#fff;color:var(--ink);box-shadow:var(--sombra)}
@@ -103,7 +135,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
   @media (prefers-reduced-motion:reduce){.video-tag i{animation:none}}
 
   /* ---------- secciones ---------- */
-  section{padding:clamp(52px,8vw,88px) 0}
+  section{padding:clamp(52px,8vw,88px) 0;scroll-margin-top:60px}
   .sec-alt{background:var(--fondo-2);border-top:1px solid var(--linea);border-bottom:1px solid var(--linea)}
   .sec-head{max-width:600px;margin:0 auto clamp(26px,4vw,42px);text-align:center}
   .kicker{display:inline-block;font-size:11.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--rosa);background:var(--rosa-soft);border-radius:99px;padding:7px 15px;margin-bottom:14px}
@@ -255,6 +287,75 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
     .campos-2{grid-template-columns:1fr}
     .tab-panel.activo{grid-template-columns:1fr}
     .ac-panel-in{padding-left:20px}
+
+    /* ===== Versión celular, estilo app ===== */
+    body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+    header{background:rgba(255,255,255,.92)}
+    .nav{height:62px}
+    .nav-cta{display:none}
+    .logo-mark{width:38px;height:38px;border-radius:12px;font-size:14px}
+    .logo-txt b{font-size:15px}
+    .logo-txt small{font-size:9.5px;letter-spacing:1.4px}
+
+    /* hoja desde abajo */
+    .hoja{left:0;right:0;top:auto;bottom:0;width:auto;border-radius:28px 28px 0 0;padding:12px 18px calc(22px + env(safe-area-inset-bottom));transform:translateY(100%);opacity:1;transition:transform .28s cubic-bezier(.2,.9,.3,1)}
+    .hoja-bg.abierta .hoja{transform:none}
+    .hoja-asa{display:block;width:44px;height:5px;border-radius:99px;background:#D9DBE5;margin:0 auto 14px}
+    .hoja .modal-x{top:18px}
+    .acceso{padding:16px 14px;border-radius:20px}
+
+    /* barra inferior */
+    .tabbar{display:grid;grid-template-columns:repeat(5,1fr);align-items:end;position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:80;
+            background:rgba(255,255,255,.94);backdrop-filter:blur(14px);border:1px solid var(--linea);border-radius:24px;padding:8px 6px 7px;box-shadow:0 12px 34px rgba(16,18,38,.16)}
+    .tabbar a,.tabbar button{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;margin:0;text-decoration:none;background:none;border:0;color:#8A8FA3;font-family:var(--head);font-size:10.5px;font-weight:700;line-height:1.25;padding:4px 0;border-radius:14px;-webkit-tap-highlight-color:transparent}
+    .tabbar svg{width:23px;height:23px}
+    .tabbar .activo{color:var(--rosa)}
+    .tabbar .tab-cta{margin-top:-26px;color:var(--rosa)}
+    .tabbar .cta-c{width:54px;height:54px;border-radius:18px;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px rgba(224,24,108,.38);border:4px solid #fff}
+    .tabbar .cta-c svg{width:26px;height:26px}
+
+    /* hero */
+    .hero{padding:22px 0 36px}
+    .hero::before{width:420px;height:420px;top:-160px;right:-200px}
+    .pill{font-size:11.5px;padding:7px 13px;margin-bottom:14px}
+    h1{font-size:clamp(32px,9vw,40px);line-height:1.08}
+    .hero p.lead{margin:14px 0 20px}
+    .hero-ctas{display:grid;grid-template-columns:1fr;gap:10px}
+    .hero-ctas .btn{width:100%;padding:15px 12px;border-radius:16px}
+    .video-card{max-width:none;border-radius:26px;aspect-ratio:4/5;margin-top:4px}
+
+    /* secciones */
+    section{padding:44px 0}
+    .sec-head{text-align:left;margin-bottom:22px}
+    .kicker{font-size:10.5px;padding:6px 12px;margin-bottom:10px}
+    h2{font-size:clamp(25px,7vw,30px)}
+    .ac-item{border-radius:20px}
+    .ac-btn{padding:16px}
+    .ac-btn .a-ico{width:42px;height:42px;border-radius:14px}
+    .ac-btn h3{font-size:15px;line-height:1.3}
+    .tab-btns{width:100%;flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;border-radius:18px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+    .tab-btns::-webkit-scrollbar{display:none}
+    .tab-btn{flex:1;justify-content:center;white-space:nowrap;padding:12px 14px;border-radius:14px}
+    .tab-panel{border-radius:22px;padding:20px}
+    .tab-panel .t-ico{width:52px;height:52px;border-radius:16px;font-size:24px}
+    .t-lista span{background:var(--fondo-2);border-radius:12px;padding:10px 12px}
+    .quote-card{border-radius:26px}
+    .quote-foto img{width:min(210px,70%)}
+    .quote-body{padding:22px}
+    blockquote{font-size:19px}
+
+    /* registro */
+    .reg-grid{gap:20px}
+    .paso{border-radius:16px}
+    .form-card{border-radius:26px;padding:20px 16px;margin:0 -4px}
+    .campo label{font-size:12.5px;color:var(--ink)}
+    .campo input,.campo select{border-radius:14px;padding:14px;background:#F6F6FA}
+    .consent{border-radius:14px;font-size:12.5px}
+    #formRegistro .btn-rosa{width:100%;padding:16px;border-radius:16px;font-size:16px}
+
+    footer{padding-bottom:20px}
+    .foot-grid{flex-direction:column;gap:14px}
+    .foot-legal{flex-direction:column}
   }
 </style>
 </head>
@@ -263,17 +364,41 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
 <header>
   <div class="wrap nav">
     <a class="logo" href="#inicio" aria-label="Inicio">
-      <span class="logo-mark">D</span>
-      <span><b>Diana Lucía Montes</b><span>Alcaldía de Garzón</span></span>
+      <span class="logo-mark">DM</span>
+      <span class="logo-txt"><b>Diana Lucía Montes</b><small>Alcaldía de Garzón 2027</small></span>
     </a>
     <ul class="nav-links">
       <li><a href="#retos">Retos</a></li>
       <li><a href="#propuestas">Propuestas</a></li>
       <li><a href="#diana">¿Quién es Diana?</a></li>
     </ul>
-    <a class="btn btn-rosa btn-sm" href="#sumate">Quiero sumarme</a>
+    <div class="nav-acc">
+      <button class="btn-user" type="button" data-ingresar aria-haspopup="dialog" aria-expanded="false" aria-controls="hojaIngresar" aria-label="Ingresar a la plataforma" title="Ingresar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg></button>
+      <a class="btn btn-rosa btn-sm nav-cta" href="#sumate">Quiero sumarme</a>
+    </div>
   </div>
 </header>
+
+<!-- ==================== INGRESAR (simpatizante / equipo) ==================== -->
+<div class="hoja-bg" id="hojaIngresar" hidden>
+  <div class="hoja" role="dialog" aria-modal="true" aria-labelledby="hojaTitulo">
+    <span class="hoja-asa" aria-hidden="true"></span>
+    <button class="modal-x" type="button" data-cerrar-hoja aria-label="Cerrar">✕</button>
+    <h3 id="hojaTitulo">Ingresar</h3>
+    <p>¿Cómo quieres entrar a la plataforma?</p>
+    <a class="acceso simp" href="mi/">
+      <span class="ac-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2z"/></svg></span>
+      <span class="ac-t"><b>Soy simpatizante</b><span class="d">Mira tu red, tus puntos, tus tareas y tu enlace para invitar.</span></span>
+      <span class="fl" aria-hidden="true">›</span>
+    </a>
+    <a class="acceso equipo" href="admin/">
+      <span class="ac-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7.5 3v5.4c0 4.6-3.2 8.3-7.5 9.6-4.3-1.3-7.5-5-7.5-9.6V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></svg></span>
+      <span class="ac-t"><b>Equipo de campaña</b><span class="d">Dirección, coordinadores, líderes y digitación.</span></span>
+      <span class="fl" aria-hidden="true">›</span>
+    </a>
+    <p class="hoja-pie">¿Aún no estás en la red? <a href="#sumate" data-cerrar-hoja>Regístrate gratis</a></p>
+  </div>
+</div>
 
 <main id="inicio">
 
@@ -600,6 +725,15 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
 </section>
 </main>
 
+<!-- ==================== BARRA INFERIOR (celular) ==================== -->
+<nav class="tabbar" aria-label="Secciones">
+  <a href="#inicio" data-sec="inicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"/></svg><span>Inicio</span></a>
+  <a href="#retos" data-sec="retos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v3M5.6 5.6l2.1 2.1M3 12h3M18.4 5.6l-2.1 2.1M21 12h-3"/><circle cx="12" cy="14" r="5"/></svg><span>Retos</span></a>
+  <a href="#sumate" data-sec="sumate" class="tab-cta"><span class="cta-c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span>Súmate</span></a>
+  <a href="#propuestas" data-sec="propuestas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l2.5 2.5L16 9"/></svg><span>Propuestas</span></a>
+  <button type="button" data-ingresar aria-haspopup="dialog" aria-controls="hojaIngresar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg><span>Ingresar</span></button>
+</nav>
+
 <!-- ==================== FOOTER ==================== -->
 <footer>
   <div class="wrap">
@@ -675,6 +809,47 @@ modalBio.addEventListener('click', e => { if (e.target === modalBio) modalBio.cl
 document.addEventListener('keydown', e => { if (e.key === 'Escape') modalBio.classList.remove('abierto'); });
 
 /* ---------- reveal ---------- */
+/* ---------- Ingresar: hoja con las dos entradas (simpatizante / equipo) ---------- */
+(function () {
+  const fondo = document.getElementById('hojaIngresar');
+  const botones = document.querySelectorAll('[data-ingresar]');
+  let ultimo = null;
+  function abrir(e) {
+    ultimo = e.currentTarget;
+    fondo.hidden = false;
+    requestAnimationFrame(() => fondo.classList.add('abierta'));
+    botones.forEach(b => b.setAttribute('aria-expanded', 'true'));
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => fondo.querySelector('.acceso').focus(), 60);
+  }
+  function cerrar() {
+    fondo.classList.remove('abierta');
+    botones.forEach(b => b.setAttribute('aria-expanded', 'false'));
+    document.body.style.overflow = '';
+    setTimeout(() => { fondo.hidden = true; }, 260);
+    if (ultimo) ultimo.focus();
+  }
+  botones.forEach(b => b.addEventListener('click', abrir));
+  fondo.addEventListener('click', e => { if (e.target === fondo || e.target.closest('[data-cerrar-hoja]')) cerrar(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !fondo.hidden) cerrar(); });
+})();
+
+/* ---------- barra inferior: marca la sección visible ---------- */
+(function () {
+  const enlaces = document.querySelectorAll('.tabbar [data-sec]');
+  const marcar = id => enlaces.forEach(a => a.classList.toggle('activo', a.dataset.sec === id));
+  const secciones = ['retos', 'propuestas', 'diana', 'sumate'].map(id => document.getElementById(id)).filter(Boolean);
+  const vista = new Map();
+  const obs = new IntersectionObserver(es => {
+    es.forEach(e => vista.set(e.target.id, e.isIntersecting ? e.intersectionRatio : 0));
+    let mejor = 'inicio', max = 0;
+    vista.forEach((r, id) => { if (r > max) { max = r; mejor = id === 'diana' ? 'propuestas' : id; } });
+    marcar(max > 0.15 ? mejor : 'inicio');
+  }, { threshold: [0, .15, .3, .5, .7] });
+  secciones.forEach(s => obs.observe(s));
+  marcar('inicio');
+})();
+
 const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting){ e.target.classList.add('vis'); io.unobserve(e.target);} }), { threshold:.12 });
 document.querySelectorAll('.rv').forEach(el => io.observe(el));
 
