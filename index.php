@@ -282,6 +282,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
     .video-card{justify-self:center;max-width:400px;aspect-ratio:4/5;max-height:480px}
     .hero .pill{margin-top:4px}
     .quote-card,.reg-grid{grid-template-columns:1fr}
+    .reg-grid>.form-card{order:-1} /* en celular "Súmate" lleva directo al formulario; la explicación queda debajo */
     .quote-foto{padding-top:18px}
     .nav-links{display:none}
     .campos-2{grid-template-columns:1fr}
