@@ -12,7 +12,7 @@ La sesión queda guardada en el teléfono: simpatizantes 180 días y equipo 30 d
 ## Requisitos
 
 - Node.js 20 o superior.
-- Android Studio para generar el APK y/o Xcode (en Mac) para iPhone.
+- Para Android: GitHub Actions (no hace falta instalar nada) o Android Studio. Para iPhone: Xcode en un Mac.
 
 ## Probar en el computador
 
@@ -25,17 +25,26 @@ npm start          # abre http://localhost:8100
 En desarrollo la app usa `src/environments/environment.ts` (API en `http://localhost:8080`).
 Si WhatsApp no está configurado y `APP_ENV` no es `prod`, la pantalla de ingreso muestra el código de prueba.
 
-## Generar el APK (Android)
+## Android y Google Play
+
+El proyecto de Android ya está en `android/`, con íconos, pantalla de inicio y SDK objetivo 36 (el que exige Google Play).
+
+- Paquete: `com.dianamontes.app`. Una vez publicado en Play no se puede cambiar.
+- Versión: `versionName` está en `android/app/build.gradle`. El `versionCode` se pasa al compilar con `-PdmVersionCode=N` y debe subir en cada envío a Play.
+- Firma: la llave de subida (`.jks`) **nunca va al repositorio**. Para compilar se lee de `android/keystore.properties` (ignorado por git) o de las variables `DM_KEYSTORE`, `DM_KEYSTORE_PASSWORD`, `DM_KEY_ALIAS` y `DM_KEY_PASSWORD`.
+
+**Compilar en GitHub (recomendado).** Ve a Actions → "App Android (Google Play)" → Run workflow. Al terminar, descarga el artefacto `app-android`. Trae el `.aab` para subir a Play y un `.apk` para instalar a mano. Antes hay que crear los 4 secretos que se describen en `.github/workflows/android-play.yml`.
+
+**Compilar en tu computador** (Android Studio):
 
 ```bash
 cd app-movil
 npm install
-npm run build:prod                     # usa src/environments/environment.prod.ts
-npx cap add android                    # solo la primera vez
-npx @capacitor/assets generate --android   # íconos y splash desde resources/ (opcional)
-npx cap sync android
-npx cap open android                   # Android Studio → Build › Generate Signed App Bundle / APK
+npm run build:prod && npx cap sync android
+cd android && ./gradlew bundleRelease -PdmVersionCode=2   # → app/build/outputs/bundle/release/app-release.aab
 ```
+
+Si cambias `resources/icon.png` o `resources/splash.png`, vuelve a generar los íconos con `npx @capacitor/assets generate --android`.
 
 ## Compilar para iPhone (iOS)
 
