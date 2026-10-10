@@ -1,0 +1,69 @@
+# Compila la app Android firmada para Google Play (AAB) y un APK para instalar a mano.
+# Se ejecuta desde GitHub → Actions → "App Android (Google Play)" → Run workflow.
+# Necesita 4 secretos del repositorio (Settings → Secrets and variables → Actions):
+#   DM_KEYSTORE_B64        la llave de firma (.jks) en base64
+#   DM_KEYSTORE_PASSWORD   clave de la llave
+#   DM_KEY_ALIAS           alias (dianamontes)
+#   DM_KEY_PASSWORD        clave del alias
+name: App Android (Google Play)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_code:
+        description: 'Número de versión para Play (entero, mayor que el último subido). Vacío = número de esta ejecución + 1'
+        required: false
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app-movil
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app-movil/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Compilar la app web
+        run: |
+          npm ci --no-audit --no-fund
+          npx ng build --configuration production
+          npx cap sync android
+
+      - name: Llave de firma
+        env:
+          DM_KEYSTORE_B64: ${{ secrets.DM_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$DM_KEYSTORE_B64" ]; then echo "::error::Falta el secreto DM_KEYSTORE_B64 (ver encabezado de este archivo)"; exit 1; fi
+          echo "$DM_KEYSTORE_B64" | base64 -d > android/upload.jks
+
+      - name: Compilar AAB y APK firmados
+        working-directory: app-movil/android
+        env:
+          DM_KEYSTORE: upload.jks
+          DM_KEYSTORE_PASSWORD: ${{ secrets.DM_KEYSTORE_PASSWORD }}
+          DM_KEY_ALIAS: ${{ secrets.DM_KEY_ALIAS }}
+          DM_KEY_PASSWORD: ${{ secrets.DM_KEY_PASSWORD }}
+          VERSION_CODE: ${{ inputs.version_code }}
+        run: |
+          VC="${VERSION_CODE:-$(( ${{ github.run_number }} + 1 ))}"
+          echo "versionCode = $VC"
+          ./gradlew --no-daemon bundleRelease assembleRelease -PdmVersionCode="$VC"
+          mkdir -p ../salida
+          cp app/build/outputs/bundle/release/app-release.aab "../salida/diana-montes-$VC.aab"
+          cp app/build/outputs/apk/release/app-release.apk "../salida/diana-montes-$VC.apk"
+          rm -f upload.jks
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-android
+          path: app-movil/salida/
+          retention-days: 30
