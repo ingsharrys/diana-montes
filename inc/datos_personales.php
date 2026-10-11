@@ -15,7 +15,7 @@ const LEGAL_VIGENCIA = '8 de octubre de 2026';
 
 /** Datos del responsable que se editan en Admin › Datos personales (tabla configuracion). */
 const LEGAL_CAMPOS = [
-    'legal_responsable' => ['Responsable del tratamiento', 'Campaña de Diana Lucía Montes a la Alcaldía de Garzón 2027'],
+    'legal_responsable' => ['Responsable del tratamiento', 'Campaña de Diana Montes a la Alcaldía de Garzón 2027'],
     'legal_documento'   => ['NIT o cédula del responsable', ''],
     'legal_direccion'   => ['Dirección', 'Garzón, Huila, Colombia'],
     'legal_email'       => ['Correo para temas de datos personales', ''],

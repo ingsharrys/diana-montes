@@ -1,4 +1,4 @@
-# App móvil · Red de Diana Lucía Montes
+# App móvil · Red de Diana Montes
 
 App en **Ionic 8 + Angular 20 + Capacitor 7**. Habla con la API del panel (`admin/api.php`).
 

@@ -7,7 +7,7 @@ require __DIR__ . '/../config.php';
 require __DIR__ . '/../inc/legal_pagina.php';
 
 $L = legal_datos(legal_db());
-legal_abrir('terminos', 'Condiciones de uso del sitio, el panel del simpatizante, la app móvil y el WhatsApp de la campaña de Diana Lucía Montes.');
+legal_abrir('terminos', 'Condiciones de uso del sitio, el panel del simpatizante, la app móvil y el WhatsApp de la campaña de Diana Montes.');
 ?>
 <h1>Condiciones del servicio</h1>
 <p class="vigencia">Vigentes desde el <?= LEGAL_VIGENCIA ?></p>
@@ -23,7 +23,7 @@ legal_abrir('terminos', 'Condiciones de uso del sitio, el panel del simpatizante
 <p>Al registrarte o usar cualquiera de ellos aceptas estas condiciones y la <a href="/privacidad/">Política de privacidad</a>.</p>
 
 <h2>1. Qué es el servicio</h2>
-<p>Es la plataforma de participación ciudadana de la campaña de Diana Lucía Montes a la Alcaldía de Garzón 2027. Te permite:</p>
+<p>Es la plataforma de participación ciudadana de la campaña de Diana Montes a la Alcaldía de Garzón 2027. Te permite:</p>
 <ul>
   <li>sumarte a la red de simpatizantes;</li>
   <li>invitar a otras personas con tu enlace personal;</li>

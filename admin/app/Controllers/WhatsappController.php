@@ -222,6 +222,21 @@ class WhatsappController extends Controller
         $this->redirigir('whatsapp/plantillas');
     }
 
+    /** Edita en Meta las plantillas que aún dicen "Diana Lucía Montes" para que digan "Diana Montes". */
+    public function actualizarmarca(): void
+    {
+        $this->accion('whatsapp/plantillas');
+        $r = wa_actualizar_marca(Database::conexion());
+        if (!$r) { Session::flash('ok', 'Todas las plantillas ya dicen "' . WA_MARCA . '".'); $this->redirigir('whatsapp/plantillas'); }
+        $ok = array_filter($r, fn($x) => $x[1]);
+        $mal = array_filter($r, fn($x) => !$x[1]);
+        Auditoria::registrar('wa_plantillas_marca', count($ok) . ' actualizadas, ' . count($mal) . ' con error');
+        if ($ok) Session::flash('ok', count($ok) . ' plantilla' . (count($ok) === 1 ? '' : 's') . ' actualizada' . (count($ok) === 1 ? '' : 's')
+            . ' a "' . WA_MARCA . '". Meta las vuelve a revisar: pulsa "Traer plantillas de Meta" en unos minutos.');
+        if ($mal) Session::flash('error', implode(' · ', array_map(fn($x) => ($x[0] !== '' ? $x[0] . ': ' : '') . $x[2], $mal)));
+        $this->redirigir('whatsapp/plantillas');
+    }
+
     /** Crea en Meta la plantilla de autenticación con la que llegan los códigos de acceso de la app móvil. */
     public function crearotp(): void
     {

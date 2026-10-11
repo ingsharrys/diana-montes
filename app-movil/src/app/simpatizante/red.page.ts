@@ -79,7 +79,7 @@ export class MiRedPage {
 
   escribir(tel: string, nombre: string) {
     const yo = this.auth.simpatizante()?.primerNombre ?? '';
-    const texto = `¡Hola, ${nombre.split(' ')[0]}! Te escribe ${yo}, de la red de Diana Lucía Montes. `;
+    const texto = `¡Hola, ${nombre.split(' ')[0]}! Te escribe ${yo}, de la red de Diana Montes. `;
     void abrir(`https://wa.me/57${tel}?text=${encodeURIComponent(texto)}`);
   }
 }
