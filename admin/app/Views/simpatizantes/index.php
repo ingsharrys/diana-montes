@@ -27,7 +27,7 @@
   </span>
   <span class="ib-btns">
     <a class="btn-wa" target="_blank" rel="noopener"
-       href="https://wa.me/?text=<?= rawurlencode("¡Hola! 👋 Te invito a sumarte a la campaña de Diana Lucía Montes a la Alcaldía de Garzón. Regístrate aquí, toma menos de un minuto: " . $miEnlace) ?>">
+       href="https://wa.me/?text=<?= rawurlencode("¡Hola! 👋 Te invito a sumarte a la campaña de Diana Montes a la Alcaldía de Garzón. Regístrate aquí, toma menos de un minuto: " . $miEnlace) ?>">
        📲 Invitar por WhatsApp</a>
     <button type="button" class="btn-copiar" onclick="copiarEnlace(this)">🔗 Copiar enlace</button>
     <button type="button" class="btn-copiar" onclick="verQr()">▦ Ver QR</button>
@@ -63,7 +63,7 @@
 </form>
 
 <?php if ($ct = \Core\Session::get('clave_temporal')): unset($_SESSION['clave_temporal']);
-  $msgClave = '¡Hola ' . strtok($ct['nombre'], ' ') . '! 👋 Este es tu acceso al panel de la red de Diana Lucía Montes: '
+  $msgClave = '¡Hola ' . strtok($ct['nombre'], ' ') . '! 👋 Este es tu acceso al panel de la red de Diana Montes: '
             . rtrim(LANDING_URL, '/') . '/mi/ · Usuario: ' . $ct['documento'] . ' · Clave temporal: ' . $ct['clave']
             . ' (al entrar te pedirá crear una nueva).'; ?>
 <div class="alert alert-ok clave-temp" style="font-weight:500">

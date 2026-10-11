@@ -37,8 +37,8 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Diana Lucía Montes · Alcaldía de Garzón 2027</title>
-<meta name="description" content="Diana Lucía Montes, candidata a la Alcaldía de Garzón, Huila. Súmate a la red que está transformando el municipio.">
+<title>Diana Montes · Alcaldía de Garzón 2027</title>
+<meta name="description" content="Diana Montes, candidata a la Alcaldía de Garzón, Huila. Súmate a la red que está transformando el municipio.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -366,7 +366,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
   <div class="wrap nav">
     <a class="logo" href="#inicio" aria-label="Inicio">
       <span class="logo-mark">DM</span>
-      <span class="logo-txt"><b>Diana Lucía Montes</b><small>Alcaldía de Garzón 2027</small></span>
+      <span class="logo-txt"><b>Diana Montes</b><small>Alcaldía de Garzón 2027</small></span>
     </a>
     <ul class="nav-links">
       <li><a href="#retos">Retos</a></li>
@@ -419,7 +419,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
       <span class="video-tag"><i></i> Conoce a Diana</span>
       <video id="heroVideo" autoplay muted loop playsinline preload="metadata"
              poster="img/diana-montes.png"
-             aria-label="Video de presentación de Diana Lucía Montes">
+             aria-label="Video de presentación de Diana Montes">
         <source src="https://dianamontes.com/video/diana.mp4" type="video/mp4">
       </video>
       <button class="btn-sonido" id="btnSonido" type="button" aria-label="Activar sonido" title="Activar sonido">🔇</button>
@@ -541,13 +541,13 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
 <section id="diana" class="sec-alt">
   <div class="wrap">
     <div class="quote-card rv">
-      <div class="quote-foto"><img src="img/diana-montes.png" alt="Diana Lucía Montes" loading="lazy"></div>
+      <div class="quote-foto"><img src="img/diana-montes.png" alt="Diana Montes" loading="lazy"></div>
       <div class="quote-body">
         <span class="kicker">¿Quién es Diana?</span>
         <blockquote>“De mi madre aprendí que <span class="grad">gobernar es cuidar</span>: con carácter, con honestidad y sin dejar a nadie atrás.”</blockquote>
         <div class="firma">
           <span class="f-dot"></span>
-          <span><b>Diana Lucía Montes</b><span>Candidata a la Alcaldía de Garzón</span></span>
+          <span><b>Diana Montes</b><span>Candidata a la Alcaldía de Garzón</span></span>
         </div>
         <button class="btn btn-soft btn-sm" id="btnBio" type="button">Conocer su historia ➜</button>
       </div>
@@ -574,7 +574,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
     <button class="modal-x" type="button" data-cerrar aria-label="Cerrar">✕</button>
     <h3 id="modalPoliticaTitulo">Tratamiento de datos personales</h3>
     <div class="politica">
-      <p><b>Responsable:</b> Campaña de Diana Lucía Montes a la Alcaldía de Garzón (Huila).</p>
+      <p><b>Responsable:</b> Campaña de Diana Montes a la Alcaldía de Garzón (Huila).</p>
       <p><b>Datos que pedimos:</b> nombre, documento, celular, barrio o vereda, ocupación, fecha de nacimiento, género y, solo si lo autorizas, tu ubicación aproximada.</p>
       <p><b>Para qué los usamos:</b> contactarte e informarte sobre la campaña y sus actividades, enviarte saludos en fechas especiales por WhatsApp y organizar el trabajo territorial. No vendemos ni cedemos tus datos.</p>
       <p><b>Tu red:</b> quien te invitó verá tu nombre en su panel y, si es Promotor o más, podrá escribirte por WhatsApp para actividades de la campaña. Tú verás igual a las personas que invites.</p>
@@ -689,7 +689,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
 
         <label class="consent">
           <input type="checkbox" name="consentimiento" value="1" id="f-consent" required data-msg="Para registrarte necesitamos tu autorización de datos (Ley 1581).">
-          <span>Autorizo el tratamiento de mis datos personales a la campaña de Diana Lucía Montes para fines de contacto e información política, conforme a la <b>Ley 1581 de 2012</b>. <a href="#politica" id="lnkPolitica">Ver política de datos</a>.</span>
+          <span>Autorizo el tratamiento de mis datos personales a la campaña de Diana Montes para fines de contacto e información política, conforme a la <b>Ley 1581 de 2012</b>. <a href="#politica" id="lnkPolitica">Ver política de datos</a>.</span>
         </label>
 
         <div class="error-msg" id="errBox" role="alert" tabindex="-1"></div>
@@ -740,7 +740,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
   <div class="wrap">
     <div class="foot-grid">
       <div class="foot-logo">
-        <b>Diana Lucía Montes</b>
+        <b>Diana Montes</b>
         <span>Alcaldía de Garzón 2027</span>
       </div>
       <div class="foot-col">
@@ -753,7 +753,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
       </div>
     </div>
     <div class="foot-legal">
-      <span>© <?= date('Y') ?> Campaña Diana Lucía Montes · Garzón, Huila</span>
+      <span>© <?= date('Y') ?> Campaña Diana Montes · Garzón, Huila</span>
       <span><a href="/privacidad/">Política de privacidad</a> · <a href="/terminos/">Condiciones del servicio</a> · <a href="/eliminar-datos/">Eliminar mis datos</a></span>
     </div>
   </div>
@@ -887,7 +887,7 @@ function mostrarPromotor(p) {
 
   document.getElementById('promoLink').textContent = enlace;
   document.getElementById('promoWa').href = 'https://wa.me/?text=' + encodeURIComponent(
-    '¡Hola! 👋 Me sumé a la campaña de Diana Lucía Montes a la Alcaldía de Garzón. Súmate tú también, toma menos de un minuto: ' + enlace);
+    '¡Hola! 👋 Me sumé a la campaña de Diana Montes a la Alcaldía de Garzón. Súmate tú también, toma menos de un minuto: ' + enlace);
   document.getElementById('promoPanel').href = panel;
   document.getElementById('promoCopiar').onclick = function () {
     navigator.clipboard.writeText(enlace).then(() => {

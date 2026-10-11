@@ -42,7 +42,23 @@ $necesarias = [$otpNombre => ['AUTHENTICATION', 'Código de acceso a la app móv
 foreach (WA_PLANTILLAS_SUGERIDAS as $n => [$cat]) $necesarias[$n] = [$cat, WA_PLANTILLAS_USO[$n] ?? ''];
 $faltan = array_filter(array_keys($necesarias), fn($n) => !isset($porNombre[$n]));
 $aprobadas = array_filter(array_keys($necesarias), fn($n) => ($porNombre[$n]['estado_meta'] ?? '') === 'APPROVED');
+$marcaVieja = wa_con_marca_anterior($plantillas ?? []);
 ?>
+<?php if ($marcaVieja): ?>
+<section class="card" style="margin-top:16px;border-left:4px solid var(--warn)">
+  <h3>Actualiza la marca en <?= count($marcaVieja) ?> plantilla<?= count($marcaVieja) === 1 ? '' : 's' ?></h3>
+  <p class="small" style="line-height:1.6">Estas plantillas todavía dicen <b><?= e(WA_MARCA_ANTERIOR) ?></b>:
+    <?= e(implode(', ', array_map(fn($p) => $p['nombre'], $marcaVieja))) ?>.
+    Con el botón se cambian a <b><?= e(WA_MARCA) ?></b> en Meta. Lo demás del texto queda igual. Meta las vuelve a revisar, normalmente en minutos, y mientras tanto esos mensajes no salen.</p>
+  <?php if ($esDireccion): ?>
+  <form method="post" action="<?= url('whatsapp/actualizarmarca') ?>" style="margin-top:10px"
+        onsubmit="return confirm('Se editarán en Meta <?= count($marcaVieja) ?> plantillas y quedarán en revisión. ¿Continuar?')">
+    <?= \Core\Csrf::campo() ?>
+    <button class="btn btn-primary" type="submit" <?= $puedeCrear ? '' : 'disabled title="Falta WA_WABA_ID o WA_TOKEN"' ?>>✏️ Cambiar a "<?= e(WA_MARCA) ?>" en Meta</button>
+  </form>
+  <?php endif; ?>
+</section>
+<?php endif; ?>
 <section class="card" style="margin-top:16px">
   <h3>Plantillas que necesita la plataforma
     <span class="tag tag-green small"><?= count($aprobadas) ?> de <?= count($necesarias) ?> aprobadas</span>

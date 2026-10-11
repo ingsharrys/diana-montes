@@ -1,6 +1,6 @@
 <?php
 /**
- * /mi/ — Panel del simpatizante (portal de la red de Diana Lucía Montes).
+ * /mi/ — Panel del simpatizante (portal de la red de Diana Montes).
  *
  * Usuario: su número de documento. Clave: la que creó al registrarse.
  * También se entra con el enlace personal del panel (?t=TOKEN), que llega al

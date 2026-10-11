@@ -568,39 +568,39 @@ const WA_IDIOMAS = ['es' => 'Español', 'es_CO' => 'Español (Colombia)', 'es_MX
  */
 const WA_PLANTILLAS_SUGERIDAS = [
     'registro_exitoso' => ['UTILITY', ['bienvenida'], 'primer_nombre, enlace_portal',
-        "Hola, {{1}}. Tu registro en la red de Diana Lucía Montes quedó confirmado. Tu usuario para entrar a tu panel es tu número de documento y tu clave es la que creaste al registrarte. Entra aquí: {{2}}\n\nSi no deseas recibir más mensajes, responde SALIR."],
+        "Hola, {{1}}. Tu registro en la red de Diana Montes quedó confirmado. Tu usuario para entrar a tu panel es tu número de documento y tu clave es la que creaste al registrarte. Entra aquí: {{2}}\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'nuevo_invitado_red' => ['UTILITY', ['nuevo_invitado'], 'primer_nombre, invitado, enlace_portal',
         "Hola, {{1}}. {{2}} se registró en tu red usando tu enlace personal. Puedes ver tu red y tus puntos en tu panel: {{3}}\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'tarea_asignada' => ['UTILITY', ['tarea_asignada'], 'primer_nombre, tarea, fecha_tarea, enlace_portal',
-        "Hola, {{1}}. Tienes una nueva tarea en la red de Diana Lucía Montes: {{2}} (fecha: {{3}}). Revísala y cuéntanos si la puedes hacer en tu panel: {{4}}\n\nSi no deseas recibir más mensajes, responde SALIR."],
+        "Hola, {{1}}. Tienes una nueva tarea en la red de Diana Montes: {{2}} (fecha: {{3}}). Revísala y cuéntanos si la puedes hacer en tu panel: {{4}}\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'invitacion_evento' => ['UTILITY', ['invitacion_evento'], 'primer_nombre, tarea, fecha_tarea, lugar_tarea, enlace_portal',
         "Hola, {{1}}. Te invitamos a {{2}} el {{3}} en {{4}}. Confirma si asistirás desde tu panel: {{5}}\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'subiste_nivel' => ['MARKETING', ['sube_nivel'], 'primer_nombre, nivel_promotor, enlace_portal',
-        "¡Felicitaciones, {{1}}! ⭐ Ya eres {{2}} de la red de Diana Lucía Montes. Mira lo que desbloqueaste en tu panel: {{3}}\n\nSi no deseas recibir más mensajes, responde SALIR."],
+        "¡Felicitaciones, {{1}}! ⭐ Ya eres {{2}} de la red de Diana Montes. Mira lo que desbloqueaste en tu panel: {{3}}\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'saludo_cumpleanos' => ['MARKETING', ['cumpleanos'], 'primer_nombre',
-        "¡Feliz cumpleaños, {{1}}! 🎂 Que este nuevo año de vida llegue lleno de salud y alegrías para ti y tu familia. Un abrazo grande de Diana Lucía Montes y todo el equipo.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+        "¡Feliz cumpleaños, {{1}}! 🎂 Que este nuevo año de vida llegue lleno de salud y alegrías para ti y tu familia. Un abrazo grande de Diana Montes y todo el equipo.\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'saludo_profesion' => ['MARKETING', ['profesion'], 'primer_nombre, profesion',
-        "¡Feliz día, {{1}}! 🎉 Hoy celebramos a quienes, como tú, se dedican a {{2}}. Gracias por todo lo que aportas a Garzón con tu trabajo. Con cariño, Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+        "¡Feliz día, {{1}}! 🎉 Hoy celebramos a quienes, como tú, se dedican a {{2}}. Gracias por todo lo que aportas a Garzón con tu trabajo. Con cariño, Diana Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'saludo_dia_mujer' => ['MARKETING', ['mujer'], 'primer_nombre',
-        "¡Feliz día, {{1}}! 💜 Hoy y siempre, gracias por tu fuerza y por todo lo que haces por tu familia y por Garzón. Un abrazo de Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+        "¡Feliz día, {{1}}! 💜 Hoy y siempre, gracias por tu fuerza y por todo lo que haces por tu familia y por Garzón. Un abrazo de Diana Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'saludo_dia_hombre' => ['MARKETING', ['hombre'], 'primer_nombre',
-        "¡Feliz día, {{1}}! 💪 Gracias por tu esfuerzo diario por tu familia y por Garzón. Un saludo de Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+        "¡Feliz día, {{1}}! 💪 Gracias por tu esfuerzo diario por tu familia y por Garzón. Un saludo de Diana Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'saludo_amor_amistad' => ['MARKETING', ['amor_amistad'], 'primer_nombre',
-        "¡Feliz Amor y Amistad, {{1}}! 💕 Gracias por ser parte de esta red de amigos que cree en Garzón. Un abrazo de Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+        "¡Feliz Amor y Amistad, {{1}}! 💕 Gracias por ser parte de esta red de amigos que cree en Garzón. Un abrazo de Diana Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'saludo_dia_madre' => ['MARKETING', ['madre'], 'primer_nombre',
-        "¡Feliz Día de la Madre, {{1}}! 🌷 Gracias por tu amor, tu entrega y por sacar adelante a tu familia todos los días. Hoy Garzón te celebra. Un abrazo con cariño de Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+        "¡Feliz Día de la Madre, {{1}}! 🌷 Gracias por tu amor, tu entrega y por sacar adelante a tu familia todos los días. Hoy Garzón te celebra. Un abrazo con cariño de Diana Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'saludo_dia_padre' => ['MARKETING', ['padre'], 'primer_nombre',
-        "¡Feliz Día del Padre, {{1}}! 👨‍👧 Gracias por tu esfuerzo, tu ejemplo y por estar siempre para los tuyos. Que pases un día muy especial en familia. Un saludo de Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+        "¡Feliz Día del Padre, {{1}}! 👨‍👧 Gracias por tu esfuerzo, tu ejemplo y por estar siempre para los tuyos. Que pases un día muy especial en familia. Un saludo de Diana Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'saludo_navidad' => ['MARKETING', ['navidad'], 'primer_nombre',
-        "¡Feliz Navidad, {{1}}! 🎄 Que esta noche llegue llena de paz, unión y alegría para ti y toda tu familia. Gracias por ser parte de esta red que sueña con un mejor Garzón. Con cariño, Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+        "¡Feliz Navidad, {{1}}! 🎄 Que esta noche llegue llena de paz, unión y alegría para ti y toda tu familia. Gracias por ser parte de esta red que sueña con un mejor Garzón. Con cariño, Diana Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'saludo_anio_nuevo' => ['MARKETING', ['anio_nuevo'], 'primer_nombre',
-        "¡Feliz Año Nuevo, {{1}}! 🎆 Que el año que empieza te traiga salud, trabajo y muchas razones para sonreír. Gracias por acompañarnos; lo mejor para Garzón está por venir. Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+        "¡Feliz Año Nuevo, {{1}}! 🎆 Que el año que empieza te traiga salud, trabajo y muchas razones para sonreír. Gracias por acompañarnos; lo mejor para Garzón está por venir. Diana Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'saludo_fecha_especial' => ['MARKETING', [], 'primer_nombre',
-        "¡Hola, {{1}}! En esta fecha tan especial te enviamos un saludo lleno de cariño y buenos deseos para ti y los tuyos. Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+        "¡Hola, {{1}}! En esta fecha tan especial te enviamos un saludo lleno de cariño y buenos deseos para ti y los tuyos. Diana Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'vispera_eleccion' => ['MARKETING', ['vispera_eleccion'], 'primer_nombre, puesto_votacion',
-        "Hola, {{1}}. ¡Mañana es el gran día para Garzón! 🗳️ Tu lugar de votación es {{2}}. Recuerda llevar tu cédula original y madrugar para votar con calma. Cuento contigo. Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+        "Hola, {{1}}. ¡Mañana es el gran día para Garzón! 🗳️ Tu lugar de votación es {{2}}. Recuerda llevar tu cédula original y madrugar para votar con calma. Cuento contigo. Diana Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'recordatorio_votacion' => ['MARKETING', ['dia_eleccion'], 'primer_nombre, puesto_votacion',
-        "¡Buenos días, {{1}}! Hoy elegimos el futuro de Garzón 🗳️ Tu lugar de votación es {{2}}. Lleva tu cédula original; las mesas abren a las 8:00 a. m. y cierran a las 4:00 p. m. ¡Gracias por tu apoyo! Diana Lucía Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+        "¡Buenos días, {{1}}! Hoy elegimos el futuro de Garzón 🗳️ Tu lugar de votación es {{2}}. Lleva tu cédula original; las mesas abren a las 8:00 a. m. y cierran a las 4:00 p. m. ¡Gracias por tu apoyo! Diana Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
 ];
 
 /** Para qué sirve cada plantilla sugerida (se muestra en el tablero de estado). */
@@ -754,6 +754,58 @@ function wa_crear_faltantes(PDO $db): array
         $x = wa_crear_plantilla($db, $nombre, 'es', $cat, $texto, array_map('trim', explode(',', $vars)));
         if ($x['ok']) wa_vincular_ocasiones($db, $nombre, 'es', $ocasiones);
         $r[] = [$nombre, $x['ok'], $x['ok'] ? 'enviada (' . (WA_CATEGORIAS[$x['categoria']] ?? $x['categoria']) . ')' : $x['msg']];
+    }
+    return $r;
+}
+
+/* ======================= Cambio de marca en plantillas ya creadas ======================= */
+
+/** La marca pasó de "Diana Lucía Montes" a "Diana Montes": las plantillas ya creadas en Meta se editan. */
+const WA_MARCA_ANTERIOR = 'Diana Lucía Montes';
+const WA_MARCA = 'Diana Montes';
+
+/** Plantillas guardadas cuyo texto aún dice el nombre anterior. */
+function wa_con_marca_anterior(array $plantillas): array
+{
+    return array_values(array_filter($plantillas, fn($p) => str_contains((string)($p['cuerpo'] ?? ''), WA_MARCA_ANTERIOR)));
+}
+
+/**
+ * Edita en Meta el texto de las plantillas que dicen el nombre anterior
+ * (solo cambia el nombre; encabezado, pie y botones quedan igual). Meta las
+ * vuelve a revisar. Devuelve [[nombre, ok, mensaje], …].
+ */
+function wa_actualizar_marca(PDO $db): array
+{
+    if (!wa_cfg('WA_WABA_ID') || !wa_cfg('WA_TOKEN')) return [['', false, 'Faltan WA_WABA_ID y WA_TOKEN en config.php.']];
+    $r = [];
+    $guardar = $db->prepare("UPDATE wa_plantillas SET cuerpo = :b, estado_meta = 'PENDING' WHERE id = :id");
+    foreach (wa_con_marca_anterior($db->query('SELECT id, nombre, idioma, cuerpo, variables FROM wa_plantillas')->fetchAll(PDO::FETCH_ASSOC)) as $p) {
+        [$http, $j] = wa_api('GET', wa_cfg('WA_WABA_ID') . '/message_templates?fields=id,name,language,components&name=' . rawurlencode($p['nombre']));
+        $t = null;
+        foreach ($j['data'] ?? [] as $x) if (($x['name'] ?? '') === $p['nombre'] && ($x['language'] ?? '') === $p['idioma']) $t = $x;
+        if ($http !== 200 || !$t) { $r[] = [$p['nombre'], false, 'no se encontró en Meta (pulsa "Traer plantillas de Meta")']; continue; }
+
+        $nuevo = str_replace(WA_MARCA_ANTERIOR, WA_MARCA, $p['cuerpo']);
+        $campos = array_values(array_filter(array_map('trim', explode(',', (string)$p['variables']))));
+        preg_match_all('/\{\{\s*(\d+)\s*\}\}/', $nuevo, $m);
+        $num = count(array_unique($m[1]));
+        $componentes = [];
+        foreach ($t['components'] ?? [] as $c) {
+            if (($c['type'] ?? '') === 'BODY') {
+                $c['text'] = $nuevo;
+                if ($num && empty($c['example']['body_text'])) $c['example'] = ['body_text' => [array_map(fn($i) => WA_EJEMPLOS[$campos[$i] ?? ''] ?? 'Ejemplo', range(0, $num - 1))]];
+            }
+            $componentes[] = $c;
+        }
+        [$http, $j] = wa_api('POST', $t['id'], ['components' => $componentes]);
+        if ($http !== 200 || empty($j['success'])) {
+            $e = $j['error'] ?? [];
+            $r[] = [$p['nombre'], false, 'Meta no aceptó el cambio: ' . ($e['error_user_msg'] ?? $e['message'] ?? "HTTP $http")];
+            continue;
+        }
+        $guardar->execute(['b' => $nuevo, 'id' => $p['id']]);
+        $r[] = [$p['nombre'], true, 'actualizada'];
     }
     return $r;
 }

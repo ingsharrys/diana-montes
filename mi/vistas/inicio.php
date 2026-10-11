@@ -1,6 +1,6 @@
 <?php defined('PORTAL') or exit;
 $nv = $yo['nivel'];
-$textoWa = '¡Hola! 👋 Me sumé a la campaña de Diana Lucía Montes a la Alcaldía de Garzón. Súmate tú también, toma menos de un minuto: ' . $enlace;
+$textoWa = '¡Hola! 👋 Me sumé a la campaña de Diana Montes a la Alcaldía de Garzón. Súmate tú también, toma menos de un minuto: ' . $enlace;
 $proximos = array_values(array_filter($misTareas, fn($t) => in_array($t['estado'], ['pendiente', 'aceptada'], true)));
 ?>
 <!-- Nivel, puntos y avance -->

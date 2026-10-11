@@ -11,7 +11,7 @@ $titulos = ['inicio' => 'Mi panel', 'red' => 'Mi red', 'tareas' => 'Mis tareas',
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#C0105A">
-<title><?= e($titulos[$vista] ?? 'Mi panel') ?> · Red de Diana Lucía Montes</title>
+<title><?= e($titulos[$vista] ?? 'Mi panel') ?> · Red de Diana Montes</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="portal.css?v=<?= @filemtime(__DIR__ . '/../portal.css') ?>">
@@ -21,7 +21,7 @@ $titulos = ['inicio' => 'Mi panel', 'red' => 'Mi red', 'tareas' => 'Mis tareas',
   <div class="wrap">
     <span class="logo">D</span>
     <span class="t">
-      <small>Red de Diana Lucía Montes</small>
+      <small>Red de Diana Montes</small>
       <b><?= !empty($yo) ? '¡Hola, ' . e($yo['primer_nombre']) . '!' : 'Mi panel' ?></b>
     </span>
     <?php if (!empty($yo)): ?><span class="chip-nivel"><?= $yo['nivel']['actual'][2] ?> <?= e($yo['nivel']['actual'][1]) ?></span><?php endif; ?>

@@ -1,7 +1,7 @@
 {
   "name": "diana-montes-app",
   "version": "1.0.0",
-  "description": "App móvil de la campaña Diana Lucía Montes: simpatizantes (ingreso con WhatsApp) y equipo (panel de la campaña).",
+  "description": "App móvil de la campaña Diana Montes: simpatizantes (ingreso con WhatsApp) y equipo (panel de la campaña).",
   "private": true,
   "scripts": {
     "start": "ng serve --port 8100",

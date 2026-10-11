@@ -7,7 +7,7 @@ require __DIR__ . '/../config.php';
 require __DIR__ . '/../inc/legal_pagina.php';
 
 $L = legal_datos(legal_db());
-legal_abrir('privacidad', 'Cómo la campaña de Diana Lucía Montes recoge, usa y protege tus datos personales, y cómo ejercer tus derechos.');
+legal_abrir('privacidad', 'Cómo la campaña de Diana Montes recoge, usa y protege tus datos personales, y cómo ejercer tus derechos.');
 ?>
 <h1>Política de privacidad y tratamiento de datos personales</h1>
 <p class="vigencia">Vigente desde el <?= LEGAL_VIGENCIA ?> · Ley 1581 de 2012 y Decreto 1074 de 2015</p>

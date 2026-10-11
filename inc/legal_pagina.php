@@ -53,7 +53,7 @@ function legal_abrir(string $clave, string $descripcion): void
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?= le($titulo) ?> · Diana Lucía Montes</title>
+<title><?= le($titulo) ?> · Diana Montes</title>
 <meta name="description" content="<?= le($descripcion) ?>">
 <link rel="icon" href="/img/diana-montes.png">
 <style>
@@ -118,7 +118,7 @@ function legal_abrir(string $clave, string $descripcion): void
 <header class="barra">
   <div class="barra-in">
     <a class="logo" href="/" aria-label="Inicio">DM</a>
-    <a class="marca" href="/"><b>Diana Lucía Montes</b><span>Alcaldía de Garzón 2027</span></a>
+    <a class="marca" href="/"><b>Diana Montes</b><span>Alcaldía de Garzón 2027</span></a>
   </div>
 </header>
 <main class="hoja">
@@ -137,7 +137,7 @@ function legal_cerrar(): void
   </article>
 </main>
 <footer>
-  <span>© <?= date('Y') ?> Campaña Diana Lucía Montes · Garzón, Huila</span>
+  <span>© <?= date('Y') ?> Campaña Diana Montes · Garzón, Huila</span>
   <span><a href="/privacidad/">Privacidad</a> · <a href="/terminos/">Condiciones</a> · <a href="/eliminar-datos/">Eliminar mis datos</a> · <a href="/">Volver al inicio</a></span>
 </footer>
 </body>

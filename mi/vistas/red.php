@@ -16,7 +16,7 @@ $iniciales = fn(string $n) => mb_strtoupper(mb_substr($n, 0, 1) . mb_substr((str
           <span><?= e($i['zona'] ?? '') ?> · desde <?= date('d/m/Y', strtotime($i['created_at'])) ?><?= (int)$i['invitados'] ? ' · invitó a ' . (int)$i['invitados'] : '' ?></span>
         </span>
         <?php if ($puedeContactar && $i['telefono']): ?>
-          <a class="wa-ico" href="https://wa.me/57<?= e($i['telefono']) ?>?text=<?= rawurlencode('¡Hola, ' . mb_convert_case(mb_strtolower((string)strtok($i['nombre'], ' ')), MB_CASE_TITLE) . '! Te escribe ' . $yo['primer_nombre'] . ', de la red de Diana Lucía Montes. ') ?>"
+          <a class="wa-ico" href="https://wa.me/57<?= e($i['telefono']) ?>?text=<?= rawurlencode('¡Hola, ' . mb_convert_case(mb_strtolower((string)strtok($i['nombre'], ' ')), MB_CASE_TITLE) . '! Te escribe ' . $yo['primer_nombre'] . ', de la red de Diana Montes. ') ?>"
              target="_blank" rel="noopener" aria-label="Escribir a <?= e($i['nombre']) ?> por WhatsApp" title="Escribir por WhatsApp">💬</a>
         <?php endif; ?>
       </li>

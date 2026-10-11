@@ -62,10 +62,10 @@ $campo = function (string $k) use ($errores): string {
 };
 $error = fn(string $k) => isset($errores[$k]) ? '<em>' . le($errores[$k]) . '</em>' : '';
 
-legal_abrir('eliminar-datos', 'Cómo pedir que la campaña de Diana Lucía Montes elimine tus datos personales: formulario, WhatsApp y plazos de respuesta.');
+legal_abrir('eliminar-datos', 'Cómo pedir que la campaña de Diana Montes elimine tus datos personales: formulario, WhatsApp y plazos de respuesta.');
 ?>
 <h1>Eliminación de datos de usuario</h1>
-<p class="vigencia">Instrucciones para borrar tus datos de la red de Diana Lucía Montes · Vigentes desde el <?= LEGAL_VIGENCIA ?></p>
+<p class="vigencia">Instrucciones para borrar tus datos de la red de Diana Montes · Vigentes desde el <?= LEGAL_VIGENCIA ?></p>
 
 <p>Puedes pedir en cualquier momento que borremos los datos que guardamos de ti en cualquiera de estos servicios:</p>
 <ul>
