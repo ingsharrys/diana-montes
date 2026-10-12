@@ -27,7 +27,7 @@
   </span>
   <span class="ib-btns">
     <a class="btn-wa" target="_blank" rel="noopener"
-       href="https://wa.me/?text=<?= rawurlencode("¡Hola! 👋 Te invito a sumarte a la campaña de Diana Montes a la Alcaldía de Garzón. Regístrate aquí, toma menos de un minuto: " . $miEnlace) ?>">
+       href="https://wa.me/?text=<?= rawurlencode("¡Hola! 👋 Te invito a sumarte a la red de Diana Montes en Garzón. Regístrate aquí, toma menos de un minuto: " . $miEnlace) ?>">
        📲 Invitar por WhatsApp</a>
     <button type="button" class="btn-copiar" onclick="copiarEnlace(this)">🔗 Copiar enlace</button>
     <button type="button" class="btn-copiar" onclick="verQr()">▦ Ver QR</button>

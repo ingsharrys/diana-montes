@@ -65,7 +65,7 @@ final class MiApi
             ],
             'kpis' => ['invitados' => (int)$yo['invitados'], 'red' => portal_tamano_red($db, $yo['id']), 'porHacer' => count($porHacer), 'puesto' => $puesto],
             'enlace' => $enlace,
-            'textoInvitacion' => '¡Hola! 👋 Me sumé a la campaña de Diana Montes a la Alcaldía de Garzón. Súmate tú también, toma menos de un minuto: ' . $enlace,
+            'textoInvitacion' => '¡Hola! 👋 Me sumé a la red de Diana Montes en Garzón. Súmate tú también, toma menos de un minuto: ' . $enlace,
             'proximas' => array_map(fn($t) => self::tarea($t, $yo['id']), array_slice(array_values(array_filter($mis, fn($t) => in_array($t['estado'], ['pendiente', 'aceptada'], true))), 0, 3)),
             'permisos' => array_map(fn($k, $p) => [
                 'clave' => $k, 'texto' => $p[1], 'desbloqueado' => $yo['nivel_i'] >= $p[0],

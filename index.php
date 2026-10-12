@@ -19,6 +19,11 @@ try {
     $zonas = []; $profesiones = []; $pideGenero = false; $pideClave = false;
 }
 $fechaMaxima = date('Y-m-d', strtotime('-' . EDAD_MINIMA . ' years'));
+
+/* Fase de la página: 'expectativa' presenta a Diana sin hablar aún de propuestas;
+   'campana' muestra además Retos y Propuestas. Se cambia en config.php con
+   define('LANDING_FASE', 'campana'); */
+$expectativa = (defined('LANDING_FASE') ? LANDING_FASE : 'expectativa') !== 'campana';
 $fechaMinima = date('Y-m-d', strtotime('-110 years'));
 
 /* Invitación (?ref=) de un líder o de un promotor ciudadano:
@@ -37,8 +42,8 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Diana Montes · Alcaldía de Garzón 2027</title>
-<meta name="description" content="Diana Montes, candidata a la Alcaldía de Garzón, Huila. Súmate a la red que está transformando el municipio.">
+<title>Diana Montes · Garzón, Huila</title>
+<meta name="description" content="Conoce a Diana Montes: garzoneña, con una vida de servicio a la comunidad del Huila. Muy pronto tendrá algo que contarte. Súmate a su red y entérate primero.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -184,6 +189,34 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
   .firma .f-dot{width:9px;height:9px;border-radius:50%;background:var(--rosa)}
   .firma b{font-family:var(--head);display:block;font-size:14.5px}
   .firma span{font-size:12px;color:var(--gris)}
+
+  /* historia, lo que la mueve, lo que viene */
+  #diana .quote-card{margin-bottom:clamp(18px,3vw,26px)}
+  .capitulos{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:1040px;margin:0 auto}
+  .capitulo{background:#fff;border:1px solid var(--linea);border-radius:20px;padding:20px 18px;box-shadow:var(--sombra)}
+  .c-ico{font-size:24px;display:block;margin-bottom:10px}
+  .c-et{display:block;font-size:10.5px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:var(--rosa);margin-bottom:4px}
+  .capitulo h3{font-size:16.5px;font-weight:800;margin-bottom:6px;text-wrap:balance}
+  .capitulo p{font-size:14px;color:var(--gris);line-height:1.55}
+  .mueve{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:1040px;margin:0 auto}
+  .m-card{border:1px solid var(--linea);border-radius:20px;padding:20px 18px;background:#fff;box-shadow:var(--sombra)}
+  .m-ico{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:21px;margin-bottom:12px}
+  .m-card h3{font-size:16.5px;font-weight:800;margin-bottom:6px}
+  .m-card p{font-size:14px;color:var(--gris);line-height:1.55}
+  .mueve-pie{text-align:center;margin-top:clamp(20px,3vw,28px);font-family:var(--head);font-weight:700;font-size:16px}
+  .mueve-pie a{color:var(--rosa);text-decoration:none;white-space:nowrap}
+  .viene{list-style:none;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:900px;margin:0 auto;counter-reset:none}
+  .v-paso{position:relative;background:#fff;border:1.5px dashed #D9C9F7;border-radius:20px;padding:20px 18px}
+  .v-paso.hecho{border:1.5px solid var(--rosa);box-shadow:0 10px 28px rgba(224,24,108,.12)}
+  .v-n{width:32px;height:32px;border-radius:10px;background:var(--violeta-soft);color:var(--violeta);font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+  .v-paso.hecho .v-n{background:var(--grad);color:#fff}
+  .v-est{position:absolute;right:16px;top:20px;font-size:10.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--violeta);background:var(--violeta-soft);border-radius:99px;padding:5px 10px}
+  .v-paso.hecho .v-est{color:var(--verde);background:#E9F9EF}
+  .v-paso h3{font-size:18px;font-weight:800;margin-bottom:4px}
+  .v-paso p{font-size:14px;color:var(--gris)}
+  .viene-cta{text-align:center;margin-top:clamp(20px,3vw,28px)}
+  @media(max-width:1000px){.capitulos,.mueve{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:640px){.capitulos,.mueve,.viene{grid-template-columns:1fr}}
 
   /* modal */
   .modal-bg{position:fixed;inset:0;background:rgba(16,18,38,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:90;padding:18px}
@@ -366,12 +399,16 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
   <div class="wrap nav">
     <a class="logo" href="#inicio" aria-label="Inicio">
       <span class="logo-mark">DM</span>
-      <span class="logo-txt"><b>Diana Montes</b><small>Alcaldía de Garzón 2027</small></span>
+      <span class="logo-txt"><b>Diana Montes</b><small>Garzón, Huila</small></span>
     </a>
     <ul class="nav-links">
-      <li><a href="#retos">Retos</a></li>
-      <li><a href="#propuestas">Propuestas</a></li>
       <li><a href="#diana">¿Quién es Diana?</a></li>
+      <li><a href="#mueve">Lo que la mueve</a></li>
+      <?php if ($expectativa): ?>
+      <li><a href="#viene">Lo que viene</a></li>
+      <?php else: ?>
+      <li><a href="#propuestas">Propuestas</a></li>
+      <?php endif; ?>
     </ul>
     <div class="nav-acc">
       <button class="btn-user" type="button" data-ingresar aria-haspopup="dialog" aria-expanded="false" aria-controls="hojaIngresar" aria-label="Ingresar a la plataforma" title="Ingresar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg></button>
@@ -394,7 +431,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
     </a>
     <a class="acceso equipo" href="admin/">
       <span class="ac-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7.5 3v5.4c0 4.6-3.2 8.3-7.5 9.6-4.3-1.3-7.5-5-7.5-9.6V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></svg></span>
-      <span class="ac-t"><b>Equipo de campaña</b><span class="d">Dirección, coordinadores, líderes y digitación.</span></span>
+      <span class="ac-t"><b>Equipo de Diana</b><span class="d">Dirección, coordinadores, líderes y digitación.</span></span>
       <span class="fl" aria-hidden="true">›</span>
     </a>
     <p class="hoja-pie">¿Aún no estás en la red? <a href="#sumate" data-cerrar-hoja>Regístrate gratis</a></p>
@@ -407,12 +444,12 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
 <section class="hero">
   <div class="wrap hero-grid">
     <div>
-      <span class="pill"><i></i> Garzón, Huila · Elecciones 2027</span>
-      <h1>Garzón está listo para su <span class="grad">primera alcaldesa.</span></h1>
-      <p class="lead">Un municipio donde el campo prospere, las familias estén cuidadas y los jóvenes no tengan que irse. Construyámoslo juntos.</p>
+      <span class="pill"><i></i> Garzón, Huila · Muy pronto</span>
+      <h1>Hay una mujer de Garzón que <span class="grad">quiere contarte algo.</span></h1>
+      <p class="lead">Nació aquí, creció entre el esfuerzo del campo y el valor de la palabra, y ha caminado barrios y veredas al lado de su gente. Conócela antes que nadie.</p>
       <div class="hero-ctas">
-        <a class="btn btn-rosa" href="#sumate">Sumarme a la red ➜</a>
-        <a class="btn btn-soft" href="#retos">Conocer más</a>
+        <a class="btn btn-rosa" href="#sumate">Quiero enterarme primero ➜</a>
+        <a class="btn btn-soft" href="#diana">¿Quién es Diana?</a>
       </div>
     </div>
     <div class="video-card rv">
@@ -427,6 +464,79 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
   </div>
 </section>
 
+
+<!-- ==================== QUIÉN ES DIANA ==================== -->
+<section id="diana" class="sec-alt">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="kicker">Conócela</span>
+      <h2>¿Quién es Diana Montes?</h2>
+      <p>Antes de contarte lo que viene, queremos que sepas de dónde viene ella.</p>
+    </div>
+    <div class="quote-card rv">
+      <div class="quote-foto"><img src="img/diana-montes.png" alt="Diana Montes" loading="lazy"></div>
+      <div class="quote-body">
+        <blockquote>“De mi madre aprendí que <span class="grad">servir es cuidar</span>: con carácter, con honestidad y sin dejar a nadie atrás.”</blockquote>
+        <div class="firma">
+          <span class="f-dot"></span>
+          <span><b>Diana Montes</b><span>Garzón, Huila</span></span>
+        </div>
+      </div>
+    </div>
+    <div class="capitulos">
+      <article class="capitulo rv"><span class="c-ico" aria-hidden="true">🌱</span><span class="c-et">Sus raíces</span>
+        <h3>Garzoneña de nacimiento</h3><p>Criada entre el esfuerzo del campo y el valor de la palabra.</p></article>
+      <article class="capitulo rv"><span class="c-ico" aria-hidden="true">🧭</span><span class="c-et">Su camino</span>
+        <h3>Una vida de servicio</h3><p>Profesional con una trayectoria dedicada a la comunidad del centro del Huila.</p></article>
+      <article class="capitulo rv"><span class="c-ico" aria-hidden="true">🤝</span><span class="c-et">Su gente</span>
+        <h3>De la mano con la comunidad</h3><p>Ha trabajado con juntas de acción comunal, madres comunitarias y asociaciones cafeteras.</p></article>
+      <article class="capitulo rv"><span class="c-ico" aria-hidden="true">🚪</span><span class="c-et">Su manera</span>
+        <h3>Puertas abiertas</h3><p>Cree que las decisiones se toman con la gente, no a espaldas de ella.</p></article>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== LO QUE LA MUEVE ==================== -->
+<section id="mueve">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="kicker">Lo que la mueve</span>
+      <h2>Lo que a Diana le quita el sueño</h2>
+      <p>Lo ha visto de cerca, en el campo y en el barrio.</p>
+    </div>
+    <div class="mueve">
+      <article class="m-card rv"><span class="m-ico" style="background:#E3F2FD" aria-hidden="true">💧</span>
+        <h3>El agua de las veredas</h3><p>Una sola creciente puede dejar sin agua a más de mil familias de nuestros centros poblados.</p></article>
+      <article class="m-card rv"><span class="m-ico" style="background:var(--rosa-soft)" aria-hidden="true">🛣</span>
+        <h3>Los caminos del campo</h3><p>Cuando la vía se cae, el café se queda en la finca y el campesino pierde el trabajo de meses.</p></article>
+      <article class="m-card rv"><span class="m-ico" style="background:#FFF3E0" aria-hidden="true">🛡</span>
+        <h3>Vivir tranquilos</h3><p>Nadie debería pagar por trabajar en paz, ni en la vereda ni en el barrio.</p></article>
+      <article class="m-card rv"><span class="m-ico" style="background:#E9F9EF" aria-hidden="true">🎓</span>
+        <h3>Los jóvenes</h3><p>Que ninguno tenga que irse de Garzón para salir adelante.</p></article>
+    </div>
+    <p class="mueve-pie rv">Muy pronto te contará qué piensa hacer con cada una. <a href="#sumate">Entérate primero ➜</a></p>
+  </div>
+</section>
+<?php if ($expectativa): ?>
+
+<!-- ==================== LO QUE VIENE ==================== -->
+<section id="viene" class="sec-alt">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="kicker">Lo que viene</span>
+      <h2>Esto apenas empieza</h2>
+      <p>Las personas de la red se enteran de cada paso antes que nadie.</p>
+    </div>
+    <ol class="viene">
+      <li class="v-paso hecho rv"><span class="v-n">1</span><span class="v-est">Ya puedes</span><h3>Conócela</h3><p>Su historia y lo que la mueve, aquí mismo.</p></li>
+      <li class="v-paso rv"><span class="v-n">2</span><span class="v-est">Muy pronto</span><h3>Escúchala</h3><p>Sus ideas para Garzón, contadas por ella.</p></li>
+      <li class="v-paso rv"><span class="v-n">3</span><span class="v-est">Muy pronto</span><h3>Camina con ella</h3><p>Encuentros en tu barrio y tu vereda.</p></li>
+    </ol>
+    <div class="viene-cta rv"><a class="btn btn-rosa" href="#sumate">Quiero enterarme primero ➜</a></div>
+  </div>
+</section>
+<?php endif; ?>
+<?php if (!$expectativa): ?>
 <!-- ==================== RETOS (ACORDEÓN) ==================== -->
 <section id="retos" class="sec-alt">
   <div class="wrap">
@@ -536,37 +646,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
     </div>
   </div>
 </section>
-
-<!-- ==================== QUIÉN ES DIANA ==================== -->
-<section id="diana" class="sec-alt">
-  <div class="wrap">
-    <div class="quote-card rv">
-      <div class="quote-foto"><img src="img/diana-montes.png" alt="Diana Montes" loading="lazy"></div>
-      <div class="quote-body">
-        <span class="kicker">¿Quién es Diana?</span>
-        <blockquote>“De mi madre aprendí que <span class="grad">gobernar es cuidar</span>: con carácter, con honestidad y sin dejar a nadie atrás.”</blockquote>
-        <div class="firma">
-          <span class="f-dot"></span>
-          <span><b>Diana Montes</b><span>Candidata a la Alcaldía de Garzón</span></span>
-        </div>
-        <button class="btn btn-soft btn-sm" id="btnBio" type="button">Conocer su historia ➜</button>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- modal bio -->
-<div class="modal-bg" id="modalBio" role="dialog" aria-modal="true" aria-labelledby="modalBioTitulo">
-  <div class="modal">
-    <button class="modal-x" id="modalBioX" aria-label="Cerrar">✕</button>
-    <h3 id="modalBioTitulo">La historia de Diana</h3>
-    <div class="check"><i>✓</i><span>Garzoneña de nacimiento, criada entre el esfuerzo del campo y el valor de la palabra.</span></div>
-    <div class="check"><i>✓</i><span>Profesional con trayectoria de servicio a la comunidad del centro del Huila.</span></div>
-    <div class="check"><i>✓</i><span>Ha trabajado de la mano con juntas de acción comunal, madres comunitarias y asociaciones cafeteras.</span></div>
-    <div class="check"><i>✓</i><span>Cree en la política de puertas abiertas: gobernar con la gente, no a espaldas de ella.</span></div>
-    <a class="btn btn-rosa" href="#sumate" id="modalBioCta" style="width:100%;margin-top:10px">Quiero acompañarla</a>
-  </div>
-</div>
+<?php endif; ?>
 
 <!-- modal política de datos (Ley 1581 de 2012) -->
 <div class="modal-bg" id="modalPolitica" role="dialog" aria-modal="true" aria-labelledby="modalPoliticaTitulo">
@@ -574,7 +654,7 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
     <button class="modal-x" type="button" data-cerrar aria-label="Cerrar">✕</button>
     <h3 id="modalPoliticaTitulo">Tratamiento de datos personales</h3>
     <div class="politica">
-      <p><b>Responsable:</b> Campaña de Diana Montes a la Alcaldía de Garzón (Huila).</p>
+      <p><b>Responsable:</b> Campaña de Diana Montes, Garzón (Huila).</p>
       <p><b>Datos que pedimos:</b> nombre, documento, celular, barrio o vereda, ocupación, fecha de nacimiento, género y, solo si lo autorizas, tu ubicación aproximada.</p>
       <p><b>Para qué los usamos:</b> contactarte e informarte sobre la campaña y sus actividades, enviarte saludos en fechas especiales por WhatsApp y organizar el trabajo territorial. No vendemos ni cedemos tus datos.</p>
       <p><b>Tu red:</b> quien te invitó verá tu nombre en su panel y, si es Promotor o más, podrá escribirte por WhatsApp para actividades de la campaña. Tú verás igual a las personas que invites.</p>
@@ -591,13 +671,13 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
   <div class="wrap reg-grid">
     <div class="rv">
       <span class="kicker">Súmate a la red</span>
-      <h2>Tu nombre puede cambiar la historia de Garzón</h2>
+      <h2>Sé de los primeros en enterarte</h2>
       <div>
         <div class="paso"><span class="p-n">1</span><div><b>Déjanos tus datos</b><span>Menos de un minuto, desde tu celular.</span></div></div>
         <div class="paso"><span class="p-n">2</span><div><b>Recibe la bienvenida de Diana</b><span>Te llegará un mensaje por WhatsApp.</span></div></div>
         <div class="paso"><span class="p-n">3</span><div><b>Acompáñanos cerca de ti</b><span>Actividades en tu vereda o barrio.</span></div></div>
       </div>
-      <div class="red-nota">💜 <b>¿Cómo funciona la red?</b> Al registrarte entras a la red directa de la candidata. Si alguien te compartió su enlace personal, quedarás en su red. Y al terminar recibes <b>tu propio enlace</b> para invitar a familiares y amigos: ¡conviértete en Súper Promotor! Los líderes ingresan solo por invitación de la campaña.</div>
+      <div class="red-nota">💜 <b>¿Cómo funciona la red?</b> Al registrarte entras a la red directa de Diana. Si alguien te compartió su enlace personal, quedarás en su red. Y al terminar recibes <b>tu propio enlace</b> para invitar a familiares y amigos: ¡conviértete en Súper Promotor! Los líderes ingresan solo por invitación de la campaña.</div>
     </div>
 
     <div class="form-card rv">
@@ -729,9 +809,13 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
 <!-- ==================== BARRA INFERIOR (celular) ==================== -->
 <nav class="tabbar" aria-label="Secciones">
   <a href="#inicio" data-sec="inicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"/></svg><span>Inicio</span></a>
-  <a href="#retos" data-sec="retos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v3M5.6 5.6l2.1 2.1M3 12h3M18.4 5.6l-2.1 2.1M21 12h-3"/><circle cx="12" cy="14" r="5"/></svg><span>Retos</span></a>
+  <a href="#diana" data-sec="diana"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2z"/></svg><span>Diana</span></a>
   <a href="#sumate" data-sec="sumate" class="tab-cta"><span class="cta-c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span>Súmate</span></a>
+  <?php if ($expectativa): ?>
+  <a href="#viene" data-sec="viene"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v3M5.6 5.6l2.1 2.1M3 12h3M18.4 5.6l-2.1 2.1M21 12h-3"/><circle cx="12" cy="14" r="5"/></svg><span>Muy pronto</span></a>
+  <?php else: ?>
   <a href="#propuestas" data-sec="propuestas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l2.5 2.5L16 9"/></svg><span>Propuestas</span></a>
+  <?php endif; ?>
   <button type="button" data-ingresar aria-haspopup="dialog" aria-controls="hojaIngresar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg><span>Ingresar</span></button>
 </nav>
 
@@ -741,11 +825,11 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
     <div class="foot-grid">
       <div class="foot-logo">
         <b>Diana Montes</b>
-        <span>Alcaldía de Garzón 2027</span>
+        <span>Garzón, Huila</span>
       </div>
       <div class="foot-col">
-        <b>Campaña</b><br>
-        <a href="#retos">Retos</a> · <a href="#propuestas">Propuestas</a> · <a href="#sumate">Súmate</a>
+        <b>Conoce más</b><br>
+        <a href="#diana">¿Quién es Diana?</a> · <a href="#mueve">Lo que la mueve</a> · <a href="#sumate">Súmate</a>
       </div>
       <div class="foot-col">
         <b>Contacto</b><br>
@@ -801,14 +885,6 @@ document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', (
   document.getElementById(b.dataset.tab).classList.add('activo');
 }));
 
-/* ---------- modal bio ---------- */
-const modalBio = document.getElementById('modalBio');
-document.getElementById('btnBio').addEventListener('click', () => modalBio.classList.add('abierto'));
-document.getElementById('modalBioX').addEventListener('click', () => modalBio.classList.remove('abierto'));
-document.getElementById('modalBioCta').addEventListener('click', () => modalBio.classList.remove('abierto'));
-modalBio.addEventListener('click', e => { if (e.target === modalBio) modalBio.classList.remove('abierto'); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') modalBio.classList.remove('abierto'); });
-
 /* ---------- reveal ---------- */
 /* ---------- Ingresar: hoja con las dos entradas (simpatizante / equipo) ---------- */
 (function () {
@@ -839,12 +915,13 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') modalBio.cla
 (function () {
   const enlaces = document.querySelectorAll('.tabbar [data-sec]');
   const marcar = id => enlaces.forEach(a => a.classList.toggle('activo', a.dataset.sec === id));
-  const secciones = ['retos', 'propuestas', 'diana', 'sumate'].map(id => document.getElementById(id)).filter(Boolean);
+  const secciones = ['diana', 'mueve', 'viene', 'retos', 'propuestas', 'sumate'].map(id => document.getElementById(id)).filter(Boolean);
+  const pestana = { mueve: 'diana', retos: 'diana' };   // secciones sin pestaña propia
   const vista = new Map();
   const obs = new IntersectionObserver(es => {
     es.forEach(e => vista.set(e.target.id, e.isIntersecting ? e.intersectionRatio : 0));
     let mejor = 'inicio', max = 0;
-    vista.forEach((r, id) => { if (r > max) { max = r; mejor = id === 'diana' ? 'propuestas' : id; } });
+    vista.forEach((r, id) => { if (r > max) { max = r; mejor = pestana[id] || id; } });
     marcar(max > 0.15 ? mejor : 'inicio');
   }, { threshold: [0, .15, .3, .5, .7] });
   secciones.forEach(s => obs.observe(s));
@@ -887,7 +964,7 @@ function mostrarPromotor(p) {
 
   document.getElementById('promoLink').textContent = enlace;
   document.getElementById('promoWa').href = 'https://wa.me/?text=' + encodeURIComponent(
-    '¡Hola! 👋 Me sumé a la campaña de Diana Montes a la Alcaldía de Garzón. Súmate tú también, toma menos de un minuto: ' + enlace);
+    '¡Hola! 👋 Me sumé a la red de Diana Montes en Garzón. Súmate tú también, toma menos de un minuto: ' + enlace);
   document.getElementById('promoPanel').href = panel;
   document.getElementById('promoCopiar').onclick = function () {
     navigator.clipboard.writeText(enlace).then(() => {

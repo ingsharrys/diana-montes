@@ -111,11 +111,11 @@ function salir_duplicado(?string $campo): void {
 salir_duplicado(simpatizante_duplicado($db, $documento, $telefono));
 
 /* Resolver quién invita: un miembro del equipo, un promotor ciudadano
-   (su invitado hereda el líder del promotor) o la red directa de la candidata.
+   (su invitado hereda el líder del promotor) o la red directa de Diana.
    La raíz se busca por su codigo_ref (LIDER_RAIZ_REF), nunca por un ID fijo. */
 $liderId = null;
 $referidoPor = null;
-$liderNombre = 'Red directa de la candidata';
+$liderNombre = 'Red directa de Diana';
 if ($ref !== '' && ($invita = promotor_resolver_ref($db, $ref))) {
     $liderId     = $invita['lider_id'];
     $referidoPor = $invita['referido_por'];

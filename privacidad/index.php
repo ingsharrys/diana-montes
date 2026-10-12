@@ -90,7 +90,7 @@ Contacto para temas de datos personales: <?= legal_contacto($L) ?>.</p>
 
 <h2 id="finalidades">5. Para qué usamos tus datos</h2>
 <ol>
-  <li>Contactarte e informarte sobre la candidatura, las propuestas y las actividades de la campaña.</li>
+  <li>Contactarte e informarte sobre Diana Montes, sus ideas y las actividades de la campaña.</li>
   <li>Enviarte por WhatsApp:
     <ul>
       <li>la bienvenida;</li>

@@ -118,7 +118,7 @@ function legal_abrir(string $clave, string $descripcion): void
 <header class="barra">
   <div class="barra-in">
     <a class="logo" href="/" aria-label="Inicio">DM</a>
-    <a class="marca" href="/"><b>Diana Montes</b><span>Alcaldía de Garzón 2027</span></a>
+    <a class="marca" href="/"><b>Diana Montes</b><span>Garzón, Huila</span></a>
   </div>
 </header>
 <main class="hoja">

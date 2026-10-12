@@ -23,7 +23,7 @@ legal_abrir('terminos', 'Condiciones de uso del sitio, el panel del simpatizante
 <p>Al registrarte o usar cualquiera de ellos aceptas estas condiciones y la <a href="/privacidad/">Política de privacidad</a>.</p>
 
 <h2>1. Qué es el servicio</h2>
-<p>Es la plataforma de participación ciudadana de la campaña de Diana Montes a la Alcaldía de Garzón 2027. Te permite:</p>
+<p>Es la plataforma de participación ciudadana de la campaña de Diana Montes en Garzón (Huila). Te permite:</p>
 <ul>
   <li>sumarte a la red de simpatizantes;</li>
   <li>invitar a otras personas con tu enlace personal;</li>
@@ -67,7 +67,7 @@ legal_abrir('terminos', 'Condiciones de uso del sitio, el panel del simpatizante
   <li>Usar la red para enviar mensajes masivos no deseados (spam), cadenas, publicidad o contenido ajeno a la campaña.</li>
   <li>Usar los datos de otras personas que veas en tu panel para un fin distinto a las actividades de la campaña, o compartirlos con terceros.</li>
   <li>Publicar o enviar contenido ilegal, ofensivo, discriminatorio o que incite a la violencia.</li>
-  <li>Hacerse pasar por la candidata, por el equipo o por otra persona.</li>
+  <li>Hacerse pasar por Diana Montes, por el equipo o por otra persona.</li>
   <li>Intentar entrar a cuentas o datos ajenos, saltarse los controles de seguridad o automatizar el uso de la plataforma.</li>
 </ul>
 
