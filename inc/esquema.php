@@ -266,6 +266,85 @@ function esquema_pasos(): array
             ) DEFAULT CHARSET=utf8mb4", 'solicitudes de datos personales (eliminar, corregir, revocar)'],
         ['wa_plantillas', 'categoria_solicitada','ALTER TABLE wa_plantillas ADD COLUMN categoria_solicitada VARCHAR(20) NULL', 'categoría pedida de las plantillas de WhatsApp'],
 
+        // ---------- Organización de la campaña: colaboradores, pagos, publicidad impresa, testigos y gastos ----------
+        ['org_colaboradores', null, "CREATE TABLE IF NOT EXISTS org_colaboradores (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              nombre VARCHAR(120) NOT NULL,
+              documento VARCHAR(20) NULL,
+              telefono VARCHAR(10) NULL,
+              rol VARCHAR(40) NOT NULL,
+              tipo ENUM('pago','voluntario') NOT NULL DEFAULT 'voluntario',
+              valor DECIMAL(12,0) NULL,
+              periodicidad ENUM('mensual','quincenal','semanal','diario','evento','unico') NULL,
+              zona_id INT NULL,
+              inicio DATE NULL,
+              fin DATE NULL,
+              activo TINYINT(1) NOT NULL DEFAULT 1,
+              notas VARCHAR(255) NULL,
+              creado_por INT NULL,
+              created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              KEY idx_colab_tipo (tipo, activo)
+            ) DEFAULT CHARSET=utf8mb4", 'organización: colaboradores pagos y voluntarios'],
+        ['org_pagos', null, "CREATE TABLE IF NOT EXISTS org_pagos (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              colaborador_id INT NOT NULL,
+              fecha DATE NOT NULL,
+              valor DECIMAL(12,0) NOT NULL,
+              concepto VARCHAR(150) NULL,
+              medio VARCHAR(30) NULL,
+              creado_por INT NULL,
+              created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              KEY idx_pago_colab (colaborador_id, fecha)
+            ) DEFAULT CHARSET=utf8mb4", 'organización: pagos a colaboradores'],
+        ['org_publicidad', null, "CREATE TABLE IF NOT EXISTS org_publicidad (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              tipo VARCHAR(20) NOT NULL,
+              descripcion VARCHAR(150) NULL,
+              cantidad INT UNSIGNED NOT NULL,
+              costo DECIMAL(12,0) NULL,
+              proveedor VARCHAR(120) NULL,
+              estado ENUM('cotizado','pedido','recibido') NOT NULL DEFAULT 'pedido',
+              fecha_pedido DATE NULL,
+              fecha_entrega DATE NULL,
+              creado_por INT NULL,
+              created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            ) DEFAULT CHARSET=utf8mb4", 'organización: publicidad impresa'],
+        ['org_entregas', null, "CREATE TABLE IF NOT EXISTS org_entregas (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              publicidad_id INT NOT NULL,
+              cantidad INT UNSIGNED NOT NULL,
+              zona_id INT NULL,
+              responsable VARCHAR(120) NULL,
+              fecha DATE NOT NULL,
+              creado_por INT NULL,
+              created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              KEY idx_entrega_pub (publicidad_id)
+            ) DEFAULT CHARSET=utf8mb4", 'organización: entregas de publicidad por zona'],
+        ['org_testigos', null, "CREATE TABLE IF NOT EXISTS org_testigos (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              nombre VARCHAR(120) NOT NULL,
+              documento VARCHAR(20) NULL,
+              telefono VARCHAR(10) NULL,
+              puesto_id INT NOT NULL,
+              mesa SMALLINT UNSIGNED NULL,
+              estado ENUM('propuesto','confirmado','capacitado','acreditado') NOT NULL DEFAULT 'propuesto',
+              notas VARCHAR(255) NULL,
+              creado_por INT NULL,
+              created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              KEY idx_testigo_puesto (puesto_id, mesa)
+            ) DEFAULT CHARSET=utf8mb4", 'organización: testigos electorales por mesa'],
+        ['org_gastos', null, "CREATE TABLE IF NOT EXISTS org_gastos (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              fecha DATE NOT NULL,
+              categoria VARCHAR(20) NOT NULL,
+              concepto VARCHAR(150) NOT NULL,
+              valor DECIMAL(12,0) NOT NULL,
+              proveedor VARCHAR(120) NULL,
+              creado_por INT NULL,
+              created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              KEY idx_gasto_fecha (fecha)
+            ) DEFAULT CHARSET=utf8mb4", 'organización: gastos de la campaña'],
+
         // ---------- Sin duplicados: la base de datos rechaza un documento o celular repetido ----------
         // Si ya hay repetidos, el paso no se aplica y se listan para que el equipo los corrija.
         ['simpatizantes', null, 'ALTER TABLE simpatizantes ADD UNIQUE KEY uq_simp_documento (documento)', 'documento único (sin duplicados)',

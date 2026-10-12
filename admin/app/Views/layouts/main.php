@@ -11,6 +11,7 @@ $menu = [
     ['simpatizantes/crear', 'registrar', 'Registrar',     null],
     ['simpatizantes/verificar', 'verificar', 'Verificar', null],
     ['tareas',              'tareas',    'Tareas',        ['direccion', 'coordinador', 'lider']],
+    ['organizacion',        'organizacion', 'Organización', ['direccion', 'coordinador']],
     ['red',                 'red',       'Red',           null],
     ['mapa',                'mapa',      'Mapa',          null],
     ['whatsapp',            'whatsapp',  'WhatsApp',      ['direccion', 'coordinador']],
@@ -20,6 +21,7 @@ $menu = [
 ];
 // Pestañas del centro de mando (las tres vistas de inteligencia de la red)
 $pestanas = ['dashboard' => 'Vista rápida', 'territorio' => 'Territorio', 'red' => 'Red de contactos', 'mapa' => 'Mapa'];
+if (Auth::tieneRol('direccion', 'coordinador')) $pestanas = array_slice($pestanas, 0, 1, true) + ['metas' => 'Metas y pronóstico'] + array_slice($pestanas, 1, null, true);
 $enMando  = isset($pestanas[$seccion]);
 ?>
 <!DOCTYPE html>

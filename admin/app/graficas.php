@@ -109,3 +109,75 @@ function grafica_proporcion(array $partes, string $unidad): string
     }
     return $barra . '</div>' . $leyenda . '</ul>';
 }
+
+/**
+ * Trayectoria hacia la meta (línea en el tiempo): registros acumulados hasta
+ * hoy, lo que se necesita para llegar a la meta en la fecha límite y a dónde
+ * se llega con el ritmo actual. $serie: ['Y-m-d' => acumulado].
+ */
+function grafica_trayectoria(array $serie, string $hoy, int $total, string $limite, int $meta, int $pronostico): string
+{
+    $W = 720; $H = 270; $iz = 58; $de = 70; $ar = 18; $ab = 30;
+    $t = fn(string $d) => (new DateTimeImmutable($d))->getTimestamp();
+    $t0 = $serie ? min($t(array_key_first($serie)), $t($hoy) - 30 * 86400) : $t($hoy) - 30 * 86400;
+    $t1 = max($t($limite), $t($hoy) + 86400);
+    $yMax = max(10, $meta, $pronostico, $total) * 1.08;
+    $x = fn(int $ts) => round($iz + ($ts - $t0) * ($W - $iz - $de) / max(1, $t1 - $t0), 1);
+    $y = fn(float $v) => round($ar + ($H - $ar - $ab) * (1 - $v / $yMax), 1);
+
+    $svg = '<svg class="tray" viewBox="0 0 ' . $W . ' ' . $H . '" role="img" aria-label="Registros acumulados: ' . num($total)
+         . ' hoy; meta ' . num($meta) . ' al ' . fecha_corta($limite) . '; con el ritmo actual se llegaría a ' . num($pronostico) . '">';
+    // Rejilla y eje Y (4 divisiones con valores redondos)
+    $paso = max(1, (int)(10 ** floor(log10($yMax / 4))));
+    $paso = (int)(ceil($yMax / 4 / $paso) * $paso);
+    for ($v = 0; $v <= $yMax; $v += $paso) {
+        $svg .= '<line class="t-rej" x1="' . $iz . '" x2="' . ($W - $de) . '" y1="' . $y($v) . '" y2="' . $y($v) . '"/>'
+              . '<text class="t-eje" x="' . ($iz - 8) . '" y="' . ($y($v) + 4) . '" text-anchor="end">' . num($v) . '</text>';
+    }
+    // Meses en el eje X (se salta meses si el rango es largo)
+    $meses = []; for ($m = (new DateTimeImmutable('@' . $t0))->modify('first day of next month'); $m->getTimestamp() <= $t1; $m = $m->modify('+1 month')) $meses[] = $m;
+    $cada = max(1, (int)ceil(count($meses) / 9));
+    foreach ($meses as $i => $m) {
+        if ($i % $cada) continue;
+        $svg .= '<text class="t-eje" x="' . $x($m->getTimestamp()) . '" y="' . ($H - 10) . '" text-anchor="middle">' . mes_corto($m) . '</text>';
+    }
+    // Meta (línea horizontal) y hoy (línea vertical)
+    if ($meta > 0) $svg .= '<line class="t-meta" x1="' . $iz . '" x2="' . ($W - $de) . '" y1="' . $y($meta) . '" y2="' . $y($meta) . '"/>'
+                        . '<text class="t-lbl t-lbl-meta" x="' . ($W - $de + 6) . '" y="' . ($y($meta) + 4) . '">Meta ' . num($meta) . '</text>';
+    $xh = $x($t($hoy));
+    $svg .= '<line class="t-hoy" x1="' . $xh . '" x2="' . $xh . '" y1="' . $ar . '" y2="' . ($H - $ab) . '"/>'
+          . '<text class="t-eje" x="' . $xh . '" y="' . ($ar - 5) . '" text-anchor="middle">hoy</text>';
+    // Real: área + línea
+    // Antes del primer registro la línea va en cero
+    $pts = [[$x($t0), $y(0)]];
+    if ($serie) $pts[] = [$x($t(array_key_first($serie))), $y(0)];
+    foreach ($serie as $d => $v) $pts[] = [$x($t($d)), $y($v)];
+    $pts[] = [$xh, $y($total)];
+    $linea = 'M' . implode(' L', array_map(fn($p) => $p[0] . ' ' . $p[1], $pts));
+    $svg .= '<path class="t-area" d="' . $linea . ' L' . $xh . ' ' . $y(0) . ' L' . $x($t0) . ' ' . $y(0) . ' Z"/>'
+          . '<path class="t-real" d="' . $linea . '"/>';
+    // Necesario y pronóstico, desde hoy hasta la fecha límite
+    $xl = $x($t($limite));
+    if ($meta > $total) $svg .= '<path class="t-necesario" d="M' . $xh . ' ' . $y($total) . ' L' . $xl . ' ' . $y($meta) . '"/>';
+    $svg .= '<path class="t-pron" d="M' . $xh . ' ' . $y($total) . ' L' . $xl . ' ' . $y($pronostico) . '"/>'
+          . '<circle class="t-punto" cx="' . $xh . '" cy="' . $y($total) . '" r="4.5" tabindex="0" data-tip="Hoy: ' . num($total) . ' registrados"/>'
+          . '<circle class="t-punto-pron" cx="' . $xl . '" cy="' . $y($pronostico) . '" r="4.5" tabindex="0" data-tip="Con el ritmo actual: ' . num($pronostico) . ' al ' . fecha_corta($limite) . '"/>';
+    $yp = $y($pronostico); if ($meta > 0 && abs($yp - $y($meta)) < 14) $yp += $pronostico < $meta ? 14 : -14;
+    $svg .= '<text class="t-lbl t-lbl-pron" x="' . ($xl + 6) . '" y="' . ($yp + 4) . '">' . num($pronostico) . '</text>';
+    return $svg . '</svg>'
+         . '<ul class="prop-ley"><li><span class="sw" style="background:#7C3AED"></span>Registrados (real)</li>'
+         . ($meta > $total ? '<li><span class="sw sw-linea" style="border-color:#E0186C"></span>Lo que se necesita para la meta</li>' : '')
+         . '<li><span class="sw sw-linea sw-punteada" style="border-color:#6B6580"></span>Pronóstico con el ritmo del último mes</li></ul>';
+}
+
+/** '2027-10-31' -> '31 oct 2027' */
+function fecha_corta(string $fecha): string
+{
+    $d = new DateTimeImmutable($fecha);
+    return (int)$d->format('j') . ' ' . mes_corto($d) . ' ' . $d->format('Y');
+}
+
+function mes_corto(DateTimeInterface $d): string
+{
+    return ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'][(int)$d->format('n') - 1];
+}
