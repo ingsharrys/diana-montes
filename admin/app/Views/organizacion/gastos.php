@@ -8,6 +8,9 @@ $g = $r['gastos'];
 $gastado = $g['colaboradores'] + $g['publicidad'] + $g['otros'];
 $pt = $tope ? $gastado * 100 / $tope : null;
 ?>
+<p class="aviso-legal">⚖️ <b>Control interno.</b> Este registro ayuda a la gerencia a no pasarse del tope, pero no reemplaza lo que exige la ley:
+  la <b>cuenta bancaria única</b> de la campaña, la contabilidad llevada por <b>contador público</b> y el informe de ingresos y gastos en
+  <b>Cuentas Claras</b> del CNE, con su soporte (factura o documento soporte) por cada gasto (Ley 1475 de 2011, arts. 24 a 26).</p>
 <div class="grid g4" style="margin-top:14px">
   <section class="card kpi green"><span class="lbl">Total gastado</span><div class="kpi-num"><?= pesos($gastado) ?></div>
     <?php if ($pt !== null): ?><div class="progreso mini <?= $pt > 90 ? 'alerta' : '' ?>"><i style="width:<?= min(100, round($pt, 1)) ?>%"></i></div>
@@ -28,11 +31,12 @@ $pt = $tope ? $gastado * 100 / $tope : null;
     <h3>Gastos registrados</h3>
     <?php if (!$lista): ?><p class="muted vacio">Registra transporte, alimentación, sede, eventos y demás gastos. Los pagos a colaboradores y la publicidad impresa se suman solos.</p><?php else: ?>
     <div class="tbl-wrap"><table class="cola">
-      <tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th style="text-align:right">Valor</th><th></th></tr>
+      <tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Soporte</th><th style="text-align:right">Valor</th><th></th></tr>
       <?php foreach ($lista as $gs): ?>
       <tr><td><?= e(date('d/m/Y', strtotime($gs['fecha']))) ?></td>
         <td><b><?= e($gs['concepto']) ?></b><?= $gs['proveedor'] ? '<br><span class="muted small">' . e($gs['proveedor']) . '</span>' : '' ?></td>
         <td class="small"><?= e(O::GASTOS[$gs['categoria']] ?? $gs['categoria']) ?></td>
+        <td class="small"><?= !empty($gs['soporte']) ? e($gs['soporte']) . (!empty($gs['nit']) ? '<br><span class="muted">NIT/CC ' . e($gs['nit']) . '</span>' : '') : '<span class="tag tag-gold">sin soporte</span>' ?></td>
         <td style="text-align:right"><b><?= pesos((float)$gs['valor']) ?></b></td>
         <td style="white-space:nowrap"><a class="btn btn-ghost btn-mini" href="<?= url_con('organizacion/gastos', ['editar' => $gs['id']]) ?>#form">Editar</a>
           <form method="post" action="<?= url('organizacion/borrar/gasto/' . (int)$gs['id']) ?>" style="display:inline" onsubmit="return confirm('¿Eliminar este gasto?')"><?= \Core\Csrf::campo() ?><button class="btn btn-ghost btn-mini" type="submit" aria-label="Eliminar gasto">✕</button></form></td></tr>
@@ -54,6 +58,8 @@ $pt = $tope ? $gastado * 100 / $tope : null;
         <label class="field full"><span>Concepto *</span><input name="concepto" maxlength="150" value="<?= e($x['concepto'] ?? '') ?>" placeholder="Ej: Refrigerios reunión vereda El Recreo" required></label>
         <label class="field"><span>Valor *</span><input name="valor" data-tipo="numero" maxlength="11" value="<?= !empty($x['valor']) ? (int)$x['valor'] : '' ?>" required></label>
         <label class="field"><span>Proveedor</span><input name="proveedor" maxlength="120" value="<?= e($x['proveedor'] ?? '') ?>"></label>
+        <label class="field"><span>NIT o cédula del proveedor</span><input name="nit" maxlength="20" value="<?= e($x['nit'] ?? '') ?>"></label>
+        <label class="field"><span>N.º de factura o documento soporte</span><input name="soporte" maxlength="40" value="<?= e($x['soporte'] ?? '') ?>" placeholder="Ej: FE-1234"></label>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
         <button class="btn btn-primary" type="submit"><?= $x ? 'Guardar cambios' : 'Registrar' ?></button>

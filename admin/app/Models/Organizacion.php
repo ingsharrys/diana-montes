@@ -93,10 +93,13 @@ class Organizacion extends Model
         );
     }
 
-    public function registrarPago(int $colaborador, string $fecha, int $valor, string $concepto, string $medio, int $usuario): void
+    public function registrarPago(int $colaborador, string $fecha, int $valor, string $concepto, string $medio, int $usuario, string $soporte = ''): void
     {
-        $this->ejecutar('INSERT INTO org_pagos (colaborador_id, fecha, valor, concepto, medio, creado_por) VALUES (:c, :f, :v, :co, :m, :u)',
-            ['c' => $colaborador, 'f' => $fecha, 'v' => $valor, 'co' => $concepto ?: null, 'm' => $medio ?: null, 'u' => $usuario]);
+        $p = ['c' => $colaborador, 'f' => $fecha, 'v' => $valor, 'co' => $concepto ?: null, 'm' => $medio ?: null, 'u' => $usuario];
+        $conSoporte = esquema_tiene($this->db, 'org_pagos', 'soporte');
+        if ($conSoporte) $p['s'] = $soporte ?: null;
+        $this->ejecutar('INSERT INTO org_pagos (colaborador_id, fecha, valor, concepto, medio, creado_por' . ($conSoporte ? ', soporte' : '') . ')
+                         VALUES (:c, :f, :v, :co, :m, :u' . ($conSoporte ? ', :s' : '') . ')', $p);
     }
 
     /* ---------------- Publicidad impresa ---------------- */
@@ -245,6 +248,7 @@ class Organizacion extends Model
     public function guardarGasto(?int $id, array $d, int $usuario): int
     {
         $campos = ['fecha', 'categoria', 'concepto', 'valor', 'proveedor'];
+        if (esquema_tiene($this->db, 'org_gastos', 'soporte')) array_push($campos, 'soporte', 'nit');
         $p = array_intersect_key($d, array_flip($campos));
         if ($id) {
             $this->ejecutar('UPDATE org_gastos SET ' . implode(', ', array_map(fn($c) => "$c = :$c", array_keys($p))) . ' WHERE id = :id', $p + ['id' => $id]);

@@ -344,6 +344,10 @@ function esquema_pasos(): array
               created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
               KEY idx_gasto_fecha (fecha)
             ) DEFAULT CHARSET=utf8mb4", 'organización: gastos de la campaña'],
+        // Soportes que exige el informe de ingresos y gastos (Ley 1475 de 2011, art. 25; Cuentas Claras)
+        ['org_gastos', 'soporte', 'ALTER TABLE org_gastos ADD COLUMN soporte VARCHAR(40) NULL', 'organización: soporte y NIT de cada gasto'],
+        ['org_gastos', 'nit',     'ALTER TABLE org_gastos ADD COLUMN nit VARCHAR(20) NULL', 'organización: soporte y NIT de cada gasto'],
+        ['org_pagos',  'soporte', 'ALTER TABLE org_pagos ADD COLUMN soporte VARCHAR(40) NULL', 'organización: soporte y NIT de cada gasto'],
 
         // ---------- Sin duplicados: la base de datos rechaza un documento o celular repetido ----------
         // Si ya hay repetidos, el paso no se aplica y se listan para que el equipo los corrija.
