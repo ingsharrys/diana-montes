@@ -1,6 +1,6 @@
 <div class="login-wrap">
   <div class="login-hero">
-    <div class="eyebrow">Campaña · Alcaldía de Garzón 2027</div>
+    <div class="eyebrow">Equipo · Diana Montes</div>
     <h1>Una campaña organizada vale por mil volantes.</h1>
     <div class="hero-chips">
       <span>🔒 Cifrado</span><span>⚖️ Ley 1581</span><span>👁 Auditoría</span>

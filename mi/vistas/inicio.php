@@ -1,6 +1,6 @@
 <?php defined('PORTAL') or exit;
 $nv = $yo['nivel'];
-$textoWa = '¡Hola! 👋 Me sumé a la campaña de Diana Montes a la Alcaldía de Garzón. Súmate tú también, toma menos de un minuto: ' . $enlace;
+$textoWa = '¡Hola! 👋 Me sumé a la red de Diana Montes en Garzón. Súmate tú también, toma menos de un minuto: ' . $enlace;
 $proximos = array_values(array_filter($misTareas, fn($t) => in_array($t['estado'], ['pendiente', 'aceptada'], true)));
 ?>
 <!-- Nivel, puntos y avance -->
@@ -82,7 +82,7 @@ $proximos = array_values(array_filter($misTareas, fn($t) => in_array($t['estado'
   <h2>⭐ Cómo sumar puntos</h2>
   <ul class="permisos">
     <li><span class="ic">+<?= RED_PUNTOS_INVITADO ?></span><span>Por cada persona que se registra con tu enlace o tu QR.</span></li>
-    <li><span class="ic">+<?= RED_PUNTOS_SEGURO ?></span><span>Extra cuando el equipo confirma que tu invitado votará por Diana.</span></li>
+    <li><span class="ic">+<?= RED_PUNTOS_SEGURO ?></span><span>Extra cuando el equipo confirma el compromiso de tu invitado.</span></li>
     <li><span class="ic">+</span><span>Por cada tarea que cumples y el equipo valida (reuniones, puerta a puerta, llamadas…).</span></li>
   </ul>
   <p class="small muted" style="margin-top:8px">Niveles:
