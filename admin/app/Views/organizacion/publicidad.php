@@ -6,6 +6,12 @@ if (!$disponible) return;
 $x = $editar ?? [];
 $estTag = ['cotizado' => 'tag-grey', 'pedido' => 'tag-gold', 'recibido' => 'tag-green'];
 ?>
+<?php if (date('Y-m-d') < $inicioPropaganda): ?>
+<p class="aviso-legal">⚖️ <b>Propaganda electoral desde el <?= fecha_corta($inicioPropaganda) ?>.</b> La publicidad que pide el voto en espacio público y medios
+  solo se permite en los 3 meses anteriores a la votación (Ley 1475 de 2011, art. 35). Antes de esa fecha puedes mandar a hacer y guardar el material,
+  pero no instalarlo ni repartirlo como propaganda; la de expectativa no debe pedir el voto ni mencionar la candidatura. La instalación en espacio público
+  además necesita los permisos de la Alcaldía.</p>
+<?php endif; ?>
 <div class="grid g2" style="margin-top:14px;align-items:start">
   <section class="card">
     <h3>Piezas <span class="tag tag-grey"><?= num(count($piezas)) ?></span></h3>

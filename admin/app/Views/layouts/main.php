@@ -90,6 +90,8 @@ $enMando  = isset($pestanas[$seccion]);
 <div class="tip" id="tip" role="tooltip" hidden></div>
 <script src="<?= asset('../assets/js/validar.js') ?>"></script>
 <script>
+// Menú lateral con scroll: la opción activa siempre queda a la vista
+document.querySelector('.rail-item.activo')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 (function () {
   const tip = document.getElementById('tip');
   function mostrar(el) {

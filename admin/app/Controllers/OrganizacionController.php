@@ -154,7 +154,7 @@ class OrganizacionController extends Controller
         elseif (!$valor) Session::flash('error', 'Escribe el valor del pago.');
         elseif ($fecha > date('Y-m-d')) Session::flash('error', 'La fecha del pago no puede ser futura.');
         else {
-            $org->registrarPago((int)$id, $fecha, $valor, self::texto('concepto', 150), self::texto('medio', 30), (int)Auth::id());
+            $org->registrarPago((int)$id, $fecha, $valor, self::texto('concepto', 150), self::texto('medio', 30), (int)Auth::id(), self::texto('soporte', 40));
             Auditoria::registrar('pago_colaborador', $c['nombre'] . ' · ' . pesos($valor) . ' · ' . $fecha);
             Session::flash('ok', 'Pago de ' . pesos($valor) . ' a ' . $c['nombre'] . ' registrado.');
         }
@@ -167,6 +167,9 @@ class OrganizacionController extends Controller
     {
         $d = $this->base('publicidad', 'Organización · Publicidad impresa');
         if ($d['disponible']) {
+            // Propaganda electoral en espacio público y medios: solo en los 3 meses anteriores a la votación (Ley 1475 de 2011, art. 35)
+            $eleccion = (new Configuracion())->obtener('fecha_eleccion', \Models\Pronostico::FECHA_ELECCION);
+            $d['inicioPropaganda'] = (new \DateTimeImmutable($eleccion))->modify('-3 months')->format('Y-m-d');
             $d += ['piezas' => $d['org']->publicidad(), 'entregas' => $d['org']->entregas(20), 'porZona' => $d['org']->entregadoPorZona(),
                    'editar' => isset($_GET['editar']) ? $d['org']->pieza((int)$_GET['editar']) : null,
                    'zonas' => zonas_listar(Database::conexion())];
@@ -283,7 +286,8 @@ class OrganizacionController extends Controller
         $id = (int)$id ?: null;
         if ($id && !$org->gasto($id)) $this->redirigir('organizacion/gastos');
         $d = ['fecha' => self::fecha('fecha'), 'categoria' => (string)($_POST['categoria'] ?? ''), 'concepto' => self::texto('concepto', 150),
-              'valor' => self::entero('valor'), 'proveedor' => self::texto('proveedor', 120) ?: null];
+              'valor' => self::entero('valor'), 'proveedor' => self::texto('proveedor', 120) ?: null,
+              'soporte' => self::texto('soporte', 40) ?: null, 'nit' => self::texto('nit', 20) ?: null];
         if (!$d['fecha'] || $d['fecha'] > date('Y-m-d')) $error = 'Escribe la fecha del gasto (hoy o antes).';
         elseif (!isset(Organizacion::GASTOS[$d['categoria']])) $error = 'Elige la categoría.';
         elseif (mb_strlen($d['concepto']) < 3) $error = 'Escribe el concepto.';

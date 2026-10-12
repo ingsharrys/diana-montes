@@ -50,6 +50,7 @@ $totalPagos = count(array_filter($lista, fn($c) => $c['tipo'] === 'pago'));
               <input name="valor" data-tipo="numero" maxlength="10" placeholder="Valor" value="<?= $c['valor'] ? (int)$c['valor'] : '' ?>" required aria-label="Valor del pago">
               <input type="date" name="fecha" value="<?= date('Y-m-d') ?>" max="<?= date('Y-m-d') ?>" aria-label="Fecha del pago">
               <input name="concepto" maxlength="150" placeholder="Concepto (ej. quincena oct)" aria-label="Concepto">
+              <input name="soporte" maxlength="40" placeholder="Soporte (cuenta de cobro n.º)" aria-label="Soporte del pago">
               <select name="medio" aria-label="Medio de pago"><option value="">Medio…</option><option>Transferencia</option><option>Nequi</option><option>Daviplata</option><option>Efectivo</option></select>
               <button class="btn btn-primary btn-mini" type="submit">Registrar pago</button>
             </form></details>
@@ -100,6 +101,7 @@ $totalPagos = count(array_filter($lista, fn($c) => $c['tipo'] === 'pago'));
         <label class="field <?= $cls('fin') ?>"><span>Hasta</span><input type="date" name="fin" value="<?= $val('fin') ?>"><?= $err('fin') ?></label>
         <label class="field full"><span>Notas</span><input name="notas" maxlength="255" value="<?= $val('notas') ?>" placeholder="Ej: tiene moto, disponible fines de semana"></label>
         <label class="full chk"><input type="checkbox" name="activo" value="1" <?= ($x['activo'] ?? 1) ? 'checked' : '' ?>> Activo en la campaña</label>
+        <p class="full muted small">⚖️ No vincules <b>servidores públicos</b> (tampoco contratistas que tengan esa restricción): no pueden participar en política (Constitución, art. 127). A quien recibe pago se le hace contrato o cuenta de cobro; ese pago es gasto de campaña y se reporta.</p>
       </div>
       <div class="form-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
         <button class="btn btn-primary" type="submit"><?= !empty($editar) ? 'Guardar cambios' : 'Agregar' ?></button>
