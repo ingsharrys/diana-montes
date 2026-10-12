@@ -28,6 +28,20 @@ function url(string $ruta = ''): string
     return APP_URL . '/' . $ruta;
 }
 
+/** URL con parámetros (?a=1&b=2), sirva o no el .htaccess. */
+function url_con(string $ruta, array $q = []): string
+{
+    $q = array_filter($q, fn($v) => $v !== null && $v !== '');
+    if (!$q) return url($ruta);
+    return url($ruta) . ((defined('USE_REWRITE') && USE_REWRITE === false) ? '&' : '?') . http_build_query($q);
+}
+
+/** Pesos colombianos: 1250000 -> "$ 1.250.000" */
+function pesos(int|float $v): string
+{
+    return "$\u{00A0}" . number_format((float)$v, 0, ',', '.');   // espacio que no se parte
+}
+
 /** Fecha legible en español corto: 14/07/2026 6:00 p.m. */
 function fecha_co(?string $fechaSql): string
 {
@@ -74,6 +88,7 @@ function icono(string $nombre): string
         'candado'   => '<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/><path d="M12 14.5v2.5"/>',
         'salir'     => '<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/>',
         'trofeo'    => '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4"/><path d="M12 13v4M8.5 20.5h7M10 17h4"/>',
+        'organizacion' => '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M3 12.5h18"/><path d="M10.5 12.5v2h3v-2"/>',
         'megafono'  => '<path d="M4 10v4a1 1 0 0 0 1 1h2.5L15 19V5L7.5 9H5a1 1 0 0 0-1 1z"/><path d="M18.5 9.5a3.5 3.5 0 0 1 0 5"/><path d="M7.5 15l1.2 4.5h2.3"/>',
     ];
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
