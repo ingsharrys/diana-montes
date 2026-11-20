@@ -371,6 +371,21 @@ function esquema_pasos(): array
         ['wa_plantillas', 'motivo_rechazo', 'ALTER TABLE wa_plantillas ADD COLUMN motivo_rechazo VARCHAR(255) NULL', 'motivo de rechazo de las plantillas de WhatsApp'],
         ['wa_plantillas', 'extras', 'ALTER TABLE wa_plantillas ADD COLUMN extras TEXT NULL', 'encabezado, pie y botones de las plantillas de WhatsApp'],
 
+        // ---------- Historias ciudadanas: relatos de la gente, con autorización de datos y de publicación ----------
+        ['historias_ciudadanas', null, "CREATE TABLE IF NOT EXISTS historias_ciudadanas (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              nombre VARCHAR(120) NOT NULL,
+              zona_id INT NULL,
+              mensaje TEXT NOT NULL,
+              consentimiento_datos TINYINT(1) NOT NULL DEFAULT 0,
+              consentimiento_fecha DATETIME NULL,
+              autoriza_publicacion TINYINT(1) NOT NULL DEFAULT 0,
+              autorizacion_publicacion_fecha DATETIME NULL,
+              estado ENUM('pendiente','aprobada','rechazada') NOT NULL DEFAULT 'pendiente',
+              created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              KEY idx_historia_estado (estado, created_at)
+            ) DEFAULT CHARSET=utf8mb4", 'historias ciudadanas (relatos con autorización de publicación)'],
+
         // ---------- Sin duplicados: la base de datos rechaza un documento o celular repetido ----------
         // Si ya hay repetidos, el paso no se aplica y se listan para que el equipo los corrija.
         ['simpatizantes', null, 'ALTER TABLE simpatizantes ADD UNIQUE KEY uq_simp_documento (documento)', 'documento único (sin duplicados)',

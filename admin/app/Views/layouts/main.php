@@ -19,6 +19,7 @@ $menu = [
     ['usuarios',            'equipo',    'Equipo',        ['direccion']],
     ['catalogos',           'catalogos', 'Catálogos',     ['direccion']],
     ['datos',               'candado',   'Datos personales', ['direccion']],
+    ['historias',           'historias', 'Historias',     ['direccion']],
 ];
 // Pestañas del centro de mando (las tres vistas de inteligencia de la red)
 $pestanas = ['dashboard' => 'Vista rápida', 'territorio' => 'Territorio', 'red' => 'Red de contactos', 'mapa' => 'Mapa'];
