@@ -103,6 +103,7 @@ class WhatsApp extends Model
         $filas = $this->consultar(
             "SELECT o.*, p.nombre AS plantilla, p.estado_meta, p.num_variables, p.variables
              FROM wa_ocasiones o LEFT JOIN wa_plantillas p ON p.id = o.plantilla_id
+             WHERE o.clave NOT LIKE '" . WA_CAMPANA_PREFIJO . "%'
              ORDER BY FIELD(o.tipo, 'evento', 'cumpleanos', 'profesion', 'fecha'), o.id"
         );
         $hoy = new \DateTimeImmutable('today');
@@ -169,5 +170,66 @@ class WhatsApp extends Model
             );
             return true;
         } catch (\PDOException $e) { return false; }
+    }
+
+    /* ================= Envíos masivos (campañas) ================= */
+
+    public function campanasDisponible(): bool
+    {
+        return wa_campanas_disponible($this->db);
+    }
+
+    /** Campañas con su avance: en cola, enviados, entregados, leídos, con error y respuestas. */
+    public function campanas(int $limite = 50): array
+    {
+        return $this->consultar(
+            "SELECT c.*, p.nombre AS plantilla, u.nombre AS autor,
+                    COUNT(m.id) AS total,
+                    COALESCE(SUM(m.estado = 'pendiente'), 0)     AS pendientes,
+                    COALESCE(SUM(m.enviado_at IS NOT NULL), 0)   AS enviados,
+                    COALESCE(SUM(m.entregado_at IS NOT NULL), 0) AS entregados,
+                    COALESCE(SUM(m.leido_at IS NOT NULL), 0)     AS leidos,
+                    COALESCE(SUM(m.estado = 'error'), 0)         AS errores,
+                    COALESCE(SUM(m.estado = 'omitido'), 0)       AS omitidos
+             FROM wa_campanas c
+             LEFT JOIN wa_plantillas p ON p.id = c.plantilla_id
+             LEFT JOIN usuarios u      ON u.id = c.creado_por
+             LEFT JOIN wa_mensajes m   ON m.ocasion_id = c.ocasion_id AND c.ocasion_id IS NOT NULL
+             GROUP BY c.id ORDER BY c.id DESC LIMIT " . (int)$limite
+        );
+    }
+
+    /** Respuestas recibidas después de cada campaña, de quienes la recibieron (aprox.: primeras 72 h). */
+    public function respuestasPorCampana(): array
+    {
+        $filas = $this->consultar(
+            "SELECT c.id, COUNT(DISTINCT e.id) AS n
+             FROM wa_campanas c
+             JOIN wa_mensajes m ON m.ocasion_id = c.ocasion_id AND m.enviado_at IS NOT NULL
+             JOIN wa_entrantes e ON e.simpatizante_id = m.simpatizante_id
+                  AND e.recibido_at >= m.enviado_at AND e.recibido_at < m.enviado_at + INTERVAL 3 DAY
+             GROUP BY c.id"
+        );
+        return array_column($filas, 'n', 'id');
+    }
+
+    public function crearCampana(array $d): int
+    {
+        $this->ejecutar(
+            'INSERT INTO wa_campanas (nombre, plantilla_id, texto, filtros, resumen, audiencia, programada_para, creado_por)
+             VALUES (:n, :p, :t, :f, :r, :a, :pp, :u)',
+            ['n' => $d['nombre'], 'p' => $d['plantilla_id'], 't' => $d['texto'] ?: null, 'f' => json_encode($d['filtros'], JSON_UNESCAPED_UNICODE),
+             'r' => $d['resumen'], 'a' => $d['audiencia'], 'pp' => $d['programada_para'], 'u' => $d['creado_por']]
+        );
+        return (int)$this->db->lastInsertId();
+    }
+
+    /** Cuántos mensajes puede enviar hoy la plataforma todavía (tope diario). */
+    public function cupoHoy(): array
+    {
+        $hoy = (int)($this->consultarUno('SELECT COUNT(*) c FROM wa_mensajes WHERE enviado_at >= CURDATE()')['c'] ?? 0);
+        $pendientes = (int)($this->consultarUno("SELECT COUNT(*) c FROM wa_mensajes WHERE estado = 'pendiente'")['c'] ?? 0);
+        $tope = (int)wa_cfg('WA_LIMITE_DIARIO', 250);
+        return ['tope' => $tope, 'enviados_hoy' => $hoy, 'disponible' => max(0, $tope - $hoy), 'pendientes' => $pendientes];
     }
 }

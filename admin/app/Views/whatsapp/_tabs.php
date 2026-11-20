@@ -1,6 +1,6 @@
 <?php
 /** Pestañas del módulo WhatsApp + avisos de estado. Espera $pestana, $disponible, $configurado, $esDireccion. */
-$tabsWa = ['whatsapp' => ['resumen', 'Resumen'], 'whatsapp/ocasiones' => ['ocasiones', 'Ocasiones'], 'whatsapp/plantillas' => ['plantillas', 'Plantillas']];
+$tabsWa = ['whatsapp' => ['resumen', 'Resumen'], 'whatsapp/campanas' => ['campanas', 'Mensajes masivos'], 'whatsapp/ocasiones' => ['ocasiones', 'Ocasiones'], 'whatsapp/plantillas' => ['plantillas', 'Plantillas']];
 if ($esDireccion) $tabsWa['whatsapp/configuracion'] = ['configuracion', 'Configuración'];
 ?>
 <nav class="cola-tabs wa-tabs" aria-label="Secciones de WhatsApp">

@@ -349,6 +349,28 @@ function esquema_pasos(): array
         ['org_gastos', 'nit',     'ALTER TABLE org_gastos ADD COLUMN nit VARCHAR(20) NULL', 'organización: soporte y NIT de cada gasto'],
         ['org_pagos',  'soporte', 'ALTER TABLE org_pagos ADD COLUMN soporte VARCHAR(40) NULL', 'organización: soporte y NIT de cada gasto'],
 
+        // ---------- WhatsApp: mensajes masivos (campañas) y motivo de rechazo de plantillas ----------
+        ['wa_campanas', null, "CREATE TABLE IF NOT EXISTS wa_campanas (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              nombre VARCHAR(120) NOT NULL,
+              plantilla_id INT NOT NULL,
+              ocasion_id INT NULL,
+              texto VARCHAR(700) NULL,
+              filtros TEXT NULL,
+              resumen VARCHAR(255) NULL,
+              audiencia INT UNSIGNED NOT NULL DEFAULT 0,
+              encolados INT UNSIGNED NOT NULL DEFAULT 0,
+              estado ENUM('programada','enviando','cancelada') NOT NULL DEFAULT 'programada',
+              programada_para DATETIME NULL,
+              lanzada_at DATETIME NULL,
+              cancelada_at DATETIME NULL,
+              creado_por INT NULL,
+              created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              KEY idx_wa_campana_estado (estado, programada_para)
+            ) DEFAULT CHARSET=utf8mb4", 'mensajes masivos de WhatsApp (campañas por zona, líder, puesto…)'],
+        ['wa_plantillas', 'motivo_rechazo', 'ALTER TABLE wa_plantillas ADD COLUMN motivo_rechazo VARCHAR(255) NULL', 'motivo de rechazo de las plantillas de WhatsApp'],
+        ['wa_plantillas', 'extras', 'ALTER TABLE wa_plantillas ADD COLUMN extras TEXT NULL', 'encabezado, pie y botones de las plantillas de WhatsApp'],
+
         // ---------- Sin duplicados: la base de datos rechaza un documento o celular repetido ----------
         // Si ya hay repetidos, el paso no se aplica y se listan para que el equipo los corrija.
         ['simpatizantes', null, 'ALTER TABLE simpatizantes ADD UNIQUE KEY uq_simp_documento (documento)', 'documento único (sin duplicados)',
