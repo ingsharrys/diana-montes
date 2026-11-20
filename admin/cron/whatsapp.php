@@ -32,6 +32,10 @@ if ($forzar || $hora >= (int)wa_cfg('WA_HORA_ENVIO', 9)) {
     $salida['encolados_hoy'] = wa_generar_del_dia($db, $ahora->setTime(0, 0));
 }
 
+// Envíos masivos programados cuya hora ya llegó: entran a la cola
+$lanzadas = wa_lanzar_programadas($db);
+if ($lanzadas) $salida['envios_masivos'] = $lanzadas;
+
 if ($forzar || ($hora >= 7 && $hora < (int)wa_cfg('WA_HORA_FIN', 21))) {
     $salida['envio'] = wa_procesar_cola($db, (int)wa_cfg('WA_LOTE', 60));
 } else {

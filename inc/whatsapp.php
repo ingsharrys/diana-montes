@@ -34,9 +34,11 @@ const WA_VARIABLES = [
     'lugar_tarea'       => 'Lugar de la tarea o evento',
     'enlace_portal'     => 'Enlace para entrar a su panel (/mi)',
     'puesto_votacion'   => 'Puesto y mesa de votación',
+    'texto_campana'     => 'Texto que escribes en cada envío masivo',
 ];
 
 require_once __DIR__ . '/datos_personales.php';
+require_once __DIR__ . '/whatsapp_campanas.php';
 
 /** Dirección pública del sitio (para los enlaces que van en los mensajes). */
 function wa_sitio(): string
@@ -308,6 +310,7 @@ function wa_valores(PDO $db, array $m, ?string $variables): array
                      : ($campo === 'fecha_tarea' ? (red_fecha($t['fecha']) ?: 'por definir') : ($t['lugar'] ?: 'por definir')));
                 break;
             case 'enlace_portal': $v = "$landing/mi/"; break;
+            case 'texto_campana': $v = $partes[0] === 'campana' ? wa_campana_texto($db, (int)($partes[1] ?? 0)) : ''; break;
             case 'puesto_votacion':
                 // Meta no acepta variables vacías: si aún no se sabe el puesto, se indica dónde consultarlo
                 $v = !empty($m['puesto'])
@@ -337,7 +340,8 @@ function wa_procesar_cola(PDO $db, int $max = 50): array
     try {
         $r['vencidos'] = $db->exec(
             "UPDATE wa_mensajes SET estado = 'omitido', error_detalle = 'Vencido: no se envió a tiempo'
-             WHERE estado = 'pendiente' AND creado_at < NOW() - INTERVAL 2 DAY"
+             WHERE estado = 'pendiente' AND creado_at < NOW() - INTERVAL 2 DAY
+               AND ocasion_id NOT IN (SELECT id FROM wa_ocasiones WHERE clave LIKE '" . WA_CAMPANA_PREFIJO . "%')"
         );
         $hoy = (int)$db->query("SELECT COUNT(*) FROM wa_mensajes WHERE enviado_at >= CURDATE()")->fetchColumn();
         $cupo = max(0, (int)wa_cfg('WA_LIMITE_DIARIO', 250) - $hoy);
@@ -356,7 +360,7 @@ function wa_procesar_cola(PDO $db, int $max = 50): array
              LEFT JOIN usuarios u     ON u.id = s.lider_id
              LEFT JOIN puestos_votacion pv ON pv.id = s.puesto_id
              WHERE m.estado = 'pendiente'
-             ORDER BY m.id LIMIT " . min($max, $cupo)
+             ORDER BY (o.clave LIKE '" . WA_CAMPANA_PREFIJO . "%'), m.id LIMIT " . min($max, $cupo)
         )->fetchAll(PDO::FETCH_ASSOC);
 
         $omitir = $db->prepare("UPDATE wa_mensajes SET estado = 'omitido', error_detalle = :d WHERE id = :id");
@@ -508,22 +512,31 @@ function wa_procesar_webhook(PDO $db, array $payload): array
 function wa_sincronizar_plantillas(PDO $db): array
 {
     if (!wa_cfg('WA_WABA_ID')) return [0, 'Falta WA_WABA_ID en config.php.'];
-    $ruta = wa_cfg('WA_WABA_ID') . '/message_templates?fields=name,language,status,category,components&limit=100';
+    $ruta = wa_cfg('WA_WABA_ID') . '/message_templates?fields=name,language,status,category,components,rejected_reason&limit=100';
     $n = 0;
     $guardar = $db->prepare(
         'INSERT INTO wa_plantillas (nombre, idioma, categoria, estado_meta, cuerpo, num_variables, compatible)
          VALUES (:n, :i, :c, :e, :b, :v, :ok)
          ON DUPLICATE KEY UPDATE categoria = :c2, estado_meta = :e2, cuerpo = :b2, num_variables = :v2, compatible = :ok2'
     );
+    $conMotivo = esquema_tiene($db, 'wa_plantillas', 'motivo_rechazo');
+    $conExtras = esquema_tiene($db, 'wa_plantillas', 'extras');
+    $detalle = $db->prepare('UPDATE wa_plantillas SET ' . implode(', ', array_filter([$conMotivo ? 'motivo_rechazo = :m' : null, $conExtras ? 'extras = :x' : null]))
+                            . ' WHERE nombre = :n AND idioma = :i');
     for ($pagina = 0; $ruta && $pagina < 20; $pagina++) {
         [$http, $j] = wa_api('GET', $ruta);
         if ($http !== 200) return [$n, 'Meta respondió: ' . ($j['error']['message'] ?? "HTTP $http")];
         foreach ($j['data'] ?? [] as $t) {
-            $cuerpo = ''; $compatible = true;
+            $cuerpo = ''; $compatible = true; $extras = ['encabezado' => '', 'pie' => '', 'botones' => []];
             foreach ($t['components'] ?? [] as $c) {
                 if ($c['type'] === 'BODY') $cuerpo = $c['text'] ?? '';
                 if ($c['type'] === 'HEADER' && (($c['format'] ?? 'TEXT') !== 'TEXT' || str_contains($c['text'] ?? '', '{{'))) $compatible = false;
-                if ($c['type'] === 'BUTTONS') foreach ($c['buttons'] ?? [] as $b) if (str_contains($b['url'] ?? '', '{{')) $compatible = false;
+                if ($c['type'] === 'HEADER' && ($c['format'] ?? 'TEXT') === 'TEXT') $extras['encabezado'] = (string)($c['text'] ?? '');
+                if ($c['type'] === 'FOOTER') $extras['pie'] = (string)($c['text'] ?? '');
+                if ($c['type'] === 'BUTTONS') foreach ($c['buttons'] ?? [] as $b) {
+                    if (str_contains($b['url'] ?? '', '{{')) $compatible = false;
+                    $extras['botones'][] = ['tipo' => (string)($b['type'] ?? ''), 'texto' => (string)($b['text'] ?? ''), 'valor' => (string)($b['url'] ?? $b['phone_number'] ?? '')];
+                }
             }
             preg_match_all('/\{\{\s*([^}\s]+)\s*\}\}/', $cuerpo, $m);
             $vars = array_unique($m[1]);
@@ -531,6 +544,13 @@ function wa_sincronizar_plantillas(PDO $db): array
             $p = ['n' => $t['name'], 'i' => $t['language'], 'c' => $t['category'] ?? null, 'e' => $t['status'] ?? null,
                   'b' => $cuerpo, 'v' => count($vars), 'ok' => $compatible ? 1 : 0];
             $guardar->execute($p + ['c2' => $p['c'], 'e2' => $p['e'], 'b2' => $p['b'], 'v2' => $p['v'], 'ok2' => $p['ok']]);
+            if ($conMotivo || $conExtras) {
+                $q = ['n' => $t['name'], 'i' => $t['language']];
+                $motivo = (string)($t['rejected_reason'] ?? '');
+                if ($conMotivo) $q['m'] = ($t['status'] ?? '') === 'REJECTED' && $motivo !== '' && $motivo !== 'NONE' ? mb_substr($motivo, 0, 255) : null;
+                if ($conExtras) $q['x'] = wa_extras_json($extras);
+                $detalle->execute($q);
+            }
             $n++;
         }
         $siguiente = $j['paging']['next'] ?? null;
@@ -548,6 +568,7 @@ const WA_EJEMPLOS = [
     'invitado' => 'Ana P.', 'nivel_promotor' => 'Súper Promotor', 'tarea' => 'Reunión con vecinos del barrio',
     'fecha_tarea' => 'sáb 18 oct, 4:00 p. m.', 'lugar_tarea' => 'Salón comunal', 'enlace_portal' => 'https://dianamontes.com/mi/',
     'puesto_votacion' => 'IE Normal Superior, mesa 12',
+    'texto_campana' => 'este sábado a las 8 a. m. hacemos una jornada de limpieza en la quebrada Garzón. ¡Te esperamos con tu familia!',
 ];
 
 /** Categorías de Meta y cómo se muestran. */
@@ -599,6 +620,8 @@ const WA_PLANTILLAS_SUGERIDAS = [
         "¡Hola, {{1}}! En esta fecha tan especial te enviamos un saludo lleno de cariño y buenos deseos para ti y los tuyos. Diana Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'vispera_eleccion' => ['MARKETING', ['vispera_eleccion'], 'primer_nombre, puesto_votacion',
         "Hola, {{1}}. ¡Mañana es el gran día para Garzón! 🗳️ Tu lugar de votación es {{2}}. Recuerda llevar tu cédula original y madrugar para votar con calma. Cuento contigo. Diana Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
+    'mensaje_campana' => ['MARKETING', [], 'primer_nombre, texto_campana',
+        "Hola, {{1}}. Te compartimos un mensaje del equipo de Diana Montes: {{2}}\n\nGracias por ser parte de esta red. Si no deseas recibir más mensajes, responde SALIR."],
     'recordatorio_votacion' => ['MARKETING', ['dia_eleccion'], 'primer_nombre, puesto_votacion',
         "¡Buenos días, {{1}}! Hoy elegimos el futuro de Garzón 🗳️ Tu lugar de votación es {{2}}. Lleva tu cédula original; las mesas abren a las 8:00 a. m. y cierran a las 4:00 p. m. ¡Gracias por tu apoyo! Diana Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
 ];
@@ -622,6 +645,7 @@ const WA_PLANTILLAS_USO = [
     'saludo_fecha_especial' => 'Cualquier otra fecha que crees',
     'vispera_eleccion' => 'Víspera de elecciones (con su puesto y mesa)',
     'recordatorio_votacion' => 'Día de elecciones (con su puesto y mesa)',
+    'mensaje_campana' => 'Envíos masivos con el texto que escribas en cada uno',
 ];
 
 /**
@@ -648,12 +672,83 @@ function wa_error_plantilla(string $nombre, string $cuerpo, int $numCampos): ?st
     return null;
 }
 
+/** Motivos de rechazo que devuelve Meta, en palabras. */
+const WA_MOTIVOS_RECHAZO = [
+    'ABUSIVE_CONTENT'      => 'Meta considera que el contenido viola sus políticas.',
+    'INCORRECT_CATEGORY'   => 'La categoría no corresponde al texto: pídela como marketing.',
+    'INVALID_FORMAT'       => 'Formato inválido: revisa las variables, los emojis y que no empiece ni termine con una variable.',
+    'SCAM'                 => 'Meta lo vio como posible engaño o fraude.',
+    'PROMOTIONAL'          => 'Es promocional y se pidió como servicio: pídela como marketing.',
+    'TAG_CONTENT_MISMATCH' => 'El texto no coincide con la categoría pedida.',
+];
+
+/** Tipos de botón que se pueden agregar a una plantilla (sin variables, para que se pueda enviar en automático). */
+const WA_TIPOS_BOTON = [
+    'QUICK_REPLY'  => 'Respuesta rápida',
+    'URL'          => 'Abrir un enlace',
+    'PHONE_NUMBER' => 'Llamar',
+];
+
+/**
+ * Limpia y revisa encabezado, pie y botones. Devuelve [extras normalizados, error o null].
+ * $in = ['encabezado' => str, 'pie' => str, 'botones' => [['tipo', 'texto', 'valor'], …]].
+ */
+function wa_extras_plantilla(array $in): array
+{
+    $x = ['encabezado' => trim((string)($in['encabezado'] ?? '')), 'pie' => trim((string)($in['pie'] ?? '')), 'botones' => []];
+    if (mb_strlen($x['encabezado']) > 60) return [$x, 'El encabezado no puede pasar de 60 caracteres.'];
+    if (mb_strlen($x['pie']) > 60) return [$x, 'El pie de página no puede pasar de 60 caracteres.'];
+    if (str_contains($x['encabezado'] . $x['pie'], '{{')) return [$x, 'El encabezado y el pie van sin variables.'];
+    if (preg_match('/[\r\n*_~]/', $x['encabezado'])) return [$x, 'El encabezado va en una sola línea, sin formato ni emojis especiales.'];
+    $rapidas = $acciones = [];
+    foreach ((array)($in['botones'] ?? []) as $b) {
+        $tipo = (string)($b['tipo'] ?? ''); $texto = trim((string)($b['texto'] ?? '')); $valor = trim((string)($b['valor'] ?? ''));
+        if ($texto === '' && $valor === '') continue;
+        if (!isset(WA_TIPOS_BOTON[$tipo])) return [$x, 'Tipo de botón no válido.'];
+        if ($texto === '' || mb_strlen($texto) > 25) return [$x, 'El texto de cada botón es obligatorio y de máximo 25 caracteres.'];
+        if (str_contains($texto . $valor, '{{')) return [$x, 'Los botones van sin variables.'];
+        if ($tipo === 'QUICK_REPLY') { $rapidas[] = ['tipo' => $tipo, 'texto' => $texto]; continue; }
+        if ($tipo === 'URL') {
+            if (!preg_match('#^https://[^\s]{4,2000}$#', $valor)) return [$x, "El botón \"$texto\" necesita un enlace que empiece por https://"];
+        } else {
+            $num = preg_replace('/\D/', '', $valor);
+            if (strlen($num) === 10 && $num[0] === '3') $num = '57' . $num;
+            if (strlen($num) < 10 || strlen($num) > 15) return [$x, "El botón \"$texto\" necesita un teléfono válido (ej. 3101234567)."];
+            $valor = '+' . $num;
+        }
+        $acciones[] = ['tipo' => $tipo, 'texto' => $texto, 'valor' => $valor];
+    }
+    if (count(array_filter($acciones, fn($b) => $b['tipo'] === 'URL')) > 2) return [$x, 'Máximo 2 botones de enlace.'];
+    if (count(array_filter($acciones, fn($b) => $b['tipo'] === 'PHONE_NUMBER')) > 1) return [$x, 'Máximo 1 botón de llamada.'];
+    if (count($rapidas) + count($acciones) > 10) return [$x, 'Máximo 10 botones.'];
+    // Meta pide las respuestas rápidas juntas: van primero
+    $x['botones'] = array_merge($rapidas, $acciones);
+    return [$x, null];
+}
+
+/** Componentes de Meta para encabezado, pie y botones. */
+function wa_componentes_extras(array $x): array
+{
+    $c = [];
+    if (($x['encabezado'] ?? '') !== '') $c[] = ['type' => 'HEADER', 'format' => 'TEXT', 'text' => $x['encabezado']];
+    if (($x['pie'] ?? '') !== '') $c[] = ['type' => 'FOOTER', 'text' => $x['pie']];
+    if (!empty($x['botones'])) {
+        $c[] = ['type' => 'BUTTONS', 'buttons' => array_map(fn($b) => match ($b['tipo']) {
+            'URL'          => ['type' => 'URL', 'text' => $b['texto'], 'url' => $b['valor']],
+            'PHONE_NUMBER' => ['type' => 'PHONE_NUMBER', 'text' => $b['texto'], 'phone_number' => $b['valor']],
+            default        => ['type' => 'QUICK_REPLY', 'text' => $b['texto']],
+        }, $x['botones'])];
+    }
+    return $c;
+}
+
 /**
  * Crea la plantilla en Meta (queda "En revisión") y la guarda aquí con sus
  * variables ya asignadas. $campos = datos de WA_VARIABLES en el orden de {{1}}, {{2}}…
+ * $extras = encabezado, pie y botones opcionales (ver wa_extras_plantilla).
  * Devuelve ['ok' => bool, 'msg' => string, 'estado' => ?string, 'categoria' => ?string].
  */
-function wa_crear_plantilla(PDO $db, string $nombre, string $idioma, string $categoria, string $cuerpo, array $campos): array
+function wa_crear_plantilla(PDO $db, string $nombre, string $idioma, string $categoria, string $cuerpo, array $campos, array $extras = []): array
 {
     if (!wa_cfg('WA_WABA_ID') || !wa_cfg('WA_TOKEN')) return ['ok' => false, 'msg' => 'Faltan WA_WABA_ID y WA_TOKEN en config.php.'];
     if (!isset(WA_CATEGORIAS[$categoria]) || $categoria === 'AUTHENTICATION') return ['ok' => false, 'msg' => 'Elige la categoría: servicio o marketing.'];
@@ -661,11 +756,18 @@ function wa_crear_plantilla(PDO $db, string $nombre, string $idioma, string $cat
     foreach ($campos as $c) if (!isset(WA_VARIABLES[$c])) return ['ok' => false, 'msg' => 'Asigna un dato válido a cada variable.'];
     $cuerpo = trim(str_replace("\r\n", "\n", $cuerpo));
     if ($error = wa_error_plantilla($nombre, $cuerpo, count($campos))) return ['ok' => false, 'msg' => $error];
+    [$extras, $error] = wa_extras_plantilla($extras);
+    if ($error) return ['ok' => false, 'msg' => $error];
 
     $cuerpoMeta = ['type' => 'BODY', 'text' => $cuerpo];
     if ($campos) $cuerpoMeta['example'] = ['body_text' => [array_map(fn($c) => WA_EJEMPLOS[$c] ?? 'Ejemplo', $campos)]];
+    $componentes = array_merge(
+        array_filter(wa_componentes_extras($extras), fn($c) => $c['type'] === 'HEADER'),
+        [$cuerpoMeta],
+        array_filter(wa_componentes_extras($extras), fn($c) => $c['type'] !== 'HEADER')
+    );
     [$http, $j] = wa_api('POST', wa_cfg('WA_WABA_ID') . '/message_templates', [
-        'name' => $nombre, 'language' => $idioma, 'category' => $categoria, 'components' => [$cuerpoMeta],
+        'name' => $nombre, 'language' => $idioma, 'category' => $categoria, 'components' => array_values($componentes),
     ]);
     if ($http !== 200 || empty($j['id'])) {
         $e = $j['error'] ?? [];
@@ -674,17 +776,42 @@ function wa_crear_plantilla(PDO $db, string $nombre, string $idioma, string $cat
     }
     $estado = $j['status'] ?? 'PENDING';
     $final  = $j['category'] ?? $categoria;
-    $p = ['n' => $nombre, 'i' => $idioma, 'c' => $final, 's' => $categoria, 'e' => $estado, 'b' => $cuerpo,
-          'v' => count($campos), 'f' => implode(',', $campos) ?: null];
-    $sol = esquema_tiene($db, 'wa_plantillas', 'categoria_solicitada');
+    $cols = ['nombre' => $nombre, 'idioma' => $idioma, 'categoria' => $final, 'estado_meta' => $estado, 'cuerpo' => $cuerpo,
+             'num_variables' => count($campos), 'variables' => implode(',', $campos) ?: null, 'compatible' => 1];
+    if (esquema_tiene($db, 'wa_plantillas', 'categoria_solicitada')) $cols['categoria_solicitada'] = $categoria;
+    if (esquema_tiene($db, 'wa_plantillas', 'extras')) $cols['extras'] = wa_extras_json($extras);
+    if (esquema_tiene($db, 'wa_plantillas', 'motivo_rechazo')) $cols['motivo_rechazo'] = null;
+    $nombres = array_keys($cols);
     $db->prepare(
-        'INSERT INTO wa_plantillas (nombre, idioma, categoria, ' . ($sol ? 'categoria_solicitada, ' : '') . 'estado_meta, cuerpo, num_variables, variables, compatible)
-         VALUES (:n, :i, :c, ' . ($sol ? ':s, ' : '') . ':e, :b, :v, :f, 1)
-         ON DUPLICATE KEY UPDATE categoria = VALUES(categoria), ' . ($sol ? 'categoria_solicitada = VALUES(categoria_solicitada), ' : '') . '
-                                 estado_meta = VALUES(estado_meta), cuerpo = VALUES(cuerpo), num_variables = VALUES(num_variables),
-                                 variables = VALUES(variables), compatible = 1'
-    )->execute($sol ? $p : array_diff_key($p, ['s' => 1]));
+        'INSERT INTO wa_plantillas (' . implode(', ', $nombres) . ') VALUES (:' . implode(', :', $nombres) . ')
+         ON DUPLICATE KEY UPDATE ' . implode(', ', array_map(fn($c) => "$c = VALUES($c)", array_diff($nombres, ['nombre', 'idioma'])))
+    )->execute($cols);
     return ['ok' => true, 'msg' => '', 'estado' => $estado, 'categoria' => $final];
+}
+
+/** Encabezado, pie y botones en JSON (null si no hay). */
+function wa_extras_json(array $x): ?string
+{
+    return (($x['encabezado'] ?? '') === '' && ($x['pie'] ?? '') === '' && empty($x['botones'])) ? null : json_encode($x, JSON_UNESCAPED_UNICODE);
+}
+
+/**
+ * Borra una plantilla en Meta (todas sus versiones de idioma) y aquí. Las
+ * ocasiones que la usaban quedan sin plantilla y pausadas.
+ */
+function wa_eliminar_plantilla(PDO $db, string $nombre): array
+{
+    if (!wa_cfg('WA_WABA_ID') || !wa_cfg('WA_TOKEN')) return [false, 'Faltan WA_WABA_ID y WA_TOKEN en config.php.'];
+    [$http, $j] = wa_api('DELETE', wa_cfg('WA_WABA_ID') . '/message_templates?name=' . rawurlencode($nombre));
+    $noExiste = ($j['error']['code'] ?? null) === 100 && str_contains(strtolower((string)($j['error']['message'] ?? '')), 'not found');
+    if (!($http === 200 && !empty($j['success'])) && !$noExiste) return [false, 'Meta respondió: ' . ($j['error']['error_user_msg'] ?? $j['error']['message'] ?? "HTTP $http")];
+    $ids = $db->prepare('SELECT id FROM wa_plantillas WHERE nombre = :n');
+    $ids->execute(['n' => $nombre]);
+    foreach ($ids->fetchAll(PDO::FETCH_COLUMN) as $id) {
+        $db->prepare('UPDATE wa_ocasiones SET plantilla_id = NULL, activa = 0 WHERE plantilla_id = :p')->execute(['p' => $id]);
+    }
+    $db->prepare('DELETE FROM wa_plantillas WHERE nombre = :n')->execute(['n' => $nombre]);
+    return [true, ''];
 }
 
 /** Asigna la plantilla a sus ocasiones sugeridas que aún no tienen plantilla (sin activarlas). */

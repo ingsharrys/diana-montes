@@ -14,6 +14,7 @@ $menu = [
     ['organizacion',        'organizacion', 'Organización', ['direccion', 'coordinador']],
     ['red',                 'red',       'Red',           null],
     ['mapa',                'mapa',      'Mapa',          null],
+    ['whatsapp/campanas',   'mensajes',  'Mensajes masivos', ['direccion', 'coordinador']],
     ['whatsapp',            'whatsapp',  'WhatsApp',      ['direccion', 'coordinador']],
     ['usuarios',            'equipo',    'Equipo',        ['direccion']],
     ['catalogos',           'catalogos', 'Catálogos',     ['direccion']],
@@ -41,8 +42,10 @@ $enMando  = isset($pestanas[$seccion]);
     <nav>
       <?php foreach ($menu as [$destino, $ico, $etiqueta, $roles]):
         if ($roles && !Auth::tieneRol(...$roles)) continue;
-        // "Simpatizantes" no se marca cuando se está en una de sus subpáginas del menú (Registrar, Verificar)
-        $activo = $ruta === $destino || ($seccion === $destino && !in_array($ruta, ['simpatizantes/crear', 'simpatizantes/verificar'], true)); ?>
+        // Una sección no se marca cuando se está en una de sus subpáginas que tiene su propio ítem (Registrar, Verificar, Mensajes masivos)
+        $esMasivo = in_array($ruta, ['whatsapp/campanas', 'whatsapp/nuevacampana'], true);
+        $activo = $ruta === $destino || ($destino === 'whatsapp/campanas' && $esMasivo)
+               || ($seccion === $destino && !$esMasivo && !in_array($ruta, ['simpatizantes/crear', 'simpatizantes/verificar'], true)); ?>
         <a class="rail-item <?= $activo ? 'activo' : '' ?>" href="<?= url($destino) ?>" <?= $activo ? 'aria-current="page"' : '' ?>>
           <?= icono($ico) ?><span><?= e($etiqueta) ?></span>
         </a>

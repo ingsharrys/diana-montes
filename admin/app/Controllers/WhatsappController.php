@@ -190,11 +190,16 @@ class WhatsappController extends Controller
         $cuerpo    = (string)($_POST['cuerpo'] ?? '');
         $campos    = array_values(array_filter(array_map('strval', (array)($_POST['campos'] ?? [])), fn($c) => $c !== ''));
         $sugerida  = WA_PLANTILLAS_SUGERIDAS[$nombre] ?? null;
+        $botones = [];
+        foreach ((array)($_POST['boton_tipo'] ?? []) as $i => $tipo) {
+            $botones[] = ['tipo' => (string)$tipo, 'texto' => (string)($_POST['boton_texto'][$i] ?? ''), 'valor' => (string)($_POST['boton_valor'][$i] ?? '')];
+        }
+        $extras = ['encabezado' => (string)($_POST['encabezado'] ?? ''), 'pie' => (string)($_POST['pie'] ?? ''), 'botones' => $botones];
 
-        $r = wa_crear_plantilla($db, $nombre, $idioma, $categoria, $cuerpo, $campos);
+        $r = wa_crear_plantilla($db, $nombre, $idioma, $categoria, $cuerpo, $campos, $extras);
         if (!$r['ok']) {
             Session::flash('error', $r['msg']);
-            Session::set('wa_borrador', ['nombre' => $nombre, 'categoria' => $categoria, 'idioma' => $idioma, 'cuerpo' => $cuerpo, 'campos' => $campos]);
+            Session::set('wa_borrador', ['nombre' => $nombre, 'categoria' => $categoria, 'idioma' => $idioma, 'cuerpo' => $cuerpo, 'campos' => $campos] + $extras);
             $this->redirigir('whatsapp/plantillas');
         }
         $vinculadas = $sugerida ? wa_vincular_ocasiones($db, $nombre, $idioma, $sugerida[1]) : 0;
@@ -291,6 +296,135 @@ class WhatsappController extends Controller
         Session::flash($r['ok'] ? 'ok' : 'error', $r['ok']
             ? 'Prueba enviada a ' . enmascarar($tel) . '. Revisa ese WhatsApp.'
             : 'Meta rechazó la prueba (' . $r['codigo'] . '): ' . $r['detalle']);
+        $this->redirigir('whatsapp/plantillas');
+    }
+
+    /* ================= Envíos masivos ================= */
+
+    /** Lista de envíos masivos con su avance. */
+    public function campanas(): void
+    {
+        Auth::requerirRol('direccion', 'coordinador');
+        $wa = new WhatsApp();
+        $datos = $this->comun('campanas', 'WhatsApp · Mensajes masivos');
+        $datos['campanasListas'] = $datos['disponible'] && $wa->campanasDisponible();
+        if ($datos['campanasListas']) {
+            $datos += ['campanas' => $wa->campanas(), 'respuestas' => $wa->respuestasPorCampana(), 'cupo' => $wa->cupoHoy()];
+        }
+        $this->vista('whatsapp/campanas', $datos);
+    }
+
+    /** Formulario: a quién (filtros con conteo en vivo), qué plantilla y cuándo. */
+    public function nuevacampana(): void
+    {
+        Auth::requerirRol('direccion');
+        $wa = new WhatsApp();
+        $db = Database::conexion();
+        $datos = $this->comun('campanas', 'WhatsApp · Nuevo envío masivo');
+        $datos['campanasListas'] = $datos['disponible'] && $wa->campanasDisponible();
+        if ($datos['campanasListas']) {
+            $cat = new \Models\Catalogo();
+            $datos += [
+                'plantillas'  => wa_plantillas_para_envio($db),
+                'zonas'       => $cat->zonas(),
+                'lideres'     => $cat->lideres(),
+                'puestos'     => $cat->puestos(),
+                'profesiones' => $cat->profesiones(),
+                'promotores'  => $db->query(
+                    "SELECT s.id, s.nombre, COUNT(i.id) AS invitados FROM simpatizantes s JOIN simpatizantes i ON i.referido_por = s.id
+                     GROUP BY s.id, s.nombre ORDER BY invitados DESC, s.nombre LIMIT 300")->fetchAll(\PDO::FETCH_ASSOC),
+                'cupo'        => $wa->cupoHoy(),
+                'previo'      => Session::get('wa_campana_borrador') ?? [],
+            ];
+            Session::set('wa_campana_borrador', null);
+        }
+        $this->vista('whatsapp/nuevacampana', $datos);
+    }
+
+    /** Conteo en vivo de la audiencia (JSON) para el formulario. */
+    public function audiencia(): void
+    {
+        Auth::requerirRol('direccion');
+        header('Content-Type: application/json; charset=utf-8');
+        $db = Database::conexion();
+        if (!wa_campanas_disponible($db)) { echo json_encode(['error' => 'Falta actualizar la plataforma']); exit; }
+        $f = wa_campana_filtros($_POST + $_GET);
+        echo json_encode(wa_campana_contar($db, $f) + ['resumen' => wa_campana_resumen($db, $f)], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    /** Crea el envío: sale ya (al ritmo del tope diario) o queda programado. */
+    public function crearcampana(): void
+    {
+        $wa = $this->accion('whatsapp/nuevacampana');
+        $db = Database::conexion();
+        if (!$wa->campanasDisponible()) { Session::flash('error', 'Primero pulsa "Actualizar plataforma" en la Vista rápida.'); $this->redirigir('whatsapp/campanas'); }
+
+        $f = wa_campana_filtros($_POST);
+        $nombre = trim(preg_replace('/\s+/', ' ', (string)($_POST['nombre'] ?? '')));
+        $plantillaId = (int)($_POST['plantilla_id'] ?? 0);
+        $texto = trim(preg_replace('/\s+/', ' ', (string)($_POST['texto'] ?? '')));
+        $cuando = (string)($_POST['cuando'] ?? 'ahora');
+        $fecha = (string)($_POST['programada_para'] ?? '');
+        $volver = function (string $error) use ($f, $nombre, $plantillaId, $texto, $cuando, $fecha) {
+            Session::flash('error', $error);
+            Session::set('wa_campana_borrador', ['filtros' => $f, 'nombre' => $nombre, 'plantilla_id' => $plantillaId, 'texto' => $texto, 'cuando' => $cuando, 'programada_para' => $fecha]);
+            $this->redirigir('whatsapp/nuevacampana');
+        };
+
+        $plantilla = null;
+        foreach (wa_plantillas_para_envio($db) as $p) if ((int)$p['id'] === $plantillaId) $plantilla = $p;
+        if (mb_strlen($nombre) < 3) $volver('Ponle un nombre al envío (ej. "Invitación cierre de campaña").');
+        if (!$plantilla) $volver('Elige una plantilla aprobada por Meta.');
+        $usaTexto = in_array('texto_campana', explode(',', (string)$plantilla['variables']), true);
+        if ($usaTexto && mb_strlen($texto) < 5) $volver('Escribe el mensaje que va dentro de la plantilla.');
+        if ($usaTexto && mb_strlen($texto) > 700) $volver('El mensaje no puede pasar de 700 caracteres.');
+        $programada = null;
+        if ($cuando === 'programar') {
+            $ts = strtotime($fecha);
+            if (!$ts || $ts < time() + 60) $volver('Elige una fecha y hora futuras para programar el envío.');
+            $programada = date('Y-m-d H:i:00', $ts);
+        }
+        $conteo = wa_campana_contar($db, $f);
+        if ($conteo['recibiran'] === 0) $volver('Con esos filtros no hay nadie que pueda recibir el mensaje.');
+        if ((int)($_POST['confirmar_total'] ?? -1) !== $conteo['recibiran'] && wa_campana_es_todos($f)) {
+            $volver('Confirma el número de personas antes de enviar a todos los registros.');
+        }
+
+        $id = $wa->crearCampana([
+            'nombre' => mb_substr($nombre, 0, 120), 'plantilla_id' => $plantillaId, 'texto' => $usaTexto ? $texto : null,
+            'filtros' => $f, 'resumen' => wa_campana_resumen($db, $f), 'audiencia' => $conteo['recibiran'],
+            'programada_para' => $programada, 'creado_por' => Auth::id(),
+        ]);
+        $encolados = $programada ? 0 : wa_campana_lanzar($db, $id);
+        Auditoria::registrar('wa_campana_creada', "#$id $nombre · " . ($programada ? "programada $programada" : "$encolados en cola") . ' · ' . wa_campana_resumen($db, $f));
+        $dias = (int)ceil(max(1, $conteo['recibiran']) / max(1, (int)wa_cfg('WA_LIMITE_DIARIO', 250)));
+        Session::flash('ok', $programada
+            ? 'Envío programado para el ' . date('d/m/Y \a \l\a\s g:i a', strtotime($programada)) . ' (' . number_format($conteo['recibiran'], 0, ',', '.') . ' personas).'
+            : number_format($encolados, 0, ',', '.') . ' mensajes en cola. Salen en los próximos minutos'
+              . ($dias > 1 ? " y, por el tope diario, tardan unos $dias días en salir todos" : '') . '.');
+        $this->redirigir('whatsapp/campanas');
+    }
+
+    /** Cancela un envío: lo que aún no salió, ya no sale. */
+    public function cancelarcampana(string $id = '0'): void
+    {
+        $this->accion('whatsapp/campanas');
+        $n = wa_campana_cancelar(Database::conexion(), (int)$id);
+        Auditoria::registrar('wa_campana_cancelada', "#$id · $n mensajes frenados");
+        Session::flash('ok', "Envío cancelado. $n mensaje" . ($n === 1 ? '' : 's') . ' que no habían salido ya no se enviarán.');
+        $this->redirigir('whatsapp/campanas');
+    }
+
+    /** Borra una plantilla en Meta y aquí (p. ej. una rechazada, para crearla de nuevo con el mismo nombre). */
+    public function eliminarplantilla(): void
+    {
+        $this->accion('whatsapp/plantillas');
+        $nombre = strtolower(trim((string)($_POST['nombre'] ?? '')));
+        if (!preg_match('/^[a-z0-9_]{1,512}$/', $nombre)) $this->redirigir('whatsapp/plantillas');
+        [$ok, $error] = wa_eliminar_plantilla(Database::conexion(), $nombre);
+        Auditoria::registrar('wa_plantilla_eliminada', $nombre . ($ok ? '' : ' · ' . $error));
+        Session::flash($ok ? 'ok' : 'error', $ok ? "Plantilla \"$nombre\" eliminada en Meta y en la plataforma. Meta no deja reutilizar el nombre durante unas semanas: si la creas de nuevo, usa otro nombre." : $error);
         $this->redirigir('whatsapp/plantillas');
     }
 

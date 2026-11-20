@@ -116,9 +116,15 @@ $marcaVieja = wa_con_marca_anterior($plantillas ?? []);
       <td><b><?= e($p['nombre']) ?></b> <span class="muted small"><?= e($p['idioma']) ?></span><br>
         <?php if ($est): ?><span class="tag <?= $est[1] ?> small"><?= e($est[0]) ?></span><?php elseif ($p['estado_meta']): ?><span class="tag tag-grey small"><?= e($p['estado_meta']) ?></span><?php endif; ?>
         <?php if (!$p['compatible']): ?><br><span class="small" style="color:var(--bad)">No se puede enviar automáticamente (encabezado multimedia, botones dinámicos o variables con nombre).</span><?php endif; ?>
+        <?php if ($p['estado_meta'] === 'REJECTED' && !empty($p['motivo_rechazo'])): ?><br><span class="small" style="color:var(--bad)"><b>Motivo:</b> <?= e(WA_MOTIVOS_RECHAZO[$p['motivo_rechazo']] ?? $p['motivo_rechazo']) ?></span><?php endif; ?>
         <?php if ($esDireccion): ?><form id="<?= $fid ?>" method="post" action="<?= url('whatsapp/guardarplantilla/' . (int)$p['id']) ?>"><?= \Core\Csrf::campo() ?></form><?php endif; ?></td>
       <td><?= $catTag($p['categoria'], $p['categoria_solicitada'] ?? null) ?: '<span class="muted">—</span>' ?></td>
-      <td class="small" style="max-width:340px;white-space:pre-line"><?= $p['cuerpo'] ? e($p['cuerpo']) : '<span class="muted">—</span>' ?></td>
+      <?php $x = json_decode((string)($p['extras'] ?? ''), true) ?: []; ?>
+      <td class="small" style="max-width:340px">
+        <?php if (!empty($x['encabezado'])): ?><b><?= e($x['encabezado']) ?></b><br><?php endif; ?>
+        <span style="white-space:pre-line"><?= $p['cuerpo'] ? e($p['cuerpo']) : '<span class="muted">—</span>' ?></span>
+        <?php if (!empty($x['pie'])): ?><br><span class="muted"><?= e($x['pie']) ?></span><?php endif; ?>
+        <?php if (!empty($x['botones'])): ?><div class="mini-botones"><?php foreach ($x['botones'] as $bt): ?><span><?= e($bt['texto']) ?></span><?php endforeach; ?></div><?php endif; ?></td>
       <td>
         <?php if (!(int)$p['num_variables']): ?><span class="muted small">Sin variables</span><?php endif; ?>
         <?php for ($i = 1; $i <= (int)$p['num_variables']; $i++): ?>
@@ -134,7 +140,11 @@ $marcaVieja = wa_con_marca_anterior($plantillas ?? []);
           </div>
         <?php endfor; ?>
       </td>
-      <?php if ($esDireccion): ?><td><?php if ((int)$p['num_variables'] && $p['compatible']): ?><button class="btn btn-primary btn-mini" type="submit" form="<?= $fid ?>">Guardar</button><?php endif; ?></td><?php endif; ?>
+      <?php if ($esDireccion): ?><td style="white-space:nowrap"><?php if ((int)$p['num_variables'] && $p['compatible']): ?><button class="btn btn-primary btn-mini" type="submit" form="<?= $fid ?>">Guardar</button><?php endif; ?>
+        <?php if ($puedeCrear && $p['categoria'] !== 'AUTHENTICATION'): ?>
+        <form method="post" action="<?= url('whatsapp/eliminarplantilla') ?>" style="display:inline" onsubmit="return confirm('¿Eliminar la plantilla «<?= e($p['nombre']) ?>» en Meta y aquí? Las ocasiones que la usan quedan pausadas.')">
+          <?= \Core\Csrf::campo() ?><input type="hidden" name="nombre" value="<?= e($p['nombre']) ?>"><button class="btn btn-ghost btn-mini txt-peligro" type="submit" aria-label="Eliminar plantilla">Eliminar</button></form>
+        <?php endif; ?></td><?php endif; ?>
     </tr>
     <?php endforeach; ?>
   </table>
@@ -215,6 +225,28 @@ $marcaVieja = wa_con_marca_anterior($plantillas ?? []);
       <textarea name="cuerpo" id="nuevaCuerpo" rows="5" maxlength="1024" required data-msg="Escribe el texto." style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px;font:inherit"
         placeholder="Hola, {{1}}. Te esperamos este sábado en el cierre de campaña de Diana en {{2}}. ¡Trae a tu familia!&#10;&#10;Si no deseas recibir más mensajes, responde SALIR."><?= e(isset(WA_PLANTILLAS_SUGERIDAS[$b['nombre'] ?? '']) ? '' : ($b['cuerpo'] ?? '')) ?></textarea></label>
     <div id="nuevaVars" style="margin-top:8px"></div>
+    <details class="filtro-mas" style="margin-top:10px" <?= !empty($b['encabezado']) || !empty($b['pie']) || array_filter(array_column($b['botones'] ?? [], 'texto')) ? 'open' : '' ?>>
+      <summary>Encabezado, pie de página y botones (opcional)</summary>
+      <div class="form-grid" style="margin-top:8px">
+        <label class="field"><span>Encabezado (máx. 60, sin variables)</span>
+          <input name="encabezado" id="nuevaCab" maxlength="60" value="<?= e($b['encabezado'] ?? '') ?>" placeholder="Ej: Invitación especial"></label>
+        <label class="field"><span>Pie de página (máx. 60)</span>
+          <input name="pie" id="nuevaPie" maxlength="60" value="<?= e($b['pie'] ?? '') ?>" placeholder="Ej: Responde SALIR para no recibir más"></label>
+      </div>
+      <span class="field-titulo" style="margin-top:10px;display:block">Botones</span>
+      <?php for ($i = 0; $i < 3; $i++): $bt = $b['botones'][$i] ?? []; ?>
+      <div class="boton-fila">
+        <select name="boton_tipo[]" aria-label="Tipo del botón <?= $i + 1 ?>">
+          <?php foreach (WA_TIPOS_BOTON as $k => $t): ?><option value="<?= $k ?>" <?= ($bt['tipo'] ?? '') === $k ? 'selected' : '' ?>><?= e($t) ?></option><?php endforeach; ?>
+        </select>
+        <input name="boton_texto[]" maxlength="25" placeholder="Texto del botón (máx. 25)" value="<?= e($bt['texto'] ?? '') ?>" aria-label="Texto del botón <?= $i + 1 ?>">
+        <input name="boton_valor[]" placeholder="https://… o celular" value="<?= e($bt['valor'] ?? '') ?>" aria-label="Enlace o teléfono del botón <?= $i + 1 ?>">
+      </div>
+      <?php endfor; ?>
+      <p class="muted small nota">Respuesta rápida: la persona toca y te responde ese texto (un botón «SALIR» la da de baja sola). Enlace: abre una página, por ejemplo <?= e(wa_sitio()) ?>. Llamar: marca un número.</p>
+    </details>
+    <span class="field-titulo" style="margin-top:12px;display:block">Vista previa</span>
+    <div class="wa-chat"><div class="wa-burbuja" id="nuevaPrevia"><span class="muted">Escribe el texto para ver la vista previa.</span></div></div>
     <div class="form-actions"><button class="btn btn-primary" type="submit" <?= $puedeCrear ? '' : 'disabled' ?>>Enviar a Meta para aprobación</button></div>
   </form>
 </section>
@@ -236,6 +268,23 @@ $marcaVieja = wa_con_marca_anterior($plantillas ?? []);
     });
   }
   area.addEventListener('input', pintar); pintar();
+
+  // Vista previa tipo WhatsApp con datos de ejemplo
+  const ejemplos = <?= json_encode(WA_EJEMPLOS, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
+  const form = document.getElementById('formNueva'), vista = document.getElementById('nuevaPrevia');
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+  function previa() {
+    const campos = [...caja.querySelectorAll('select')].map(s => s.value);
+    const cuerpo = esc(area.value).replace(/\{\{\s*(\d+)\s*\}\}/g, (m, n) => '<mark>' + esc(ejemplos[campos[n - 1]] || '{{' + n + '}}') + '</mark>');
+    const cab = document.getElementById('nuevaCab').value.trim(), pie = document.getElementById('nuevaPie').value.trim();
+    const tipos = [...form.querySelectorAll('select[name="boton_tipo[]"]')].map(s => s.value);
+    const botones = [...form.querySelectorAll('input[name="boton_texto[]"]')].map((i, k) => [tipos[k], i.value.trim()]).filter(b => b[1]);
+    vista.innerHTML = !area.value.trim() ? '<span class="muted">Escribe el texto para ver la vista previa.</span>'
+      : (cab ? '<b class="wa-cab">' + esc(cab) + '</b>' : '') + '<div class="wa-cuerpo">' + cuerpo + '</div>'
+        + (pie ? '<div class="wa-pie">' + esc(pie) + '</div>' : '')
+        + (botones.length ? '<div class="wa-botones">' + botones.map(b => '<span>' + (b[0] === 'URL' ? '↗ ' : b[0] === 'PHONE_NUMBER' ? '☎ ' : '↩ ') + esc(b[1]) + '</span>').join('') + '</div>' : '');
+  }
+  form.addEventListener('input', previa); form.addEventListener('change', previa); previa();
 })();
 </script>
 <?php endif; ?>
