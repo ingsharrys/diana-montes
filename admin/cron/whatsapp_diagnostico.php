@@ -24,6 +24,26 @@ $linea('Tabla de Conversemos: ' . $si(conv_listo($db)));
 $linea('Credenciales: token ' . $si((bool)wa_cfg('WA_TOKEN')) . ' · número ' . $si((bool)wa_cfg('WA_PHONE_NUMBER_ID'))
      . ' · clave secreta del webhook ' . $si((bool)wa_cfg('WA_APP_SECRET')) . ' · sitio ' . wa_sitio());
 
+$linea(PHP_EOL . '== Conexión con Meta ==');
+$c = wa_info_cuenta();
+if ($c['error']) $linea('ERROR: ' . $c['error']);
+foreach ($c['numeros'] as $n) {
+    $linea('Número ' . ($n['display_phone_number'] ?? '?') . ' (' . ($n['verified_name'] ?? '') . '): id ' . ($n['id'] ?? '?')
+         . (($n['id'] ?? '') === (string)wa_cfg('WA_PHONE_NUMBER_ID') ? ' = WA_PHONE_NUMBER_ID ✔' : ' (no es el de WA_PHONE_NUMBER_ID)'));
+}
+if (!$c['error']) {
+    [$http, $j] = wa_api('GET', wa_cfg('WA_WABA_ID') . '/subscribed_apps');
+    $apps = array_map(fn($a) => ($a['whatsapp_business_api_data']['name'] ?? 'app') . ' (id ' . ($a['whatsapp_business_api_data']['id'] ?? '?') . ')', $j['data'] ?? []);
+    $linea('Apps conectadas a la cuenta de WhatsApp: ' . ($apps ? implode(', ', $apps) : 'NINGUNA → pulsa "Conectar la cuenta al webhook" en Admin › WhatsApp › Configuración'));
+}
+$entregados = (int)$db->query('SELECT COUNT(*) FROM wa_mensajes WHERE entregado_at >= NOW() - INTERVAL 30 DAY')->fetchColumn();
+$enviados = (int)$db->query('SELECT COUNT(*) FROM wa_mensajes WHERE enviado_at >= NOW() - INTERVAL 30 DAY')->fetchColumn();
+$linea("Avisos de entregado recibidos (30 días): $entregados de $enviados enviados por la cola");
+
+$linea(PHP_EOL . '== Últimas llamadas al webhook (' . wa_traza_archivo() . ') ==');
+$traza = is_file(wa_traza_archivo()) ? array_slice(file(wa_traza_archivo(), FILE_IGNORE_NEW_LINES), -15) : [];
+$linea($traza ? implode(PHP_EOL, $traza) : 'Ninguna registrada todavía: Meta no ha llamado al webhook desde esta actualización.');
+
 $linea(PHP_EOL . '== Plantillas de Conversemos ==');
 $st = $db->prepare('SELECT nombre, idioma, estado_meta, extras FROM wa_plantillas WHERE nombre IN (:a, :b)');
 $st->execute(['a' => CONV_PLANTILLA, 'b' => CONV_PLANTILLA_DATOS]);
