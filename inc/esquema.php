@@ -371,6 +371,27 @@ function esquema_pasos(): array
         ['wa_plantillas', 'motivo_rechazo', 'ALTER TABLE wa_plantillas ADD COLUMN motivo_rechazo VARCHAR(255) NULL', 'motivo de rechazo de las plantillas de WhatsApp'],
         ['wa_plantillas', 'extras', 'ALTER TABLE wa_plantillas ADD COLUMN extras TEXT NULL', 'encabezado, pie y botones de las plantillas de WhatsApp'],
 
+        // ---------- "Conversemos": respuestas Sí / No y chat de datos ----------
+        ['wa_conversemos', null, "CREATE TABLE IF NOT EXISTS wa_conversemos (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              simpatizante_id INT NOT NULL,
+              campana_id INT NOT NULL DEFAULT 0,
+              token CHAR(32) NULL,
+              respuesta ENUM('si','no') NULL,
+              respondio_at DATETIME NULL,
+              enlace_at DATETIME NULL,
+              enlace_estado VARCHAR(20) NULL,
+              enlace_error VARCHAR(255) NULL,
+              abierto_at DATETIME NULL,
+              completado_at DATETIME NULL,
+              campos VARCHAR(255) NULL,
+              sueno TEXT NULL,
+              created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              UNIQUE KEY uq_conv_persona (simpatizante_id, campana_id),
+              UNIQUE KEY uq_conv_token (token),
+              KEY idx_conv_campana (campana_id, respuesta)
+            ) DEFAULT CHARSET=utf8mb4", 'respuestas Sí / No y chat de datos ("Conversemos")'],
+
         // ---------- Historias ciudadanas: relatos de la gente, con autorización de datos y de publicación ----------
         ['historias_ciudadanas', null, "CREATE TABLE IF NOT EXISTS historias_ciudadanas (
               id INT AUTO_INCREMENT PRIMARY KEY,

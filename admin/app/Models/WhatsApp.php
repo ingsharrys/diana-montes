@@ -213,6 +213,31 @@ class WhatsApp extends Model
         return array_column($filas, 'n', 'id');
     }
 
+    /** "Conversemos" por envío masivo: cuántos dijeron Sí, No y cuántos completaron el chat de datos. */
+    public function conversemosPorCampana(): array
+    {
+        if (!conv_listo($this->db)) return [];
+        $filas = $this->consultar(
+            "SELECT campana_id, SUM(respuesta = 'si') AS si, SUM(respuesta = 'no') AS no, SUM(completado_at IS NOT NULL) AS datos
+             FROM wa_conversemos GROUP BY campana_id"
+        );
+        return array_column($filas, null, 'campana_id');
+    }
+
+    /** Últimas respuestas al chat de datos (con lo que cada persona sueña para Garzón). */
+    public function conversemosRecientes(int $limite = 50): array
+    {
+        if (!conv_listo($this->db)) return [];
+        return $this->consultar(
+            "SELECT c.*, s.nombre, s.telefono, z.nombre AS zona
+             FROM wa_conversemos c
+             JOIN simpatizantes s ON s.id = c.simpatizante_id
+             LEFT JOIN zonas z ON z.id = s.zona_id
+             WHERE c.respuesta IS NOT NULL
+             ORDER BY COALESCE(c.completado_at, c.respondio_at) DESC LIMIT " . (int)$limite
+        );
+    }
+
     public function crearCampana(array $d): int
     {
         $this->ejecutar(

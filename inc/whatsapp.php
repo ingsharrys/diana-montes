@@ -39,6 +39,7 @@ const WA_VARIABLES = [
 
 require_once __DIR__ . '/datos_personales.php';
 require_once __DIR__ . '/whatsapp_campanas.php';
+require_once __DIR__ . '/conversemos.php';
 
 /** Dirección pública del sitio (para los enlaces que van en los mensajes). */
 function wa_sitio(): string
@@ -245,12 +246,14 @@ function wa_enviar_plantilla(string $telefono, string $plantilla, string $idioma
 /** Texto libre (solo se permite dentro de las 24 h siguientes a un mensaje de la persona). */
 function wa_enviar_texto(string $telefono, string $texto): array
 {
-    return wa_resultado(wa_api('POST', wa_cfg('WA_PHONE_NUMBER_ID') . '/messages', [
-        'messaging_product' => 'whatsapp',
-        'to'   => '57' . $telefono,
-        'type' => 'text',
-        'text' => ['body' => $texto],
-    ]));
+    return wa_enviar_mensaje($telefono, ['type' => 'text', 'text' => ['body' => $texto]]);
+}
+
+/** Cualquier mensaje (texto, interactivo, plantilla con botones): $mensaje = ['type' => …, …]. */
+function wa_enviar_mensaje(string $telefono, array $mensaje): array
+{
+    return wa_resultado(wa_api('POST', wa_cfg('WA_PHONE_NUMBER_ID') . '/messages',
+        ['messaging_product' => 'whatsapp', 'to' => '57' . $telefono] + $mensaje));
 }
 
 /** Interpreta la respuesta de Meta: éxito, error definitivo, error temporal o credenciales caídas. */
@@ -492,6 +495,10 @@ function wa_procesar_webhook(PDO $db, array $payload): array
                     $db->prepare('UPDATE simpatizantes SET wa_baja_at = NULL WHERE id = :id')->execute(['id' => $simpId]);
                     $r['altas']++;
                     if (wa_configurado()) wa_enviar_texto($tel, '¡Qué bueno tenerte de vuelta! Volverás a recibir nuestros saludos.');
+                } elseif ($simpId && ($resp = conv_respuesta($palabra)) && conv_listo($db)
+                          && ($origen = conv_origen($db, (int)$simpId, $msg['context']['id'] ?? null))) {
+                    // Respondió Sí o No al mensaje "Conversemos": con Sí le llega su enlace al chat de datos
+                    $r['conversemos'] = conv_responder($db, (int)$simpId, $tel, $resp, $origen['campana_id']);
                 }
             }
         }
@@ -622,6 +629,8 @@ const WA_PLANTILLAS_SUGERIDAS = [
         "Hola, {{1}}. ¡Mañana es el gran día para Garzón! 🗳️ Tu lugar de votación es {{2}}. Recuerda llevar tu cédula original y madrugar para votar con calma. Cuento contigo. Diana Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
     'mensaje_campana' => ['MARKETING', [], 'primer_nombre, texto_campana',
         "Hola, {{1}}. Te compartimos un mensaje del equipo de Diana Montes: {{2}}\n\nGracias por ser parte de esta red. Si no deseas recibir más mensajes, responde SALIR."],
+    CONV_PLANTILLA => ['MARKETING', [], '', CONV_TEXTO],
+    CONV_PLANTILLA_DATOS => ['MARKETING', [], '', CONV_TEXTO_DATOS],
     'recordatorio_votacion' => ['MARKETING', ['dia_eleccion'], 'primer_nombre, puesto_votacion',
         "¡Buenos días, {{1}}! Hoy elegimos el futuro de Garzón 🗳️ Tu lugar de votación es {{2}}. Lleva tu cédula original; las mesas abren a las 8:00 a. m. y cierran a las 4:00 p. m. ¡Gracias por tu apoyo! Diana Montes.\n\nSi no deseas recibir más mensajes, responde SALIR."],
 ];
@@ -646,7 +655,15 @@ const WA_PLANTILLAS_USO = [
     'vispera_eleccion' => 'Víspera de elecciones (con su puesto y mesa)',
     'recordatorio_votacion' => 'Día de elecciones (con su puesto y mesa)',
     'mensaje_campana' => 'Envíos masivos con el texto que escribas en cada uno',
+    CONV_PLANTILLA => 'Envío masivo "¿Conversamos?" con botones Sí / No',
+    CONV_PLANTILLA_DATOS => 'Respuesta automática al Sí, con el enlace al chat de datos',
 ];
+
+/** Encabezado, pie y botones que trae una plantilla sugerida (la mayoría no trae). */
+function wa_extras_sugerida(string $nombre): array
+{
+    return conv_extras_plantilla($nombre) ?: ['encabezado' => '', 'pie' => '', 'botones' => []];
+}
 
 /**
  * Revisa una plantilla antes de enviarla a Meta (las mismas reglas con que Meta rechaza).
@@ -693,7 +710,7 @@ const WA_TIPOS_BOTON = [
  * Limpia y revisa encabezado, pie y botones. Devuelve [extras normalizados, error o null].
  * $in = ['encabezado' => str, 'pie' => str, 'botones' => [['tipo', 'texto', 'valor'], …]].
  */
-function wa_extras_plantilla(array $in): array
+function wa_extras_plantilla(array $in, bool $enlaceDinamico = false): array
 {
     $x = ['encabezado' => trim((string)($in['encabezado'] ?? '')), 'pie' => trim((string)($in['pie'] ?? '')), 'botones' => []];
     if (mb_strlen($x['encabezado']) > 60) return [$x, 'El encabezado no puede pasar de 60 caracteres.'];
@@ -706,7 +723,10 @@ function wa_extras_plantilla(array $in): array
         if ($texto === '' && $valor === '') continue;
         if (!isset(WA_TIPOS_BOTON[$tipo])) return [$x, 'Tipo de botón no válido.'];
         if ($texto === '' || mb_strlen($texto) > 25) return [$x, 'El texto de cada botón es obligatorio y de máximo 25 caracteres.'];
-        if (str_contains($texto . $valor, '{{')) return [$x, 'Los botones van sin variables.'];
+        if ($tipo === 'URL' && !str_starts_with($valor, 'https://')) return [$x, "El botón \"$texto\" necesita un enlace que empiece por https://"];
+        // Solo las plantillas automáticas (enlace personal) llevan {{1}}, al final del enlace
+        $dinamico = $enlaceDinamico && $tipo === 'URL' && preg_match('#^https://[^\s{}]+\{\{1\}\}$#', $valor);
+        if (str_contains($texto, '{{') || (!$dinamico && str_contains($valor, '{{'))) return [$x, 'Los botones van sin variables.'];
         if ($tipo === 'QUICK_REPLY') { $rapidas[] = ['tipo' => $tipo, 'texto' => $texto]; continue; }
         if ($tipo === 'URL') {
             if (!preg_match('#^https://[^\s]{4,2000}$#', $valor)) return [$x, "El botón \"$texto\" necesita un enlace que empiece por https://"];
@@ -734,7 +754,8 @@ function wa_componentes_extras(array $x): array
     if (($x['pie'] ?? '') !== '') $c[] = ['type' => 'FOOTER', 'text' => $x['pie']];
     if (!empty($x['botones'])) {
         $c[] = ['type' => 'BUTTONS', 'buttons' => array_map(fn($b) => match ($b['tipo']) {
-            'URL'          => ['type' => 'URL', 'text' => $b['texto'], 'url' => $b['valor']],
+            'URL'          => ['type' => 'URL', 'text' => $b['texto'], 'url' => $b['valor']]
+                              + (str_contains($b['valor'], '{{1}}') ? ['example' => [str_replace('{{1}}', 'a1b2c3d4e5f60718293a4b5c6d7e8f90', $b['valor'])]] : []),
             'PHONE_NUMBER' => ['type' => 'PHONE_NUMBER', 'text' => $b['texto'], 'phone_number' => $b['valor']],
             default        => ['type' => 'QUICK_REPLY', 'text' => $b['texto']],
         }, $x['botones'])];
@@ -748,7 +769,7 @@ function wa_componentes_extras(array $x): array
  * $extras = encabezado, pie y botones opcionales (ver wa_extras_plantilla).
  * Devuelve ['ok' => bool, 'msg' => string, 'estado' => ?string, 'categoria' => ?string].
  */
-function wa_crear_plantilla(PDO $db, string $nombre, string $idioma, string $categoria, string $cuerpo, array $campos, array $extras = []): array
+function wa_crear_plantilla(PDO $db, string $nombre, string $idioma, string $categoria, string $cuerpo, array $campos, array $extras = [], bool $enlaceDinamico = false): array
 {
     if (!wa_cfg('WA_WABA_ID') || !wa_cfg('WA_TOKEN')) return ['ok' => false, 'msg' => 'Faltan WA_WABA_ID y WA_TOKEN en config.php.'];
     if (!isset(WA_CATEGORIAS[$categoria]) || $categoria === 'AUTHENTICATION') return ['ok' => false, 'msg' => 'Elige la categoría: servicio o marketing.'];
@@ -756,8 +777,10 @@ function wa_crear_plantilla(PDO $db, string $nombre, string $idioma, string $cat
     foreach ($campos as $c) if (!isset(WA_VARIABLES[$c])) return ['ok' => false, 'msg' => 'Asigna un dato válido a cada variable.'];
     $cuerpo = trim(str_replace("\r\n", "\n", $cuerpo));
     if ($error = wa_error_plantilla($nombre, $cuerpo, count($campos))) return ['ok' => false, 'msg' => $error];
-    [$extras, $error] = wa_extras_plantilla($extras);
+    [$extras, $error] = wa_extras_plantilla($extras, $enlaceDinamico);
     if ($error) return ['ok' => false, 'msg' => $error];
+    // Con enlace personal solo la usan los envíos automáticos (no aparece en los masivos)
+    $dinamica = (bool)array_filter($extras['botones'], fn($b) => str_contains($b['valor'] ?? '', '{{'));
 
     $cuerpoMeta = ['type' => 'BODY', 'text' => $cuerpo];
     if ($campos) $cuerpoMeta['example'] = ['body_text' => [array_map(fn($c) => WA_EJEMPLOS[$c] ?? 'Ejemplo', $campos)]];
@@ -777,7 +800,7 @@ function wa_crear_plantilla(PDO $db, string $nombre, string $idioma, string $cat
     $estado = $j['status'] ?? 'PENDING';
     $final  = $j['category'] ?? $categoria;
     $cols = ['nombre' => $nombre, 'idioma' => $idioma, 'categoria' => $final, 'estado_meta' => $estado, 'cuerpo' => $cuerpo,
-             'num_variables' => count($campos), 'variables' => implode(',', $campos) ?: null, 'compatible' => 1];
+             'num_variables' => count($campos), 'variables' => implode(',', $campos) ?: null, 'compatible' => $dinamica ? 0 : 1];
     if (esquema_tiene($db, 'wa_plantillas', 'categoria_solicitada')) $cols['categoria_solicitada'] = $categoria;
     if (esquema_tiene($db, 'wa_plantillas', 'extras')) $cols['extras'] = wa_extras_json($extras);
     if (esquema_tiene($db, 'wa_plantillas', 'motivo_rechazo')) $cols['motivo_rechazo'] = null;
@@ -878,7 +901,8 @@ function wa_crear_faltantes(PDO $db): array
             if ($existentes[$nombre] === 'REJECTED') $r[] = [$nombre, false, 'Meta la rechazó antes: ajusta su texto y envíala desde la lista.'];
             continue;
         }
-        $x = wa_crear_plantilla($db, $nombre, 'es', $cat, $texto, array_map('trim', explode(',', $vars)));
+        $x = wa_crear_plantilla($db, $nombre, 'es', $cat, $texto, array_values(array_filter(array_map('trim', explode(',', $vars)))),
+                                wa_extras_sugerida($nombre), true);
         if ($x['ok']) wa_vincular_ocasiones($db, $nombre, 'es', $ocasiones);
         $r[] = [$nombre, $x['ok'], $x['ok'] ? 'enviada (' . (WA_CATEGORIAS[$x['categoria']] ?? $x['categoria']) . ')' : $x['msg']];
     }

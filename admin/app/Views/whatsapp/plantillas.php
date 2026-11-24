@@ -159,12 +159,13 @@ $marcaVieja = wa_con_marca_anterior($plantillas ?? []);
     Puedes ajustar el texto antes de enviarla. Todas incluyen la opción de darse de baja (SALIR), que el sistema procesa solo.
     <?php if (!$puedeCrear): ?><br><b style="color:var(--bad)">Para crearlas faltan WA_WABA_ID y WA_TOKEN en config.php (ver Configuración).</b><?php endif; ?></p>
   <?php foreach (WA_PLANTILLAS_SUGERIDAS as $nombre => [$cat, $ocasiones, $vars, $texto]):
-    $ya = $porNombre[$nombre] ?? null; $campos = array_map('trim', explode(',', $vars)); $est = $ya ? ($estados[$ya['estado_meta'] ?? ''] ?? null) : null; ?>
+    $ya = $porNombre[$nombre] ?? null; $campos = array_values(array_filter(array_map('trim', explode(',', $vars)))); $est = $ya ? ($estados[$ya['estado_meta'] ?? ''] ?? null) : null;
+    $sx = wa_extras_sugerida($nombre); ?>
   <details class="sugerida">
     <summary>
       <b><?= e($nombre) ?></b>
       <span class="tag <?= $cat === 'UTILITY' ? 'tag-blue' : 'tag-gold' ?> small">pedir como <?= e(WA_CATEGORIAS[$cat]) ?></span>
-      <span class="muted small">· para: <?= e(implode(', ', $ocasiones)) ?></span>
+      <span class="muted small">· para: <?= e($ocasiones ? implode(', ', $ocasiones) : (WA_PLANTILLAS_USO[$nombre] ?? '')) ?></span>
       <?php if ($ya): ?> · <?= $est ? '<span class="tag ' . $est[1] . ' small">' . e($est[0]) . '</span>' : '' ?> <?= $catTag($ya['categoria'], $ya['categoria_solicitada'] ?? null) ?><?php endif; ?>
     </summary>
     <?php if ($ya && in_array($ya['estado_meta'], ['APPROVED', 'PENDING', 'IN_APPEAL'], true)): ?>
@@ -175,7 +176,16 @@ $marcaVieja = wa_con_marca_anterior($plantillas ?? []);
       <?= \Core\Csrf::campo() ?>
       <input type="hidden" name="nombre" value="<?= e($nombre) ?>">
       <?php foreach ($campos as $c): ?><input type="hidden" name="campos[]" value="<?= e($c) ?>"><?php endforeach; ?>
-      <label class="field"><span>Texto (variables: <?= e(implode(' · ', array_map(fn($c, $i) => '{{' . ($i + 1) . '}} ' . (WA_VARIABLES[$c] ?? $c), $campos, array_keys($campos)))) ?>)</span>
+      <?php if ($sx['pie'] !== '' || $sx['botones']): ?>
+        <input type="hidden" name="encabezado" value="<?= e($sx['encabezado']) ?>"><input type="hidden" name="pie" value="<?= e($sx['pie']) ?>">
+        <?php foreach ($sx['botones'] as $b): ?>
+          <input type="hidden" name="boton_tipo[]" value="<?= e($b['tipo']) ?>"><input type="hidden" name="boton_texto[]" value="<?= e($b['texto']) ?>"><input type="hidden" name="boton_valor[]" value="<?= e($b['valor'] ?? '') ?>">
+        <?php endforeach; ?>
+        <p class="small muted" style="margin:6px 0">Pie: <i><?= e($sx['pie']) ?></i> · Botones:
+          <?= implode(' ', array_map(fn($b) => '<span class="tag tag-grey small">' . e($b['texto']) . ($b['tipo'] === 'URL' ? ' ↗' : '') . '</span>', $sx['botones'])) ?>
+          <?php if (array_filter($sx['botones'], fn($b) => str_contains($b['valor'] ?? '', '{{1}}'))): ?><br>El botón abre el enlace personal de cada persona al chat de datos (<?= e(wa_sitio()) ?>/conversemos/…).<?php endif; ?></p>
+      <?php endif; ?>
+      <label class="field"><span><?= $campos ? 'Texto (variables: ' . e(implode(' · ', array_map(fn($c, $i) => '{{' . ($i + 1) . '}} ' . (WA_VARIABLES[$c] ?? $c), $campos, array_keys($campos)))) . ')' : 'Texto' ?></span>
         <textarea name="cuerpo" rows="5" maxlength="1024" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px;font:inherit"><?= e($texto) ?></textarea></label>
       <div class="form-grid" style="margin-top:8px">
         <label class="field"><span>Categoría que pides</span>
