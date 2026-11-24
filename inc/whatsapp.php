@@ -403,6 +403,37 @@ function wa_procesar_cola(PDO $db, int $max = 50): array
    Webhook: estados, respuestas y bajas
    ========================================================================= */
 
+/** Archivo donde el webhook anota cada llamada (fuera de public_html; se puede cambiar con WA_LOG). */
+function wa_traza_archivo(): string
+{
+    return (string)wa_cfg('WA_LOG', dirname(__DIR__, 2) . '/logs/whatsapp-webhook.log');
+}
+
+/** Anota una línea en el registro del webhook (sin datos personales). Rota al pasar de 1 MB. */
+function wa_traza(string $linea): void
+{
+    $f = wa_traza_archivo();
+    if (!is_dir(dirname($f)) || (is_file($f) && !is_writable($f)) || (!is_file($f) && !is_writable(dirname($f)))) {
+        error_log('[whatsapp-webhook] ' . $linea);
+        return;
+    }
+    if (is_file($f) && filesize($f) > 1048576) @rename($f, $f . '.1');
+    @file_put_contents($f, date('Y-m-d H:i:s') . '  ' . $linea . PHP_EOL, FILE_APPEND | LOCK_EX);
+}
+
+/** Resumen de una notificación de Meta para el registro: campo, mensajes y estados (sin contenido). */
+function wa_traza_resumen(array $payload): string
+{
+    $campos = []; $msgs = 0; $estados = 0; $tipos = [];
+    foreach ($payload['entry'] ?? [] as $e) foreach ($e['changes'] ?? [] as $c) {
+        $campos[] = $c['field'] ?? '?';
+        $msgs += count($c['value']['messages'] ?? []);
+        $estados += count($c['value']['statuses'] ?? []);
+        foreach ($c['value']['messages'] ?? [] as $m) $tipos[] = $m['type'] ?? '?';
+    }
+    return 'campo=' . (implode(',', array_unique($campos)) ?: '—') . " mensajes=$msgs" . ($tipos ? ' (' . implode(',', $tipos) . ')' : '') . " estados=$estados";
+}
+
 /** Verifica la firma X-Hub-Signature-256 que Meta calcula con el App Secret. */
 function wa_firma_valida(string $cuerpoCrudo, ?string $firma): bool
 {
