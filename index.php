@@ -5,9 +5,16 @@
  * los selects de zona/profesión se cargan del catálogo real y el
  * formulario guarda vía registrar.php (fetch, sin recargar la página).
  */
-require __DIR__ . '/config.php';
-require __DIR__ . '/inc/promotores.php';
-session_start();
+require __DIR__ . '/config/config.php';
+require __DIR__ . '/config/inc/promotores.php';
+
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
+
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 
 /* Catálogos desde la BD (con respaldo por si la BD no responde) */
 try {
@@ -37,1020 +44,835 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
     } catch (Throwable $e) { /* silencioso */ }
 }
 ?>
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Diana Montes · Garzón, Huila</title>
-<meta name="description" content="Conoce a Diana Montes: garzoneña, con una vida de servicio a la comunidad del Huila. Muy pronto tendrá algo que contarte. Súmate a su red y entérate primero.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --rosa:#E0186C; --rosa-osc:#C0105A; --rosa-soft:#FDEBF3;
-    --violeta:#7C3AED; --violeta-soft:#F3EEFD;
-    --ink:#101226; --gris:#5A6072; --linea:#E9EBF2;
-    --fondo:#FFFFFF; --fondo-2:#F8F9FC; --verde:#16A34A;
-    --sombra:0 1px 2px rgba(16,18,38,.05),0 12px 32px rgba(16,18,38,.07);
-    --sombra-lg:0 24px 60px rgba(16,18,38,.13);
-    --head:'Plus Jakarta Sans',system-ui,sans-serif;
-    --body:'Inter',system-ui,sans-serif;
-    --grad:linear-gradient(100deg,var(--rosa) 0%,var(--violeta) 120%);
-  }
-  *{margin:0;padding:0;box-sizing:border-box}
-  html{scroll-behavior:smooth}
-  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-  body{font-family:var(--body);background:var(--fondo);color:var(--ink);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
-  h1,h2,h3,h4{font-family:var(--head);letter-spacing:-.02em}
-  a{color:inherit}
-  button{font-family:inherit;cursor:pointer}
-  :focus-visible{outline:3px solid var(--rosa);outline-offset:3px;border-radius:6px}
-  .wrap{max-width:1120px;margin:0 auto;padding:0 clamp(18px,4vw,32px)}
 
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;text-decoration:none;font-family:var(--head);font-weight:700;font-size:15px;padding:14px 26px;border-radius:14px;transition:transform .12s, box-shadow .2s, background .2s}
-  .btn:active{transform:scale(.97)}
-  .btn-rosa{background:var(--rosa);color:#fff;box-shadow:0 8px 20px rgba(224,24,108,.30)}
-  .btn-rosa:hover{background:var(--rosa-osc);transform:translateY(-1px)}
-  .btn-soft{background:var(--fondo-2);color:var(--ink);border:1.5px solid var(--linea)}
-  .btn-soft:hover{border-color:#CBD0DE}
-  .btn-sm{padding:10px 18px;font-size:13.5px;border-radius:11px}
+<?php
+include 'include/header.php';
+?>
 
-  /* header */
-  header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--linea)}
-  .nav{display:flex;align-items:center;justify-content:space-between;height:68px;gap:16px}
-  .logo{display:flex;align-items:center;gap:11px;text-decoration:none}
-  .logo-mark{width:40px;height:40px;border-radius:13px;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--head);font-weight:800;font-size:17px;flex:none}
-  .logo-txt b{font-family:var(--head);font-size:16px;font-weight:800;line-height:1.15;display:block;color:var(--ink);white-space:nowrap}
-  .logo-txt small{display:block;font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--rosa);font-weight:700;white-space:nowrap}
-  .nav-acc{display:flex;align-items:center;gap:10px}
-  .btn-user{width:44px;height:44px;border-radius:50%;border:1.5px solid var(--linea);background:#fff;color:var(--ink);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:var(--sombra);transition:border-color .2s, color .2s, transform .12s}
-  .btn-user:hover,.btn-user[aria-expanded="true"]{border-color:var(--rosa);color:var(--rosa)}
-  .btn-user:active{transform:scale(.94)}
-  .btn-user svg{width:22px;height:22px}
+<?php
+include 'include/navbar.php';
+?>
 
-  /* hoja "Ingresar" (abajo en el celular, junto al ícono en el computador) */
-  .hoja-bg{position:fixed;inset:0;z-index:95;background:rgba(16,18,38,.45);backdrop-filter:blur(3px);opacity:0;transition:opacity .2s}
-  .hoja-bg[hidden]{display:none}
-  .hoja-bg.abierta{opacity:1}
-  .hoja{position:fixed;z-index:96;background:#fff;box-shadow:0 30px 80px rgba(16,18,38,.3);padding:22px 20px 20px;
-        right:max(16px,calc((100vw - 1120px)/2 + 16px));top:76px;width:380px;border-radius:24px;transform:translateY(-8px);opacity:0;transition:transform .22s ease, opacity .22s ease}
-  .hoja-bg.abierta .hoja{transform:none;opacity:1}
-  .hoja-asa{display:none}
-  .hoja h3{font-size:20px;font-weight:800;margin-bottom:2px}
-  .hoja > p{font-size:13.5px;color:var(--gris);margin-bottom:14px}
-  .acceso{display:flex;align-items:center;gap:14px;text-decoration:none;border:1.5px solid var(--linea);border-radius:18px;padding:14px;margin-bottom:10px;transition:border-color .15s, background .15s, transform .12s}
-  .acceso:hover{border-color:var(--rosa);background:#FFF8FB}
-  .acceso:active{transform:scale(.98)}
-  .acceso .ac-i{width:48px;height:48px;border-radius:15px;display:flex;align-items:center;justify-content:center;flex:none}
-  .acceso .ac-i svg{width:24px;height:24px}
-  .acceso.simp .ac-i{background:var(--rosa-soft);color:var(--rosa)}
-  .acceso.equipo .ac-i{background:var(--violeta-soft);color:var(--violeta)}
-  .acceso .ac-t{flex:1;min-width:0}
-  .acceso b{display:block;font-family:var(--head);font-size:15.5px;color:var(--ink)}
-  .acceso span.d{display:block;font-size:12.5px;color:var(--gris);line-height:1.4;margin-top:2px}
-  .acceso .fl{color:#B8BACA;font-size:20px;font-weight:700}
-  .hoja-pie{text-align:center;font-size:13px;color:var(--gris);margin-top:6px}
-  .hoja-pie a{color:var(--rosa);font-weight:700}
-
-  /* barra inferior (solo celular) */
-  .tabbar{display:none}
-  .nav-links{display:flex;gap:4px;align-items:center;list-style:none;background:var(--fondo-2);border:1px solid var(--linea);border-radius:99px;padding:5px}
-  .nav-links a{text-decoration:none;font-weight:600;font-size:13.5px;color:var(--gris);padding:8px 15px;border-radius:99px}
-  .nav-links a:hover{background:#fff;color:var(--ink);box-shadow:var(--sombra)}
-
-  /* ---------- hero ---------- */
-  .hero{position:relative;padding:clamp(36px,6vw,64px) 0 clamp(40px,7vw,72px);overflow:hidden}
-  .hero::before{content:"";position:absolute;top:-220px;right:-180px;width:620px;height:620px;border-radius:50%;background:radial-gradient(circle,rgba(224,24,108,.09),transparent 65%)}
-  .hero-grid{display:grid;grid-template-columns:1.08fr .92fr;gap:clamp(24px,5vw,56px);align-items:center;position:relative;z-index:1}
-  .pill{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--linea);box-shadow:var(--sombra);border-radius:99px;padding:8px 16px;font-size:12.5px;font-weight:700;color:var(--gris);margin-bottom:20px}
-  .pill i{font-style:normal;width:8px;height:8px;border-radius:50%;background:var(--verde)}
-  h1{font-weight:800;font-size:clamp(36px,5.6vw,60px);line-height:1.07}
-  h1 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .hero p.lead{font-size:clamp(15.5px,1.9vw,18px);color:var(--gris);margin:18px 0 26px;max-width:44ch}
-  .hero-ctas{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
-
-  .video-card{position:relative;border-radius:26px;overflow:hidden;aspect-ratio:3/4;max-height:540px;width:100%;background:linear-gradient(160deg,var(--rosa-soft),var(--violeta-soft));box-shadow:var(--sombra-lg);border:1px solid var(--linea);justify-self:end}
-  .video-card video{width:100%;height:100%;object-fit:cover;display:block}
-  .btn-sonido{position:absolute;right:14px;bottom:14px;z-index:3;width:46px;height:46px;border-radius:50%;border:none;background:rgba(16,18,38,.55);backdrop-filter:blur(6px);color:#fff;font-size:19px;display:flex;align-items:center;justify-content:center;transition:transform .12s, background .2s}
-  .btn-sonido:hover{background:var(--rosa);transform:scale(1.06)}
-  .video-tag{position:absolute;left:14px;top:14px;z-index:3;background:rgba(255,255,255,.9);backdrop-filter:blur(6px);border-radius:99px;padding:6px 13px;font-size:11px;font-weight:800;color:var(--rosa-osc);display:flex;align-items:center;gap:6px}
-  .video-tag i{font-style:normal;width:7px;height:7px;border-radius:50%;background:var(--rosa);animation:pulsa 1.6s infinite}
-  @keyframes pulsa{0%,100%{opacity:1}50%{opacity:.35}}
-  @media (prefers-reduced-motion:reduce){.video-tag i{animation:none}}
-
-  /* ---------- secciones ---------- */
-  section{padding:clamp(52px,8vw,88px) 0;scroll-margin-top:60px}
-  .sec-alt{background:var(--fondo-2);border-top:1px solid var(--linea);border-bottom:1px solid var(--linea)}
-  .sec-head{max-width:600px;margin:0 auto clamp(26px,4vw,42px);text-align:center}
-  .kicker{display:inline-block;font-size:11.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--rosa);background:var(--rosa-soft);border-radius:99px;padding:7px 15px;margin-bottom:14px}
-  h2{font-weight:800;font-size:clamp(25px,3.9vw,38px);line-height:1.14}
-  .sec-head p{color:var(--gris);margin-top:12px;font-size:15px}
-
-  /* ---------- acordeón retos ---------- */
-  .acordeon{max-width:760px;margin:0 auto;display:grid;gap:12px}
-  .ac-item{background:#fff;border:1px solid var(--linea);border-radius:18px;box-shadow:var(--sombra);overflow:hidden}
-  .ac-btn{width:100%;background:none;border:none;display:flex;align-items:center;gap:14px;padding:18px 20px;text-align:left}
-  .ac-btn .a-ico{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
-  .ac-btn h3{font-size:16px;font-weight:800;flex:1}
-  .ac-btn .chev{width:30px;height:30px;border-radius:50%;background:var(--fondo-2);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--gris);transition:transform .25s;flex:none}
-  .ac-item.abierto .chev{transform:rotate(180deg);background:var(--rosa-soft);color:var(--rosa)}
-  .ac-panel{max-height:0;overflow:hidden;transition:max-height .3s ease}
-  .ac-panel-in{padding:0 20px 20px 78px}
-  .ac-panel .problema{font-size:14px;color:var(--gris);margin-bottom:10px}
-  .ac-panel .respuesta{font-size:14px;background:var(--fondo-2);border-left:3px solid var(--rosa);border-radius:0 10px 10px 0;padding:10px 13px}
-  .ac-panel .respuesta b{color:var(--rosa-osc)}
-  @media (prefers-reduced-motion:reduce){.ac-panel{transition:none}.ac-btn .chev{transition:none}}
-
-  /* ---------- tabs propuestas ---------- */
-  .tabs{max-width:820px;margin:0 auto}
-  .tab-btns{display:flex;gap:8px;background:#fff;border:1px solid var(--linea);border-radius:99px;padding:6px;box-shadow:var(--sombra);width:fit-content;margin:0 auto 22px;flex-wrap:wrap;justify-content:center}
-  .tab-btn{border:none;background:none;font-family:var(--head);font-weight:700;font-size:13.5px;color:var(--gris);padding:11px 20px;border-radius:99px;display:flex;align-items:center;gap:7px}
-  .tab-btn.activo{background:var(--grad);color:#fff;box-shadow:0 6px 16px rgba(224,24,108,.3)}
-  .tab-panel{display:none;background:#fff;border:1px solid var(--linea);border-radius:22px;box-shadow:var(--sombra);padding:clamp(22px,4vw,36px);animation:fadeIn .3s ease}
-  .tab-panel.activo{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:start}
-  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-  @media (prefers-reduced-motion:reduce){.tab-panel{animation:none}}
-  .tab-panel .t-ico{width:60px;height:60px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:28px;flex:none}
-  .tab-panel h3{font-size:19px;font-weight:800;margin-bottom:8px}
-  .tab-panel p{font-size:14.5px;color:var(--gris);margin-bottom:12px}
-  .t-lista{display:grid;gap:8px}
-  .t-lista span{display:flex;gap:9px;font-size:13.5px;align-items:flex-start}
-  .t-lista i{font-style:normal;color:var(--rosa);font-weight:800}
-
-  /* ---------- diana (cita + modal) ---------- */
-  .quote-card{background:#fff;border:1px solid var(--linea);border-radius:26px;box-shadow:var(--sombra);display:grid;grid-template-columns:.72fr 1.28fr;overflow:hidden;max-width:920px;margin:0 auto}
-  .quote-foto{background:linear-gradient(160deg,var(--rosa-soft),var(--violeta-soft));display:flex;align-items:flex-end;justify-content:center;padding:22px 22px 0}
-  .quote-foto img{width:min(260px,100%);filter:drop-shadow(0 16px 30px rgba(16,18,38,.16))}
-  .quote-body{padding:clamp(24px,3.5vw,40px)}
-  blockquote{font-family:var(--head);font-weight:700;font-size:clamp(18px,2.2vw,22px);line-height:1.42}
-  blockquote .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .firma{margin:16px 0 20px;display:flex;align-items:center;gap:11px}
-  .firma .f-dot{width:9px;height:9px;border-radius:50%;background:var(--rosa)}
-  .firma b{font-family:var(--head);display:block;font-size:14.5px}
-  .firma span{font-size:12px;color:var(--gris)}
-
-  /* historia, lo que la mueve, lo que viene */
-  #diana .quote-card{margin-bottom:clamp(18px,3vw,26px)}
-  .capitulos{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:1040px;margin:0 auto}
-  .capitulo{background:#fff;border:1px solid var(--linea);border-radius:20px;padding:20px 18px;box-shadow:var(--sombra)}
-  .c-ico{font-size:24px;display:block;margin-bottom:10px}
-  .c-et{display:block;font-size:10.5px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:var(--rosa);margin-bottom:4px}
-  .capitulo h3{font-size:16.5px;font-weight:800;margin-bottom:6px;text-wrap:balance}
-  .capitulo p{font-size:14px;color:var(--gris);line-height:1.55}
-  .mueve{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:1040px;margin:0 auto}
-  .m-card{border:1px solid var(--linea);border-radius:20px;padding:20px 18px;background:#fff;box-shadow:var(--sombra)}
-  .m-ico{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:21px;margin-bottom:12px}
-  .m-card h3{font-size:16.5px;font-weight:800;margin-bottom:6px}
-  .m-card p{font-size:14px;color:var(--gris);line-height:1.55}
-  .mueve-pie{text-align:center;margin-top:clamp(20px,3vw,28px);font-family:var(--head);font-weight:700;font-size:16px}
-  .mueve-pie a{color:var(--rosa);text-decoration:none;white-space:nowrap}
-  .viene{list-style:none;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:900px;margin:0 auto;counter-reset:none}
-  .v-paso{position:relative;background:#fff;border:1.5px dashed #D9C9F7;border-radius:20px;padding:20px 18px}
-  .v-paso.hecho{border:1.5px solid var(--rosa);box-shadow:0 10px 28px rgba(224,24,108,.12)}
-  .v-n{width:32px;height:32px;border-radius:10px;background:var(--violeta-soft);color:var(--violeta);font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
-  .v-paso.hecho .v-n{background:var(--grad);color:#fff}
-  .v-est{position:absolute;right:16px;top:20px;font-size:10.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--violeta);background:var(--violeta-soft);border-radius:99px;padding:5px 10px}
-  .v-paso.hecho .v-est{color:var(--verde);background:#E9F9EF}
-  .v-paso h3{font-size:18px;font-weight:800;margin-bottom:4px}
-  .v-paso p{font-size:14px;color:var(--gris)}
-  .viene-cta{text-align:center;margin-top:clamp(20px,3vw,28px)}
-  @media(max-width:1000px){.capitulos,.mueve{grid-template-columns:repeat(2,1fr)}}
-  @media(max-width:640px){.capitulos,.mueve,.viene{grid-template-columns:1fr}}
-
-  /* modal */
-  .modal-bg{position:fixed;inset:0;background:rgba(16,18,38,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:90;padding:18px}
-  .modal-bg.abierto{display:flex}
-  .modal{background:#fff;border-radius:24px;max-width:520px;width:100%;max-height:86vh;overflow-y:auto;padding:clamp(24px,4vw,34px);box-shadow:0 40px 90px rgba(0,0,0,.35);position:relative;animation:fadeIn .25s ease}
-  .modal-x{position:absolute;right:16px;top:16px;width:36px;height:36px;border-radius:50%;border:none;background:var(--fondo-2);font-size:16px;color:var(--gris)}
-  .modal-x:hover{background:var(--rosa-soft);color:var(--rosa)}
-  .modal h3{font-size:20px;font-weight:800;margin-bottom:14px}
-  .check{display:flex;gap:10px;font-size:14px;color:var(--gris);align-items:flex-start;margin-bottom:11px}
-  .check i{font-style:normal;width:22px;height:22px;border-radius:8px;background:#E9F9EF;color:var(--verde);font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px}
-
-  /* ---------- registro ---------- */
-  .registro{position:relative;overflow:hidden}
-  .registro::before{content:"";position:absolute;inset:0;background:
-    radial-gradient(560px 320px at 10% 0%, rgba(224,24,108,.07), transparent 60%),
-    radial-gradient(560px 320px at 92% 100%, rgba(124,58,237,.07), transparent 60%)}
-  .reg-grid{display:grid;grid-template-columns:.95fr 1.05fr;gap:clamp(26px,5vw,56px);align-items:center;position:relative;z-index:1}
-  .paso{display:flex;gap:13px;align-items:flex-start;background:#fff;border:1px solid var(--linea);border-radius:15px;padding:13px 15px;box-shadow:var(--sombra);margin-top:11px}
-  .paso .p-n{width:30px;height:30px;border-radius:10px;background:var(--grad);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none}
-  .paso b{display:block;font-size:14px;font-family:var(--head)}
-  .paso span{font-size:12.5px;color:var(--gris)}
-  .red-nota{margin-top:16px;font-size:12.5px;color:var(--gris);background:var(--violeta-soft);border:1px solid #E4D9FB;border-radius:12px;padding:11px 14px}
-  .red-nota b{color:var(--violeta)}
-
-  .form-card{background:#fff;border:1px solid var(--linea);border-radius:24px;padding:clamp(20px,3vw,30px);box-shadow:var(--sombra-lg)}
-  .form-card h3{font-size:20px;font-weight:800;margin-bottom:3px}
-  .form-card .sub{font-size:13px;color:var(--gris);margin-bottom:16px}
-  .ref-chip{display:flex;align-items:center;gap:10px;background:var(--rosa-soft);border:1px solid #F7C6DC;border-radius:12px;padding:10px 13px;font-size:13px;margin-bottom:14px}
-  .ref-chip .avatar{width:32px;height:32px;border-radius:50%;background:var(--grad);color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex:none}
-  .ref-chip b{color:var(--rosa-osc)}
-  .campo{margin-bottom:12px}
-  .campo label{display:block;font-size:11.5px;font-weight:700;color:var(--gris);margin-bottom:5px}
-  .campo input,.campo select{width:100%;border:1.5px solid var(--linea);border-radius:12px;padding:12px 13px;font-family:var(--body);font-size:16px;background:var(--fondo-2);color:var(--ink)}
-  .campo input:focus,.campo select:focus{border-color:var(--rosa);outline:none;background:#fff;box-shadow:0 0 0 4px rgba(224,24,108,.10)}
-  .campos-2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
-  .consent{display:flex;gap:10px;align-items:flex-start;background:var(--fondo-2);border:1px solid var(--linea);border-radius:12px;padding:11px 13px;font-size:11.5px;line-height:1.5;color:var(--gris);margin:2px 0 14px}
-  .consent input{width:17px;height:17px;margin-top:2px;flex:none;accent-color:var(--rosa)}
-  .consent a{color:var(--rosa);font-weight:700}
-  .campo.has-error label{color:#B4123F}
-  .politica p{font-size:13.5px;color:var(--gris);margin-bottom:10px;line-height:1.55}
-  .politica b{color:var(--ink)}
-  .btn[disabled]{opacity:.75;cursor:progress;transform:none}
-  .giro{width:16px;height:16px;border-radius:50%;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;animation:gira .8s linear infinite}
-  @keyframes gira{to{transform:rotate(360deg)}}
-  .error-msg{display:none;background:#FDECEF;border:1px solid #F7C4CE;color:#B4123F;font-size:12.5px;font-weight:600;border-radius:11px;padding:10px 13px;margin-bottom:12px}
-  .form-ok{display:none;text-align:center;padding:26px 8px}
-  .form-ok .ok-ico{width:64px;height:64px;border-radius:20px;background:#E9F9EF;color:var(--verde);font-size:29px;display:flex;align-items:center;justify-content:center;margin:0 auto 13px}
-  .form-ok h4{font-size:20px;margin-bottom:7px}
-  .form-ok p{font-size:14px;color:var(--gris)}
-  .lock-note{font-size:11px;color:var(--gris);text-align:center;margin-top:11px}
-  .hp{position:absolute;left:-9999px;opacity:0;height:0;overflow:hidden}
-  /* ubicación opcional */
-  .consent.geo{background:var(--violeta-soft);border-color:#E0D4FB;margin-bottom:6px}
-  .consent.geo input{accent-color:var(--violeta)}
-  .geo-nota{font-size:11.5px;color:var(--gris);min-height:14px;margin:0 2px 10px}
-  /* Súper Promotores: enlace personal tras registrarse */
-  .promo-box{margin-top:20px;text-align:left;background:var(--rosa-soft);border:1px solid #F7C6DC;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px}
-  .promo-box[hidden]{display:none}
-  .promo-tit{font-family:var(--head);font-size:16px;color:var(--rosa-osc)}
-  .promo-sub,.promo-nota{font-size:12.5px;color:var(--gris);line-height:1.5}
-  .promo-link{background:#fff;border:1px dashed #F0A9C8;border-radius:10px;padding:9px 11px;font-size:12.5px;font-weight:600;word-break:break-all;color:var(--ink)}
-  .promo-btns{display:flex;gap:8px;flex-wrap:wrap}
-  .promo-btns .btn{flex:1;min-width:150px;padding:11px 14px;font-size:13.5px}
-  .btn-wa{background:#1FAF5A;color:#fff}
-  .btn-wa:hover{background:#128C46}
-  .promo-qr{align-self:center;background:#fff;border-radius:12px;padding:8px;width:170px;height:170px}
-  .promo-qr:empty{display:none}
-  .promo-qr svg{width:100%;height:100%;display:block}
-  .promo-panel{width:100%}
-  .acceso-box{background:#fff;border:1px solid #E4D9FB;border-radius:12px;padding:11px 13px;display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--gris)}
-  .acceso-box[hidden]{display:none}
-  .acceso-box b{color:var(--ink)}
-  .acceso-box > b{color:var(--violeta);font-size:13.5px}
-  .clave-wrap{position:relative}
-  .clave-wrap input{padding-right:52px}
-  .ver-clave{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;padding:6px 8px}
-
-  /* footer */
-  footer{background:var(--fondo-2);border-top:1px solid var(--linea);padding:38px 0 24px;color:var(--gris)}
-  .foot-grid{display:flex;justify-content:space-between;gap:22px;flex-wrap:wrap}
-  .foot-logo b{font-family:var(--head);color:var(--ink);font-size:16px;display:block}
-  .foot-logo span{font-size:10.5px;letter-spacing:1.8px;text-transform:uppercase;color:var(--rosa);font-weight:700}
-  .foot-col{font-size:13px;line-height:2.1}
-  .foot-col b{color:var(--ink);font-family:var(--head)}
-  .foot-col a{text-decoration:none}
-  .foot-col a:hover{color:var(--rosa)}
-  .foot-legal a{color:inherit;text-decoration:underline;text-underline-offset:2px}
-  .foot-legal{border-top:1px solid var(--linea);margin-top:24px;padding-top:15px;font-size:11px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
-
-  .rv{opacity:0;transform:translateY(18px);transition:opacity .5s ease, transform .5s ease}
-  .rv.vis{opacity:1;transform:none}
-  @media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}}
-
-  @media(max-width:920px){
-    .hero-grid{grid-template-columns:1fr}
-    .video-card{justify-self:center;max-width:400px;aspect-ratio:4/5;max-height:480px}
-    .hero .pill{margin-top:4px}
-    .quote-card,.reg-grid{grid-template-columns:1fr}
-    .reg-grid>.form-card{order:-1} /* en celular "Súmate" lleva directo al formulario; la explicación queda debajo */
-    .quote-foto{padding-top:18px}
-    .nav-links{display:none}
-    .campos-2{grid-template-columns:1fr}
-    .tab-panel.activo{grid-template-columns:1fr}
-    .ac-panel-in{padding-left:20px}
-
-    /* ===== Versión celular, estilo app ===== */
-    body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
-    header{background:rgba(255,255,255,.92)}
-    .nav{height:62px}
-    .nav-cta{display:none}
-    .logo-mark{width:38px;height:38px;border-radius:12px;font-size:14px}
-    .logo-txt b{font-size:15px}
-    .logo-txt small{font-size:9.5px;letter-spacing:1.4px}
-
-    /* hoja desde abajo */
-    .hoja{left:0;right:0;top:auto;bottom:0;width:auto;border-radius:28px 28px 0 0;padding:12px 18px calc(22px + env(safe-area-inset-bottom));transform:translateY(100%);opacity:1;transition:transform .28s cubic-bezier(.2,.9,.3,1)}
-    .hoja-bg.abierta .hoja{transform:none}
-    .hoja-asa{display:block;width:44px;height:5px;border-radius:99px;background:#D9DBE5;margin:0 auto 14px}
-    .hoja .modal-x{top:18px}
-    .acceso{padding:16px 14px;border-radius:20px}
-
-    /* barra inferior */
-    .tabbar{display:grid;grid-template-columns:repeat(5,1fr);align-items:end;position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:80;
-            background:rgba(255,255,255,.94);backdrop-filter:blur(14px);border:1px solid var(--linea);border-radius:24px;padding:8px 6px 7px;box-shadow:0 12px 34px rgba(16,18,38,.16)}
-    .tabbar a,.tabbar button{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;margin:0;text-decoration:none;background:none;border:0;color:#8A8FA3;font-family:var(--head);font-size:10.5px;font-weight:700;line-height:1.25;padding:4px 0;border-radius:14px;-webkit-tap-highlight-color:transparent}
-    .tabbar svg{width:23px;height:23px}
-    .tabbar .activo{color:var(--rosa)}
-    .tabbar .tab-cta{margin-top:-26px;color:var(--rosa)}
-    .tabbar .cta-c{width:54px;height:54px;border-radius:18px;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px rgba(224,24,108,.38);border:4px solid #fff}
-    .tabbar .cta-c svg{width:26px;height:26px}
-
-    /* hero */
-    .hero{padding:22px 0 36px}
-    .hero::before{width:420px;height:420px;top:-160px;right:-200px}
-    .pill{font-size:11.5px;padding:7px 13px;margin-bottom:14px}
-    h1{font-size:clamp(32px,9vw,40px);line-height:1.08}
-    .hero p.lead{margin:14px 0 20px}
-    .hero-ctas{display:grid;grid-template-columns:1fr;gap:10px}
-    .hero-ctas .btn{width:100%;padding:15px 12px;border-radius:16px}
-    .video-card{max-width:none;border-radius:26px;aspect-ratio:4/5;margin-top:4px}
-
-    /* secciones */
-    section{padding:44px 0}
-    .sec-head{text-align:left;margin-bottom:22px}
-    .kicker{font-size:10.5px;padding:6px 12px;margin-bottom:10px}
-    h2{font-size:clamp(25px,7vw,30px)}
-    .ac-item{border-radius:20px}
-    .ac-btn{padding:16px}
-    .ac-btn .a-ico{width:42px;height:42px;border-radius:14px}
-    .ac-btn h3{font-size:15px;line-height:1.3}
-    .tab-btns{width:100%;flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;border-radius:18px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-    .tab-btns::-webkit-scrollbar{display:none}
-    .tab-btn{flex:1;justify-content:center;white-space:nowrap;padding:12px 14px;border-radius:14px}
-    .tab-panel{border-radius:22px;padding:20px}
-    .tab-panel .t-ico{width:52px;height:52px;border-radius:16px;font-size:24px}
-    .t-lista span{background:var(--fondo-2);border-radius:12px;padding:10px 12px}
-    .quote-card{border-radius:26px}
-    .quote-foto img{width:min(210px,70%)}
-    .quote-body{padding:22px}
-    blockquote{font-size:19px}
-
-    /* registro */
-    .reg-grid{gap:20px}
-    .paso{border-radius:16px}
-    .form-card{border-radius:26px;padding:20px 16px;margin:0 -4px}
-    .campo label{font-size:12.5px;color:var(--ink)}
-    .campo input,.campo select{border-radius:14px;padding:14px;background:#F6F6FA}
-    .consent{border-radius:14px;font-size:12.5px}
-    #formRegistro .btn-rosa{width:100%;padding:16px;border-radius:16px;font-size:16px}
-
-    footer{padding-bottom:20px}
-    .foot-grid{flex-direction:column;gap:14px}
-    .foot-legal{flex-direction:column}
-  }
-</style>
-</head>
-<body>
-
-<header>
-  <div class="wrap nav">
-    <a class="logo" href="#inicio" aria-label="Inicio">
-      <span class="logo-mark">DM</span>
-      <span class="logo-txt"><b>Diana Montes</b><small>Garzón, Huila</small></span>
-    </a>
-    <ul class="nav-links">
-      <li><a href="#diana">¿Quién es Diana?</a></li>
-      <li><a href="#mueve">Lo que la mueve</a></li>
-      <?php if ($expectativa): ?>
-      <li><a href="#viene">Lo que viene</a></li>
-      <?php else: ?>
-      <li><a href="#propuestas">Propuestas</a></li>
-      <?php endif; ?>
-    </ul>
-    <div class="nav-acc">
-      <button class="btn-user" type="button" data-ingresar aria-haspopup="dialog" aria-expanded="false" aria-controls="hojaIngresar" aria-label="Ingresar a la plataforma" title="Ingresar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg></button>
-      <a class="btn btn-rosa btn-sm nav-cta" href="#sumate">Quiero sumarme</a>
-    </div>
-  </div>
-</header>
-
-<!-- ==================== INGRESAR (simpatizante / equipo) ==================== -->
-<div class="hoja-bg" id="hojaIngresar" hidden>
-  <div class="hoja" role="dialog" aria-modal="true" aria-labelledby="hojaTitulo">
-    <span class="hoja-asa" aria-hidden="true"></span>
-    <button class="modal-x" type="button" data-cerrar-hoja aria-label="Cerrar">✕</button>
-    <h3 id="hojaTitulo">Ingresar</h3>
-    <p>¿Cómo quieres entrar a la plataforma?</p>
-    <a class="acceso simp" href="mi/">
-      <span class="ac-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2z"/></svg></span>
-      <span class="ac-t"><b>Soy simpatizante</b><span class="d">Mira tu red, tus puntos, tus tareas y tu enlace para invitar.</span></span>
-      <span class="fl" aria-hidden="true">›</span>
-    </a>
-    <a class="acceso equipo" href="admin/">
-      <span class="ac-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7.5 3v5.4c0 4.6-3.2 8.3-7.5 9.6-4.3-1.3-7.5-5-7.5-9.6V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></svg></span>
-      <span class="ac-t"><b>Equipo de Diana</b><span class="d">Dirección, coordinadores, líderes y digitación.</span></span>
-      <span class="fl" aria-hidden="true">›</span>
-    </a>
-    <p class="hoja-pie">¿Aún no estás en la red? <a href="#sumate" data-cerrar-hoja>Regístrate gratis</a></p>
-  </div>
-</div>
-
-<main id="inicio">
-
-<!-- ==================== HERO ==================== -->
-<section class="hero">
-  <div class="wrap hero-grid">
-    <div>
-      <span class="pill"><i></i> Garzón, Huila · Muy pronto</span>
-      <h1>Hay una mujer de Garzón que <span class="grad">quiere contarte algo.</span></h1>
-      <p class="lead">Nació aquí, creció entre el esfuerzo del campo y el valor de la palabra, y ha caminado barrios y veredas al lado de su gente. Conócela antes que nadie.</p>
-      <div class="hero-ctas">
-        <a class="btn btn-rosa" href="#sumate">Quiero enterarme primero ➜</a>
-        <a class="btn btn-soft" href="#diana">¿Quién es Diana?</a>
-      </div>
-    </div>
-    <div class="video-card rv">
-      <span class="video-tag"><i></i> Conoce a Diana</span>
-      <video id="heroVideo" autoplay muted loop playsinline preload="metadata"
-             poster="img/diana-montes.png"
-             aria-label="Video de presentación de Diana Montes">
-        <source src="https://dianamontes.com/video/diana.mp4" type="video/mp4">
-      </video>
-      <button class="btn-sonido" id="btnSonido" type="button" aria-label="Activar sonido" title="Activar sonido">🔇</button>
-    </div>
-  </div>
-</section>
-
-
-<!-- ==================== QUIÉN ES DIANA ==================== -->
-<section id="diana" class="sec-alt">
-  <div class="wrap">
-    <div class="sec-head rv">
-      <span class="kicker">Conócela</span>
-      <h2>¿Quién es Diana Montes?</h2>
-      <p>Antes de contarte lo que viene, queremos que sepas de dónde viene ella.</p>
-    </div>
-    <div class="quote-card rv">
-      <div class="quote-foto"><img src="img/diana-montes.png" alt="Diana Montes" loading="lazy"></div>
-      <div class="quote-body">
-        <blockquote>“De mi madre aprendí que <span class="grad">servir es cuidar</span>: con carácter, con honestidad y sin dejar a nadie atrás.”</blockquote>
-        <div class="firma">
-          <span class="f-dot"></span>
-          <span><b>Diana Montes</b><span>Garzón, Huila</span></span>
-        </div>
-      </div>
-    </div>
-    <div class="capitulos">
-      <article class="capitulo rv"><span class="c-ico" aria-hidden="true">🌱</span><span class="c-et">Sus raíces</span>
-        <h3>Garzoneña de nacimiento</h3><p>Criada entre el esfuerzo del campo y el valor de la palabra.</p></article>
-      <article class="capitulo rv"><span class="c-ico" aria-hidden="true">🧭</span><span class="c-et">Su camino</span>
-        <h3>Una vida de servicio</h3><p>Profesional con una trayectoria dedicada a la comunidad del centro del Huila.</p></article>
-      <article class="capitulo rv"><span class="c-ico" aria-hidden="true">🤝</span><span class="c-et">Su gente</span>
-        <h3>De la mano con la comunidad</h3><p>Ha trabajado con juntas de acción comunal, madres comunitarias y asociaciones cafeteras.</p></article>
-      <article class="capitulo rv"><span class="c-ico" aria-hidden="true">🚪</span><span class="c-et">Su manera</span>
-        <h3>Puertas abiertas</h3><p>Cree que las decisiones se toman con la gente, no a espaldas de ella.</p></article>
-    </div>
-  </div>
-</section>
-
-<!-- ==================== LO QUE LA MUEVE ==================== -->
-<section id="mueve">
-  <div class="wrap">
-    <div class="sec-head rv">
-      <span class="kicker">Lo que la mueve</span>
-      <h2>Lo que a Diana le quita el sueño</h2>
-      <p>Lo ha visto de cerca, en el campo y en el barrio.</p>
-    </div>
-    <div class="mueve">
-      <article class="m-card rv"><span class="m-ico" style="background:#E3F2FD" aria-hidden="true">💧</span>
-        <h3>El agua de las veredas</h3><p>Una sola creciente puede dejar sin agua a más de mil familias de nuestros centros poblados.</p></article>
-      <article class="m-card rv"><span class="m-ico" style="background:var(--rosa-soft)" aria-hidden="true">🛣</span>
-        <h3>Los caminos del campo</h3><p>Cuando la vía se cae, el café se queda en la finca y el campesino pierde el trabajo de meses.</p></article>
-      <article class="m-card rv"><span class="m-ico" style="background:#FFF3E0" aria-hidden="true">🛡</span>
-        <h3>Vivir tranquilos</h3><p>Nadie debería pagar por trabajar en paz, ni en la vereda ni en el barrio.</p></article>
-      <article class="m-card rv"><span class="m-ico" style="background:#E9F9EF" aria-hidden="true">🎓</span>
-        <h3>Los jóvenes</h3><p>Que ninguno tenga que irse de Garzón para salir adelante.</p></article>
-    </div>
-    <p class="mueve-pie rv">Muy pronto te contará qué piensa hacer con cada una. <a href="#sumate">Entérate primero ➜</a></p>
-  </div>
-</section>
-<?php if ($expectativa): ?>
-
-<!-- ==================== LO QUE VIENE ==================== -->
-<section id="viene" class="sec-alt">
-  <div class="wrap">
-    <div class="sec-head rv">
-      <span class="kicker">Lo que viene</span>
-      <h2>Esto apenas empieza</h2>
-      <p>Las personas de la red se enteran de cada paso antes que nadie.</p>
-    </div>
-    <ol class="viene">
-      <li class="v-paso hecho rv"><span class="v-n">1</span><span class="v-est">Ya puedes</span><h3>Conócela</h3><p>Su historia y lo que la mueve, aquí mismo.</p></li>
-      <li class="v-paso rv"><span class="v-n">2</span><span class="v-est">Muy pronto</span><h3>Escúchala</h3><p>Sus ideas para Garzón, contadas por ella.</p></li>
-      <li class="v-paso rv"><span class="v-n">3</span><span class="v-est">Muy pronto</span><h3>Camina con ella</h3><p>Encuentros en tu barrio y tu vereda.</p></li>
-    </ol>
-    <div class="viene-cta rv"><a class="btn btn-rosa" href="#sumate">Quiero enterarme primero ➜</a></div>
-  </div>
-</section>
-<?php endif; ?>
-<?php if (!$expectativa): ?>
-<!-- ==================== RETOS (ACORDEÓN) ==================== -->
-<section id="retos" class="sec-alt">
-  <div class="wrap">
-    <div class="sec-head rv">
-      <span class="kicker">Hablemos claro</span>
-      <h2>Los retos que Garzón no puede seguir aplazando</h2>
-      <p>Toca cada reto para ver cómo lo vamos a enfrentar.</p>
-    </div>
-    <div class="acordeon rv" id="acordeon">
-      <div class="ac-item">
-        <button class="ac-btn" aria-expanded="false">
-          <span class="a-ico" style="background:#E3F2FD">💧</span>
-          <h3>Agua que llega… cuando el clima lo permite</h3>
-          <span class="chev">▾</span>
-        </button>
-        <div class="ac-panel"><div class="ac-panel-in">
-          <p class="problema">Cada temporada de lluvias golpea los acueductos rurales: una sola creciente puede dejar sin agua a más de mil familias de nuestros centros poblados. Y cuando llega el verano, el riesgo es la escasez.</p>
-          <p class="respuesta"><b>Nuestra respuesta:</b> acueductos rurales protegidos y optimizados, plan serio de gestión del riesgo y cuidado de las quebradas que nos dan el agua.</p>
-        </div></div>
-      </div>
-      <div class="ac-item">
-        <button class="ac-btn" aria-expanded="false">
-          <span class="a-ico" style="background:var(--rosa-soft)">🛣</span>
-          <h3>Vías terciarias que se llevan la cosecha</h3>
-          <span class="chev">▾</span>
-        </button>
-        <div class="ac-panel"><div class="ac-panel-in">
-          <p class="problema">Las lluvias deterioran año tras año los caminos veredales. Cuando la vía se cae, el café se queda en la finca y el campesino pierde su trabajo de meses.</p>
-          <p class="respuesta"><b>Nuestra respuesta:</b> plan de choque de placa huellas y mantenimiento permanente con las comunidades, priorizando las rutas de la cosecha.</p>
-        </div></div>
-      </div>
-      <div class="ac-item">
-        <button class="ac-btn" aria-expanded="false">
-          <span class="a-ico" style="background:#FFF3E0">🛡</span>
-          <h3>Tranquilidad en el campo y en el barrio</h3>
-          <span class="chev">▾</span>
-        </button>
-        <div class="ac-panel"><div class="ac-panel-in">
-          <p class="problema">Mientras el casco urbano pide frenar los hurtos, en la zona rural la extorsión asfixia a cafeteros y comerciantes. Nadie debería pagar por trabajar en paz.</p>
-          <p class="respuesta"><b>Nuestra respuesta:</b> trabajo articulado con la fuerza pública, frentes de seguridad comunitarios, cámaras en puntos críticos y acompañamiento a quien denuncia.</p>
-        </div></div>
-      </div>
-      <div class="ac-item">
-        <button class="ac-btn" aria-expanded="false">
-          <span class="a-ico" style="background:#E9F9EF">🎓</span>
-          <h3>Jóvenes que se van porque aquí no hay campo</h3>
-          <span class="chev">▾</span>
-        </button>
-        <div class="ac-panel"><div class="ac-panel-in">
-          <p class="problema">Nuestros muchachos terminan el colegio y la única salida que ven es Neiva o Bogotá. Garzón forma talento que se va a construir el futuro de otras ciudades.</p>
-          <p class="respuesta"><b>Nuestra respuesta:</b> formación técnica en el municipio, primer empleo con el comercio local y apoyo a emprendimientos ligados al café y al turismo.</p>
-        </div></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ==================== PROPUESTAS (TABS) ==================== -->
-<section id="propuestas">
-  <div class="wrap">
-    <div class="sec-head rv">
-      <span class="kicker">Propuestas</span>
-      <h2>Tres compromisos, un solo Garzón</h2>
-    </div>
-    <div class="tabs rv">
-      <div class="tab-btns" role="tablist">
-        <button class="tab-btn activo" role="tab" data-tab="t1">☕ Campo</button>
-        <button class="tab-btn" role="tab" data-tab="t2">👩‍👧‍👦 Familias</button>
-        <button class="tab-btn" role="tab" data-tab="t3">🎓 Jóvenes</button>
-      </div>
-      <div class="tab-panel activo" id="t1">
-        <span class="t-ico" style="background:var(--rosa-soft)">☕</span>
-        <div>
-          <h3>Campo que prospera</h3>
-          <p>El café y el campo son el corazón de Garzón. Que la cosecha valga lo que merece.</p>
-          <div class="t-lista">
-            <span><i>✓</i> Vías terciarias dignas para sacar la cosecha</span>
-            <span><i>✓</i> Asistencia técnica directa al caficultor</span>
-            <span><i>✓</i> Compras públicas locales: primero lo nuestro</span>
+  <main id="contenido">
+    <!-- 2. HERO -->
+    <section class="hero" id="inicio" aria-labelledby="hero-title">
+      <div class="container hero-grid">
+        <figure class="photo-slot hero-photo">
+          <div class="photo-slot-inner" role="img" aria-label="Espacio reservado para una fotografía original de Diana Montes">
+            <img src="./assets/img/img_diana_1.jpeg" alt="Diana Montes">
           </div>
+        </figure>
+
+        <div class="hero-copy">
+          <p class="eyebrow">DIANA MONTES · GARZÓN, HUILA</p>
+          <h1 id="hero-title" class="hero-title"><span class="accent" aria-hidden="true">¿</span><span class="sr-only">¿</span>Por qué hago<br class="br-desk" /> las cosas?</h1>
+          <p class="hero-sub">Porque lo que he vivido, lo que he aprendido y las personas que me rodean le dan sentido a cada paso. Quiero contarte mi historia y escuchar la tuya</p>
+          <div class="btn-row">
+            <a class="btn btn-primary" href="#por-que">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 5.5v13l10.5-6.5z"/></svg>
+              Mira mis videos
+            </a>
+            <a class="btn btn-ghost" href="#conozca">Conoce mi historia</a>
+          </div>
+          <p class="hero-place">Garzón, Huila · Colombia</p>
         </div>
       </div>
-      <div class="tab-panel" id="t2">
-        <span class="t-ico" style="background:var(--violeta-soft)">👩‍👧‍👦</span>
-        <div>
-          <h3>Familias cuidadas</h3>
-          <p>Gobernar es cuidar: salud cercana y respaldo a quienes sostienen el hogar.</p>
-          <div class="t-lista">
-            <span><i>✓</i> Brigadas de salud permanentes en la zona rural</span>
-            <span><i>✓</i> Prioridad para madres cabeza de hogar y adultos mayores</span>
-            <span><i>✓</i> Cero tolerancia con la violencia hacia la mujer</span>
-          </div>
+    </section>
+
+    <!-- 3. BANDA DE PARTICIPACIÓN -->
+    <section class="band" aria-labelledby="band-title">
+      <div class="container band-inner">
+        <h2 id="band-title" class="band-title">¿Y tú, por qué haces lo que haces?</h2>
+        <a class="btn btn-primary" href="#usted">Comparte tu historia</a>
+      </div>
+    </section>
+
+    <!-- 4. CONOZCA A DIANA -->
+    <section class="section" id="conozca" aria-labelledby="conozca-title">
+      <div class="container">
+        <header class="section-head">
+          <p class="eyebrow">Conoce a Diana</p>
+          <h2 id="conozca-title" class="section-title">Lo que soy está en lo que hago</h2>
+          <p class="section-lead light">Mi historia está hecha de familia, campo, estudio y experiencias que han marcado mi manera de pensar y actuar. Te invito a conocer cuatro capítulos de mi vida.</p>
+        </header>
+
+        <div class="about-grid">
+          <figure class="photo-slot about-photo">
+            <div class="photo-slot-inner" role="img" aria-label="Espacio reservado para una fotografía original de Diana Montes en su entorno">
+                <video id="heroVideo" autoplay muted loop playsinline controls preload="metadata" width="100%"
+                     poster="./assets/videos/poster/foto-portada.jpg"
+                     aria-label="Video de presentación de Diana Montes">
+                <source src="./assets/videos/lo-que-hago.mp4" type="video/mp4">
+              </video>
+            </div>
+          </figure>
+
+          <ol class="chapters">
+            <li class="chapter">
+              <h3>Familia</h3>
+              <p class="pending">La familia es el lugar donde aprendí a escuchar, a cuidar y a cumplir mi palabra. Soy madre de dos hijos y comparto mi vida con un hombre dedicado al campo y al emprendimiento. En nuestro hogar he aprendido que los compromisos se construyen con trabajo, respeto y constancia. Son valores que me acompañan en cada etapa de mi vida.</p>
+            </li>
+            <li class="chapter">
+              <h3>Raíces campesinas</h3>
+              <p class="pending">El campo es parte de nuestra vida familiar. Conocemos el esfuerzo que hay detrás de cada cosecha y el valor de quienes trabajan la tierra. Durante años he compartido experiencias con familias rurales y he aprendido que, para comprender sus realidades, lo primero es escuchar. Allí encuentro una parte importante de lo que soy y de mi relación con Garzón.</p>
+            </li>
+            <li class="chapter">
+              <h3>Formación</h3>
+              <p class="pending">Soy abogada de la Universidad Surcolombiana, especialista en Derecho Público de la Universidad Externado de Colombia y magíster en Derecho Público de la Universidad Carlos III de Madrid. Mi formación y mi trayectoria en entidades públicas y privadas me han enseñado que el conocimiento cobra sentido cuando se aplica con responsabilidad y compromiso.</p>
+            </li>
+            <li class="chapter">
+              <h3>Experiencia en el hospital</h3>
+              <p class="pending">Mi experiencia en la Subdirección Administrativa y Financiera del Hospital Departamental San Vicente de Paúl de Garzón me permitió conocer de cerca la gestión de una institución fundamental para nuestra región. Allí comprendí aún más la importancia de organizar los recursos, trabajar en equipo y recordar que detrás de los procesos administrativos hay personas que necesitan respuestas.</p>
+            </li>
+          </ol>
         </div>
       </div>
-      <div class="tab-panel" id="t3">
-        <span class="t-ico" style="background:#E9F9EF">🎓</span>
-        <div>
-          <h3>Jóvenes con futuro</h3>
-          <p>Que ningún joven tenga que irse de Garzón para salir adelante.</p>
-          <div class="t-lista">
-            <span><i>✓</i> Formación técnica en el municipio</span>
-            <span><i>✓</i> Programa de primer empleo con el comercio local</span>
-            <span><i>✓</i> Deporte, cultura y emprendimiento en cada comuna</span>
+    </section>
+
+    <!-- 5. ¿POR QUÉ HAGO LAS COSAS? -->
+    <section class="section section-tint" id="por-que" aria-labelledby="porque-title">
+      <div class="container">
+        <header class="section-head section-head-split">
+          <div>
+            <p class="eyebrow">HISTORIAS Y REFLEXIONES</p>
+            <h2 id="porque-title" class="section-title">¿Por qué hago las cosas?</h2>
+            <p class="section-lead light">Hay momentos, personas y experiencias que nos enseñan lecciones para toda la vida. En esta serie comparto historias y reflexiones que ayudan a comprender mis convicciones, mis aprendizajes y las razones que orientan mis decisiones.</p>
           </div>
+        </header>
+
+        <div class="filters" role="group" aria-label="Filtrar videos por tema">
+          <button type="button" class="chip" aria-pressed="true" data-filter="todos">Todos</button>
+          <button type="button" class="chip" aria-pressed="false" data-filter="cercania">Cercanía humana</button>
+          <button type="button" class="chip" aria-pressed="false" data-filter="pertenencia">Pertenencia</button>
+          <button type="button" class="chip" aria-pressed="false" data-filter="responsabilidad">Responsabilidad</button>
+          <button type="button" class="chip" aria-pressed="false" data-filter="perseverancia">Perseverancia</button>
+          <button type="button" class="chip" aria-pressed="false" data-filter="autonomia">Autonomía</button>
         </div>
+        <p class="sr-only" aria-live="polite" id="filter-status"></p>
+
+        <ul class="video-grid">
+            <li class="video-card" data-theme="cercania">
+                <div class="video-cover">
+                    <img src="./assets/videos/poster/foto-portada.jpg" alt="Diana Montes">
+                    <span class="video-num" aria-hidden="true">01</span>
+                </div>
+                <div class="video-body">
+                    <p class="video-theme">Cercanía humana</p>
+                    <h3 class="video-title">Colombia tiene una deuda con las amas de casa</h3>
+                    <button type="button" class="btn-play" data-video="colombia tiene una deuda con las amas de casa" data-video-src="./assets/videos/diana.mp4">
+                        <i class="fas fa-play" aria-hidden="true"></i>Reproducir <span class="sr-only">: colombia tiene una deuda con las amas de casa</span>
+                    </button>
+                </div>
+            </li>
+            
+            <li class="video-card" data-theme="pertenencia">
+                <div class="video-cover">
+                    <img src="./assets/videos/poster/poster-2.jpg" alt="Portada del video de Diana Montes" >
+                    <span class="video-num" aria-hidden="true">02</span>
+                </div>
+                <div class="video-body">
+                    <p class="video-theme">Cercanía humana</p>
+                    <h3 class="video-title">
+                        Nuestro amigo Alvarin tiene una hermosa historia
+                    </h3>
+                    <button type="button" class="btn-play" data-video="Nuestro amigo Alvarin tiene una hermosa historia" data-facebook-url="https://web.facebook.com/reel/951550417820442" data-video-format="vertical">
+                        <i class="fas fa-play" aria-hidden="true"></i>Reproducir <span class="sr-only">: Nuestro amigo Alvarin tiene una hermosa historia</span>
+                    </button>
+                    <!-- boton para youtube
+                    <button class="btn-play" data-video="Historia de Diana" data-youtube-id="ID_DEL_VIDEO"> <i class="fas fa-play"></i> Reproducir</button>
+                    -->
+                </div>
+            </li>
+            
+            <li class="video-card" data-theme="responsabilidad">
+                <div class="video-cover">
+                    <img src="./assets/videos/poster/poster-3.jpg" alt="Portada del video de Diana Montes" >
+                    <span class="video-num" aria-hidden="true">03</span>
+                </div>
+                <div class="video-body">
+                    <p class="video-theme">Cercanía humana</p>
+                    <h3 class="video-title">
+                        ¡El progreso de Garzón no puede significar el cierre de nuestros negocios!
+                    </h3>
+                    <button type="button" class="btn-play" data-video="¡El progreso de Garzón no puede significar el cierre de nuestros negocios!" data-facebook-url="https://web.facebook.com/reel/2218553275365190" data-video-format="vertical">
+                        <i class="fas fa-play" aria-hidden="true"></i>Reproducir <span class="sr-only">: ¡El progreso de Garzón no puede significar el cierre de nuestros negocios!</span>
+                    </button>
+                </div>
+            </li>
+
+            <li class="video-card" data-theme="responsabilidad">
+                <div class="video-cover">
+                    <img src="./assets/videos/poster/foto-pendiente.jpg" alt="Diana Montes">
+                    <span class="video-num" aria-hidden="true">04</span>
+                </div>
+                <div class="video-body">
+                    <p class="video-theme">Responsabilidad</p>
+                    <h3 class="video-title">La palabra vale oro</h3>
+                    <button type="button" class="btn-play" data-video="La palabra vale oro" data-video-src="./assets/videos/diana.mp4">
+                        <i class="fas fa-play" aria-hidden="true"></i>Reproducir <span class="sr-only">: La palabra vale oro</span>
+                    </button>
+                </div>
+            </li>
+            <li class="video-card" data-theme="perseverancia">
+                <div class="video-cover">
+                    <img src="./assets/videos/poster/foto-pendiente.jpg" alt="Diana Montes">
+                    <span class="video-num" aria-hidden="true">05</span>
+                </div>
+                <div class="video-body">
+                    <p class="video-theme">Perseverancia</p>
+                    <h3 class="video-title">Estudiar también fue un esfuerzo</h3>
+                    <button type="button" class="btn-play" data-video="Estudiar también fue un esfuerzo" data-video-src="./assets/videos/diana.mp4">
+                        <i class="fas fa-play" aria-hidden="true"></i>Reproducir <span class="sr-only">: Estudiar también fue un esfuerzo</span>
+                    </button>
+                </div>
+            </li>
+            <li class="video-card" data-theme="autonomia">
+                <div class="video-cover">
+                    <img src="./assets/videos/poster/foto-pendiente.jpg" alt="Diana Montes">
+                    <span class="video-num" aria-hidden="true">06</span>
+                </div>
+                <div class="video-body">
+                    <p class="video-theme">Autonomía</p>
+                    <h3 class="video-title">Mi independencia tiene una razón</h3>
+                    <button type="button" class="btn-play" data-video="Mi independencia tiene una razón" data-video-src="./assets/videos/diana.mp4">
+                        <i class="fas fa-play" aria-hidden="true"></i>Reproducir <span class="sr-only">: Mi independencia tiene una razón</span>
+                    </button>
+                </div>
+            </li>
+        </ul>
+        <p class="toast" id="video-toast" role="status" aria-live="polite" hidden></p>
       </div>
-    </div>
-  </div>
-</section>
-<?php endif; ?>
-
-<!-- modal política de datos (Ley 1581 de 2012) -->
-<div class="modal-bg" id="modalPolitica" role="dialog" aria-modal="true" aria-labelledby="modalPoliticaTitulo">
-  <div class="modal">
-    <button class="modal-x" type="button" data-cerrar aria-label="Cerrar">✕</button>
-    <h3 id="modalPoliticaTitulo">Tratamiento de datos personales</h3>
-    <div class="politica">
-      <p><b>Responsable:</b> Campaña de Diana Montes, Garzón (Huila).</p>
-      <p><b>Datos que pedimos:</b> nombre, documento, celular, barrio o vereda, ocupación, fecha de nacimiento, género y, solo si lo autorizas, tu ubicación aproximada.</p>
-      <p><b>Para qué los usamos:</b> contactarte e informarte sobre la campaña y sus actividades, enviarte saludos en fechas especiales por WhatsApp y organizar el trabajo territorial. No vendemos ni cedemos tus datos.</p>
-      <p><b>Tu red:</b> quien te invitó verá tu nombre en su panel y, si es Promotor o más, podrá escribirte por WhatsApp para actividades de la campaña. Tú verás igual a las personas que invites.</p>
-      <p><b>Tus derechos:</b> conocer, actualizar, rectificar y pedir que se eliminen tus datos, y revocar esta autorización en cualquier momento. Para dejar de recibir mensajes responde <b>SALIR</b> a cualquier mensaje de WhatsApp de la campaña.</p>
-      <p><b>Seguridad:</b> los datos viajan cifrados y solo los consulta el equipo autorizado de la campaña.</p>
-      <p>Lee la <a href="/privacidad/" target="_blank">política de privacidad completa</a> y las <a href="/terminos/" target="_blank">condiciones del servicio</a>. Para borrar tus datos: <a href="/eliminar-datos/" target="_blank">dianamontes.com/eliminar-datos</a>.</p>
-    </div>
-    <button class="btn btn-rosa" type="button" data-cerrar style="width:100%;margin-top:14px">Entendido</button>
-  </div>
-</div>
-
-<!-- ==================== REGISTRO ==================== -->
-<section id="sumate" class="registro">
-  <div class="wrap reg-grid">
-    <div class="rv">
-      <span class="kicker">Súmate a la red</span>
-      <h2>Sé de los primeros en enterarte</h2>
-      <div>
-        <div class="paso"><span class="p-n">1</span><div><b>Déjanos tus datos</b><span>Menos de un minuto, desde tu celular.</span></div></div>
-        <div class="paso"><span class="p-n">2</span><div><b>Recibe la bienvenida de Diana</b><span>Te llegará un mensaje por WhatsApp.</span></div></div>
-        <div class="paso"><span class="p-n">3</span><div><b>Acompáñanos cerca de ti</b><span>Actividades en tu vereda o barrio.</span></div></div>
-      </div>
-      <div class="red-nota">💜 <b>¿Cómo funciona la red?</b> Al registrarte entras a la red directa de Diana. Si alguien te compartió su enlace personal, quedarás en su red. Y al terminar recibes <b>tu propio enlace</b> para invitar a familiares y amigos: ¡conviértete en Súper Promotor! Los líderes ingresan solo por invitación de la campaña.</div>
-    </div>
-
-    <div class="form-card rv">
-      <form id="formRegistro" novalidate data-validar="manual">
-        <h3>Registro de simpatizantes</h3>
-        <p class="sub">Entras a la red oficial de la campaña.</p>
-
-        <?php if ($refLider): ?>
-        <div class="ref-chip">
-          <span class="avatar"><?= e(mb_strtoupper(mb_substr($refLider, 0, 1)) . mb_strtoupper(mb_substr(strstr($refLider, ' ') ?: ' ', 1, 1))) ?></span>
-          <span>Te invita <b><?= e($refLider) ?></b> — quedarás en su equipo 💪</span>
+    </section>
+    
+    <!-- MODAL DE VIDEOS -->
+    <dialog id="video-modal" class="video-modal" aria-labelledby="video-modal-title">
+        <div class="video-modal__header">
+            <div class="video-modal__heading"><span class="video-modal__label">DIANA MONTES · HISTORIAS</span>
+                <h2 id="video-modal-title">Reproduciendo video</h2>
+            </div>
+            <button type="button" class="video-modal__close" id="video-modal-close" aria-label="Cerrar video">
+                <i class="fas fa-xmark" aria-hidden="true"></i>
+            </button>
         </div>
-        <?php endif; ?>
-
-        <div class="campo">
-          <label for="f-nombre">Nombre completo</label>
-          <input id="f-nombre" name="nombre" data-tipo="nombre" autocomplete="name" autocapitalize="words" maxlength="120" placeholder="Ej: María Fernanda Ortiz" required data-msg="Escribe tu nombre completo.">
+        
+        <div class="video-modal__content">
+            <!-- Reproductor MP4 -->
+            <video id="video-modal-player" controls playsinline preload="metadata" hidden></video>
+            <!-- Facebook, YouTube y Vimeo -->
+            <iframe id="video-modal-embed" title="Reproductor de video" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen hidden></iframe>
+            <!-- Video no disponible -->
+            <p id="video-modal-empty" class="video-modal__empty" hidden><i class="fas fa-video" aria-hidden="true"></i> Este video aún no está disponible.</p>
+            <!-- Enlace alternativo -->
+            <a id="video-modal-original" class="video-modal__external" href="#" target="_blank" rel="noopener noreferrer" hidden><i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i> Ver video en la plataforma</a>
+        
         </div>
-        <div class="campos-2">
-          <div class="campo">
-            <label for="f-doc">Documento de identidad</label>
-            <input id="f-doc" name="documento" data-tipo="documento" inputmode="numeric" autocomplete="off" placeholder="Solo números, sin puntos" required data-msg="Escribe tu número de documento.">
+
+    </dialog>
+
+    <!-- 6. ¿Y USTED POR QUÉ LAS HACE? -->
+    <section class="section" id="usted" aria-labelledby="usted-title">
+      <div class="container story-grid">
+        <div class="story-intro">
+          <p class="eyebrow">TU HISTORIA</p>
+          <h2 id="usted-title" class="section-title">¿Y tú, por qué haces lo que haces?</h2>
+          <p class="section-lead">Todos tenemos algo que nos mueve cada día. Puede ser nuestra familia, un sueño, nuestro trabajo o el deseo de ayudar a los demás. Queremos conocer las historias de las personas que hacen parte de Garzón y descubrir qué hay detrás de lo que hacen.</p>
+          <aside class="disclaimer" aria-label="Aviso importante">
+            <h3>Aviso de participación:</h3>
+            <p>Compartir tu historia es voluntario. No implica respaldo electoral ni autoriza el envío de mensajes políticos. Tú decides si permites que publiquemos tu relato.</p>
+          </aside>
+        </div>
+
+        <form class="story-form" id="story-form" action="./api/guardar_historia.php" method="POST" novalidate>
+          <p class="form-proto" role="note">Tu decides si publicamos tu relato</p>
+
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
+          <div class="jfield">
+            <label for="f-nombre">Nombre Completo</label>
+            <input id="f-nombre" name="nombre" type="text" autocomplete="name" required aria-describedby="e-nombre" minlength="10" maxlength="120"/>
+            <p class="field-error" id="e-nombre" hidden>Escriba su nombre.</p>
           </div>
-          <div class="campo">
-            <label for="f-cel">Celular (WhatsApp)</label>
-            <input id="f-cel" type="tel" name="telefono" data-tipo="celular" inputmode="tel" autocomplete="tel-national" placeholder="3XX XXX XXXX" required data-msg="Escribe tu celular de WhatsApp.">
-          </div>
-        </div>
-        <div class="campos-2">
-          <div class="campo">
-            <label for="f-zona">Barrio o vereda</label>
-            <select id="f-zona" name="zona_id" required data-buscar="Escribe tu barrio o vereda…" data-msg="Cuéntanos tu barrio o vereda.">
-              <option value="">Busca y elige tu barrio o vereda</option>
-              <?= zonas_opciones($zonas) ?>
+        
+        <!-- Barrio o vereda -->
+        <div class="jfield">
+            <label for="f-barrio">Barrio o vereda (Opcional)</label>
+            <select id="f-barrio" name="barrio_id" class="select2-custom" aria-describedby="e-barrio">
+                <option value=""></option>
+                <?= zonas_opciones($zonas) ?>
             </select>
-          </div>
-          <div class="campo">
-            <label for="f-prof">¿A qué te dedicas?</label>
-            <select id="f-prof" name="profesion_id" required data-buscar="Escribe tu profesión u oficio…" data-msg="Cuéntanos a qué te dedicas.">
-              <option value="">Selecciona…</option>
-              <?php foreach ($profesiones as $p): ?>
-              <option value="<?= (int)$p['id'] ?>"><?= e($p['nombre']) ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-        </div>
-        <div class="campos-2">
-          <div class="campo">
-            <label for="f-cumple">Fecha de nacimiento <span style="font-weight:500;color:#9AA0AF">(te saludamos en tu día 🎂)</span></label>
-            <input id="f-cumple" type="date" name="fecha_nacimiento" data-tipo="nacimiento" data-edad-min="<?= EDAD_MINIMA ?>" min="<?= $fechaMinima ?>" max="<?= $fechaMaxima ?>" required data-msg="Escribe tu fecha de nacimiento.">
-          </div>
-          <?php if ($pideGenero): ?>
-          <div class="campo">
-            <label for="f-genero">Género</label>
-            <select id="f-genero" name="genero" required data-msg="Selecciona tu género.">
-              <option value="">Selecciona…</option>
-              <?php foreach (GENEROS as $valor => $etiqueta): ?>
-              <option value="<?= $valor ?>"><?= e($etiqueta) ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-          <?php endif; ?>
+            <p class="field-error" id="e-barrio" hidden>Indica tu barrio o vereda.</p>
         </div>
 
-        <?php if ($pideClave): ?>
-        <!-- acceso al panel personal: usuario = documento, clave = esta -->
-        <div class="campo">
-          <label for="f-clave">Crea una clave para tu panel <span style="font-weight:500;color:#9AA0AF">(tu usuario será tu documento)</span></label>
-          <div class="clave-wrap">
-            <input id="f-clave" type="password" name="clave" data-tipo="clave" minlength="<?= RED_CLAVE_MIN ?>" maxlength="72"
-                   autocomplete="new-password" placeholder="Mínimo <?= RED_CLAVE_MIN ?> caracteres" required data-msg="Crea una clave de al menos <?= RED_CLAVE_MIN ?> caracteres.">
-            <button type="button" class="ver-clave" aria-label="Mostrar clave">👁</button>
+          <div class="field">
+            <label for="f-mensaje">Tu historia</label>
+            <textarea id="f-mensaje" name="mensaje" rows="5" required aria-describedby="h-mensaje e-mensaje"></textarea>
+            <p class="field-hint" id="h-mensaje">¿Qué haces cada día y qué te inspira a seguir adelante? Queremos conocer tu experiencia con tus propias palabras.</p>
+            <p class="field-error" id="e-mensaje" hidden>Escriba su historia.</p>
           </div>
-        </div>
-        <?php endif; ?>
 
-        <!-- ubicación aproximada: opcional, solo con permiso explícito -->
-        <label class="consent geo">
-          <input type="checkbox" name="ubicacion" value="1" id="f-geo">
-          <span>📍 <b>Compartir mi ubicación aproximada</b> (opcional) para invitarme a actividades cerca de mí. Se guarda redondeada a unos 100 m.</span>
-        </label>
-        <p class="geo-nota" id="geoNota"></p>
-        <input type="hidden" name="lat" id="f-lat">
-        <input type="hidden" name="lng" id="f-lng">
-
-        <!-- código de invitación del líder + honeypot anti-bots -->
-        <input type="hidden" name="ref" value="<?= e($refCodigo) ?>">
-        <div class="hp" aria-hidden="true"><label>Tu web<input type="text" name="web" tabindex="-1" autocomplete="off"></label></div>
-
-        <label class="consent">
-          <input type="checkbox" name="consentimiento" value="1" id="f-consent" required data-msg="Para registrarte necesitamos tu autorización de datos (Ley 1581).">
-          <span>Autorizo el tratamiento de mis datos personales a la campaña de Diana Montes para fines de contacto e información política, conforme a la <b>Ley 1581 de 2012</b>. <a href="#politica" id="lnkPolitica">Ver política de datos</a>.</span>
-        </label>
-
-        <div class="error-msg" id="errBox" role="alert" tabindex="-1"></div>
-        <button class="btn btn-rosa" style="width:100%" type="submit" id="btnEnviar">Sí, quiero sumarme</button>
-        <p class="lock-note">🔒 Tus datos viajan cifrados y solo los usa la campaña.</p>
-      </form>
-
-      <div class="form-ok" id="formOk">
-        <div class="ok-ico">✓</div>
-        <h4>¡Bienvenida/o a la red!</h4>
-        <p id="okTexto"></p>
-
-        <!-- Súper Promotores: aparece solo si el servidor entregó el enlace personal -->
-        <div class="promo-box" id="promoBox" hidden>
-          <b class="promo-tit">🚀 Ahora multiplica tu voz</b>
-          <span class="promo-sub">Este es <b>tu enlace personal</b>. Cada familiar o amigo que se registre con él suma a tu red.</span>
-          <div class="promo-link" id="promoLink"></div>
-          <div class="promo-btns">
-            <a class="btn btn-wa" id="promoWa" target="_blank" rel="noopener">📲 Invitar por WhatsApp</a>
-            <button type="button" class="btn btn-soft" id="promoCopiar">🔗 Copiar enlace</button>
+          <div class="check">
+            <input id="f-datos" name="datos" type="checkbox" value="1" required aria-describedby="e-datos" />
+            <label for="f-datos">Acepto el tratamiento de mis datos personales según la <a href="https://dianamontes.com/privacidad/">política de privacidad</a>.</label>
           </div>
-          <div class="promo-qr" id="promoQr"></div>
-          <div class="acceso-box" id="accesoBox" hidden>
-            <b>🔑 Tu acceso a tu panel</b>
-            <span>Entra cuando quieras en <b id="accesoUrl"></b></span>
-            <span>Usuario: <b id="accesoUsuario"></b> (tu documento) · Clave: la que acabas de crear</span>
+          <p class="field-error check-error" id="e-datos" hidden>Debe aceptar el tratamiento de datos para continuar.</p>
+
+          <div class="check">
+            <input id="f-publicar" name="publicar" value="1" type="checkbox" />
+            <label for="f-publicar">Autorizo la publicación de mi historia en este sitio web.<span class="opt">(opcional)</span></label>
           </div>
-          <a class="btn btn-rosa promo-panel" id="promoPanel">⭐ Entrar a mi panel</a>
-          <span class="promo-nota">En tu panel verás tu red, tus puntos, tus tareas y tu puesto en el ranking.</span>
-        </div>
+
+          <button class="btn btn-primary btn-block" type="submit">Compartir mi historia</button>
+          <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+        </form>
       </div>
+    </section>
+
+    <!-- 7. HABLEMOS DE GARZÓN -->
+    <section class="section section-tint" id="garzon" aria-labelledby="garzon-title">
+      <div class="container">
+        
+        <header class="section-head section-head-split">
+          <div>
+            <p class="eyebrow">Hablemos de Garzón</p>
+            <h2 id="garzon-title" class="section-title">Temas de conversación</h2>
+          </div>
+          <p class="section-lead light">Garzón tiene realidades, desafíos y oportunidades que merecen ser escuchados. Estos son algunos de los temas que aparecen en las conversaciones sobre nuestro municipio. Queremos conocer distintas experiencias, inquietudes e ideas.</p>
+        </header>
+
+        <ul class="topics">
+          <li class="topic"><span class="topic-tag">Tema para conversar</span><h3>Vías y movilidad</h3></li>
+          <li class="topic"><span class="topic-tag">Tema para conversar</span><h3>Seguridad y convivencia</h3></li>
+          <li class="topic"><span class="topic-tag">Tema para conversar</span><h3>Salud y hospital</h3></li>
+          <li class="topic"><span class="topic-tag">Tema para conversar</span><h3>Obras y proyectos</h3></li>
+          <li class="topic"><span class="topic-tag">Tema para conversar</span><h3>Campo y producción</h3></li>
+          <li class="topic"><span class="topic-tag">Tema para conversar</span><h3>Empleo y emprendimiento</h3></li>
+          <li class="topic"><span class="topic-tag">Tema para conversar</span><h3>Turismo y tradiciones</h3></li>
+          <li class="topic topic-cta">
+            <h3>¿Hay otro tema del que deberíamos hablar?</h3>
+            <a href="#usted" class="link-arrow">Cuéntenos <span aria-hidden="true">→</span></a>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 8. CONVERSEMOS -->
+    <section class="section" id="conversemos" aria-labelledby="conv-title">
+      <div class="container">
+        <header class="section-head section-head-split">
+          <div>
+            <p class="eyebrow">CONVERSEMOS</p>
+            <h2 id="garzon-title" class="section-title">Encontrémonos para hablar</h2>
+          </div>
+          <p class="section-lead light">Las buenas conversaciones comienzan cuando nos damos el tiempo de escucharnos. Conoce nuestros canales de comunicación y los espacios donde podemos compartir historias, preguntas y experiencias sobre Garzón.</p>
+        </header>
+        
+        <div class="conv-grid">
+        
+          <!-- CANALES OFICIALES -->
+          <article class="conv-card conv-card--contacto">
+        
+            <div class="conv-card-header">
+              <div class="conv-card-icon">
+                <i class="fas fa-comments" aria-hidden="true"></i>
+              </div>
+              <div>
+                <span class="conv-eyebrow">MANTENGAMOS EL CONTACTO</span>
+                <h3>Canales oficiales</h3>
+              </div>
+            </div>
+        
+            <p class="conv-description">
+              Estos son nuestros canales oficiales para consultar información sobre Diana Montes, conocer actividades y comunicarte con el equipo.
+            </p>
+        
+            <div class="conv-contact-list">
+        
+              <!-- Sitio web -->
+              <a class="conv-contact-item"
+                 href="https://dianamontes.com/"
+                 target="_blank"
+                 rel="noopener noreferrer">
+        
+                <span class="conv-contact-icon">
+                  <i class="fas fa-globe" aria-hidden="true"></i>
+                </span>
+        
+                <span class="conv-contact-info">
+                  <small>Sitio web</small>
+                  <strong>dianamontes.com</strong>
+                </span>
+        
+                <i class="fas fa-arrow-up-right-from-square conv-arrow"
+                   aria-hidden="true"></i>
+              </a>
+        
+              <!-- WhatsApp -->
+              <a class="conv-contact-item"
+                 href="https://api.whatsapp.com/send/?phone=573224848387"
+                 target="_blank"
+                 rel="noopener noreferrer">
+        
+                <span class="conv-contact-icon">
+                  <i class="fab fa-whatsapp" aria-hidden="true"></i>
+                </span>
+        
+                <span class="conv-contact-info">
+                  <small>WhatsApp</small>
+                  <strong>(+57) 322 484 83 87</strong>
+                  <span class="conv-pending-label">@DianaMontes</span>
+                </span>
+        
+                <i class="fas fa-arrow-up-right-from-square conv-arrow"
+                   aria-hidden="true"></i>
+              </a>
+        
+              <!-- Correo -->
+              <a class="conv-contact-item"
+                 href="mailto:candidata@dianamontes.com">
+        
+                <span class="conv-contact-icon">
+                  <i class="fas fa-envelope" aria-hidden="true"></i>
+                </span>
+        
+                <span class="conv-contact-info">
+                  <small>Correo electrónico</small>
+                  <strong>candidata@dianamontes.com</strong>
+                </span>
+        
+                <i class="fas fa-arrow-up-right-from-square conv-arrow"
+                   aria-hidden="true"></i>
+              </a>
+        
+            </div>
+        
+            <!-- REDES SOCIALES -->
+            <div class="conv-social-box">
+              <div class="conv-social-heading">
+                <strong>Síguenos en:</strong>
+                <span>Redes Sociales</span>
+              </div>
+        
+              <div class="conv-social-links">
+                <a href="https://web.facebook.com/DianaLMontes" target="_black">
+                    <span class="conv-social-btn">
+                      <i class="fab fa-facebook-f" aria-hidden="true"></i>
+                      Facebook
+                    </span>
+                </a>
+                <a href="https://www.instagram.com/dianamontescabrera" target="_black">
+                    <span class="conv-social-btn">
+                      <i class="fab fa-instagram" aria-hidden="true"></i>
+                      Instagram
+                    </span>
+                </a>
+              </div>
+            </div>
+        
+          </article>
+        
+        
+          <!-- AGENDA DE ENCUENTROS -->
+          <article class="conv-card conv-card--agenda">
+            <div class="conv-card-header">
+              <div class="conv-card-icon"><i class="fas fa-calendar-days" aria-hidden="true"></i></div>
+              <div>
+                <span class="conv-eyebrow">Próximos encuentros</span>
+                <h3>Agenda de encuentros</h3>
+              </div>
+            </div>
+            <p class="conv-description">Consulta los espacios programados para conversar, compartir experiencias y escuchar diferentes puntos de vista sobre nuestro municipio.</p>
+            <!-- EVENTO DE EJEMPLO: reemplazar por información confirmada -->
+            <div class="conv-event">
+              <div class="conv-event-main">
+                <!-- FECHA -->
+                <div class="conv-event-date" aria-label="21 de noviembre de 2026">
+                  <span class="conv-event-month">NOV</span>
+                  <strong>21</strong>
+                  <span class="conv-event-day">SÁB</span>
+                </div>
+                <!-- INFORMACIÓN -->
+                <div class="conv-event-content">
+                  <span class="conv-event-category">ENCUENTRO COMUNITARIO</span>
+                  <h4>Un café para conversar sobre Garzón</h4>
+                  <p>Un espacio para compartir historias, experiencias e inquietudes sobre nuestro municipio.</p>
+                </div>
+              </div>
+              <div class="conv-event-meta">
+                <div class="conv-event-meta-item">
+                  <i class="fas fa-calendar" aria-hidden="true"></i>
+                  <span>
+                    <time datetime="2026-11-21">
+                      Sábado, 21 de noviembre de 2026
+                    </time>
+                  </span>
+                </div>
+                <div class="conv-event-meta-item">
+                  <i class="fas fa-clock" aria-hidden="true"></i>
+                  <span>4:00 p. m. – 5:30 p. m.</span>
+                </div>
+                <div class="conv-event-meta-item">
+                  <i class="fas fa-location-dot" aria-hidden="true"></i>
+                  <span>Salón comunitario, Garzón, Huila | </span>
+                  <a class="conv-ver-mapa" href="#">Ver en el mapa <i class="fa-solid fa-street-view"></i></a>
+                </div>
+              </div>
+              <!-- ACCIÓN -->
+              <div class="conv-event-actions">
+
+                <button
+                    type="button"
+                    class="conv-event-btn btn-asistir"
+                    data-evento-id="encuentro-2026-11-21"
+                    data-evento-titulo="Un café para conversar sobre Garzón"
+                    aria-haspopup="dialog"
+                    aria-controls="modal-asistencia"
+                >
+                    Asistir
+                    <i class="fas fa-calendar-check" aria-hidden="true"></i>
+                </button>
+            
+            </div>
+            </div>
+            <p class="conv-event-disclaimer">
+              <i class="fas fa-circle-info" aria-hidden="true"></i>
+              Debes confirmar su asistencia para participar en los espacios de conversación
+            </p>
+          </article>
+        
+        </div>
+
+      </div>
+    </section>
+    
+    
+    <!-- ==========================================
+         MODAL DE ASISTENCIA A ENCUENTROS
+    =========================================== -->
+    
+    <dialog id="modal-asistencia" class="asistencia-modal" aria-labelledby="asistencia-titulo" aria-describedby="asistencia-descripcion">
+    
+        <!-- ENCABEZADO -->
+        <div class="asistencia-modal-header">
+    
+            <div class="asistencia-modal-icon">
+                <i class="fas fa-calendar-check" aria-hidden="true"></i>
+            </div>
+    
+            <button type="button" class="asistencia-modal-close" id="cerrar-modal-asistencia" aria-label="Cerrar formulario">
+                <i class="fas fa-xmark" aria-hidden="true"></i>
+            </button>
+    
+        </div>
+    
+        <!-- TÍTULO -->
+        <div class="asistencia-modal-heading">
+            <span class="asistencia-modal-eyebrow">AGENDA DE ENCUENTROS</span>
+            <h2 id="asistencia-titulo">Confirma tu asistencia</h2>
+            <p id="asistencia-descripcion">Completa tus datos para registrar tu interés en asistir al encuentro.</p>
+        </div>
+    
+        <!-- EVENTO SELECCIONADO -->
+        <div class="asistencia-evento-info">
+            <span>ENCUENTRO SELECCIONADO</span>
+            <strong id="asistencia-evento-nombre"></strong>
+        </div>
+    
+        <!-- FORMULARIO -->
+        <form id="form-asistencia" action="./procesar_asistencia.php" method="POST">
+    
+            <input type="hidden" name="evento_id" id="asistencia-evento-id">
+    
+            <!-- NOMBRE -->
+            <div class="asistencia-field">
+    
+                <label for="asistencia-nombre">
+                    Nombre completo <span>*</span>
+                </label>
+    
+                <div class="asistencia-input">
+                    <i class="fas fa-user" aria-hidden="true"></i>
+                    <input type="text" id="asistencia-nombre"name="nombre" placeholder="Escribe tu nombre completo" autocomplete="name" maxlength="100" required>
+                </div>
+    
+            </div>
+    
+            <!-- CORREO -->
+            <div class="asistencia-field">
+    
+                <label for="asistencia-correo">
+                    Correo electrónico <span>*</span>
+                </label>
+    
+                <div class="asistencia-input">
+                    <i class="fas fa-envelope" aria-hidden="true"></i>
+    
+                    <input type="email" id="asistencia-correo" name="correo" placeholder="ejemplo@correo.com" autocomplete="email" maxlength="254" required>
+                </div>
+    
+            </div>
+    
+            <!-- CELULAR -->
+            <div class="asistencia-field">
+    
+                <label for="asistencia-celular">
+                    Número de celular <span>*</span>
+                </label>
+    
+                <div class="asistencia-input">
+                    <i class="fas fa-phone" aria-hidden="true"></i>
+    
+                    <input type="tel" id="asistencia-celular" name="celular" placeholder="300 123 4567" autocomplete="tel" inputmode="tel" maxlength="20" required>
+                </div>
+    
+            </div>
+    
+            <!-- AUTORIZACIÓN DE DATOS -->
+            <label class="asistencia-privacy">
+    
+                <input type="checkbox" name="autorizacion_datos" value="1" required>
+    
+                <span>
+                    Autorizo el tratamiento de mis datos
+                    personales para gestionar mi inscripción
+                    y comunicarme información relacionada
+                    con este encuentro.
+                </span>
+    
+            </label>
+    
+            <!-- ACCIONES -->
+            <div class="asistencia-modal-actions">
+    
+                <button
+                    type="submit"
+                    class="asistencia-submit"
+                >
+                    <i class="fas fa-calendar-check"
+                       aria-hidden="true"></i>
+    
+                    Confirmar Asistencia
+                </button>
+    
+            </div>
+    
+            <p class="asistencia-note">
+                <i class="fas fa-lock" aria-hidden="true"></i>
+                Tus datos se utilizarán para gestionar
+                este encuentro.
+            </p>
+    
+        </form>
+    
+    </dialog>
+
+
+    <!-- 9. SÚMATE A LA RED -->
+    <section class="section section-tint" id="sumate" aria-labelledby="sumate-title">
+      <div class="container join-grid">
+        <div class="join-intro">
+          <p class="pill">Súmate a la red</p>
+          <h2 id="sumate-title" class="section-title join-title">Mantengamos el contacto</h2>
+
+          <ol class="steps">
+            <li class="step">
+              <span class="step-num" aria-hidden="true">1</span>
+              <div>
+                <h3>Registra tus datos</h3>
+                <p>Completa el formulario con tu información y crea una contraseña para acceder a tu panel.</p>
+              </div>
+            </li>
+            <li class="step">
+              <span class="step-num" aria-hidden="true">2</span>
+              <div>
+                <h3>Recibe información</h3>
+                <p>Podrás recibir comunicaciones de la campaña por los canales que hayas autorizado.</p>
+              </div>
+            </li>
+            <li class="step">
+              <span class="step-num" aria-hidden="true">3</span>
+              <div>
+                <h3>Accede a tu red</h3>
+                <p>Ingresa a tu panel y consulta tu enlace personal para compartir la invitación con otras personas.</p>
+              </div>
+            </li>
+          </ol>
+
+          <aside class="join-info" aria-label="Cómo funciona la red">
+            <p>
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 21s-7.5-4.6-9.4-9.2C1.3 8.6 3.4 5 6.9 5c2 0 3.6 1.1 5.1 2.9C13.5 6.1 15.1 5 17.1 5c3.5 0 5.6 3.6 4.3 6.8C19.5 16.4 12 21 12 21z"/></svg>
+              <strong class="accent-text">Información sobre la red</strong>
+              Al registrarte tendrás acceso a un panel personal. Si alguien te compartió su enlace de invitación, tu registro quedará asociado a esa referencia. También podrás registrarte directamente y compartir tu propio enlace con otras personas.
+            </p>
+          </aside>
+        </div>
+
+        <form class="join-card" id="join-form" novalidate aria-labelledby="join-form-title" action="./api/registrar_simpatizante.php" method="POST">
+          <header class="join-card-head">
+            <h3 id="join-form-title">Registro de simpatizantes</h3>
+            <?php if ($refLider): ?>
+                <div class="join-info">
+                    <span>
+                        Has llegado por invitación de
+                        <strong class="accent-text"><?= e($refLider) ?></strong>.
+                        Si decides registrarte, su invitación quedará
+                        asociada a tu registro.
+                    </span>
+                </div>
+            <?php endif; ?>
+          </header>
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
+            
+            
+            <input type="hidden" name="ref" value="<?= htmlspecialchars((string)($_GET['ref'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+
+
+          <div class="jfield">
+            <label for="j-nombre">Nombre completo</label>
+            <input id="j-nombre" name="nombre" type="text" autocomplete="name" placeholder="Ej: María Fernanda Ortiz" required aria-describedby="je-nombre" />
+            <p class="field-error" id="je-nombre" hidden>Escribe tu nombre completo.</p>
+          </div>
+
+          <div class="jrow">
+            <div class="jfield">
+              <label for="j-documento">Documento de identidad</label>
+              <input id="j-documento" name="documento" type="text" inputmode="numeric" autocomplete="off" placeholder="Solo números, sin puntos" required aria-describedby="je-documento" />
+              <p class="field-error" id="je-documento" hidden>Entre 6 y 10 números, sin puntos.</p>
+            </div>
+            <div class="jfield">
+              <label for="j-celular">Celular (WhatsApp)</label>
+              <input id="j-celular" name="celular" type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="3XX XXX XXXX" required aria-describedby="je-celular" />
+              <p class="field-error" id="je-celular" hidden>Celular de 10 dígitos que empiece por 3.</p>
+            </div>
+          </div>
+
+        <div class="jrow">
+            <!-- Barrio o vereda -->
+            <div class="jfield">
+                <label for="f-zona">Barrio o vereda</label>
+                <select id="f-zona" name="zona_id" class="select2-custom" required aria-describedby="je-zona">
+                    <option value=""></option>
+                    <?= zonas_opciones($zonas) ?>
+                </select>
+                <p class="field-error" id="je-zona" hidden>Indica tu barrio o vereda.</p>
+            </div>
+            <!-- Ocupación -->
+            <div class="jfield">
+                <label for="j-prof">¿A qué te dedicas?</label>
+                <select id="j-prof" name="prof" class="select2-custom" required aria-describedby="je-prof">
+                    <option value=""></option>
+                    <?php foreach ($profesiones as $p): ?>
+                        <option value="<?= (int)$p['id'] ?>">
+                            <?= e($p['nombre']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <p class="field-error" id="je-prof" hidden>Selecciona tu profesión.</p>
+            </div>
+        </div>
+
+          <div class="jrow">
+            <div class="jfield">
+              <label for="j-fecha">Fecha de nacimiento</label>
+              <input id="j-fecha" name="fecha" type="date" required aria-describedby="je-fecha" />
+              <p class="field-error" id="je-fecha" hidden>Debes ser mayor de 18 años.</p>
+            </div>
+            <div class="jfield">
+              <label for="j-genero">Género</label>
+              <select id="j-genero" name="genero" required aria-describedby="je-genero" placeholder="Selecciona tu género">
+                <option value=""></option>
+                <option>Femenino</option>
+                <option>Masculino</option>
+                <option>Otro</option>
+                <option>Prefiero no decirlo</option>
+              </select>
+              <p class="field-error" id="je-genero" hidden>Selecciona tu género.</p>
+            </div>
+          </div>
+
+          <div class="jfield">
+            <label for="j-clave">Crea una clave para tu panel <span class="opt">(Crea una contraseña segura para ingresar a tu panel. Tu usuario será tu documento de identidad.)</span></label>
+            <div class="pass-wrap">
+              <input id="j-clave" name="clave" type="password" autocomplete="new-password" minlength="12" placeholder="Mínimo 12 caracteres" required aria-describedby="je-clave" />
+              <button type="button" class="pass-toggle" aria-controls="j-clave" aria-pressed="false" aria-label="Mostrar clave">
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+              </button>
+            </div>
+            <p class="field-error" id="je-clave" hidden>La clave debe tener al menos 12 caracteres.</p>
+          </div>
+
+          <div class="jcheck jcheck-tint">
+            <input id="j-ubicacion" name="ubicacion" type="checkbox" aria-describedby="j-ubicacion-status" />
+            <label for="j-ubicacion">
+              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
+              <strong>Compartir mi ubicación aproximada</strong> <span class="opt">(opcional)</span> para invitarme a actividades cerca de mí. Se guarda redondeada a unos 100 m.
+            </label>
+          </div>
+          <p class="jcheck-status" id="j-ubicacion-status" aria-live="polite"></p>
+
+          <div class="jcheck">
+            <input id="j-datos" name="datos" type="checkbox" required aria-describedby="je-datos" />
+            <label for="j-datos">Autorizo el tratamiento de mis datos personales para gestionar mi registro y recibir información política de la campaña de Diana Montes, de acuerdo con <a href="https://dianamontes.com/privacidad/">la política de privacidad</a></label>
+          </div>
+          <p class="field-error" id="je-datos" hidden>Debes autorizar el tratamiento de datos para continuar.</p>
+
+          <button class="btn btn-primary btn-block join-submit" type="submit">Completar registro</button>
+          <p class="form-status" id="join-status" role="status" aria-live="polite"></p>
+          <p class="join-foot">
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M17 10V7a5 5 0 0 0-10 0v3H5v12h14V10h-2zm-8 0V7a3 3 0 0 1 6 0v3H9z"/></svg>
+            Consulta nuestra política de privacidad para conocer cómo utilizamos y protegemos tus datos personales.
+          </p>
+        </form>
+        
+        <!-- MODAL: insertar una sola vez en include/footer.php, antes de </body> -->
+<dialog
+    id="join-success-modal"
+    class="join-success-modal"
+    aria-labelledby="join-success-title"
+    aria-describedby="join-success-description"
+>
+    <div class="join-success-modal__top">
+        <span class="join-success-modal__icon" aria-hidden="true">
+            <i class="fas fa-circle-check"></i>
+            <p class="join-success-modal__eyebrow">REGISTRO CONFIRMADO</p>
+        </span>
+        <button type="button" class="video-modal__close" id="join-success-close" aria-label="Cerrar Confirmacion">
+            <i class="fas fa-xmark" aria-hidden="true"></i>
+        </button>
     </div>
-  </div>
-</section>
-</main>
 
-<!-- ==================== BARRA INFERIOR (celular) ==================== -->
-<nav class="tabbar" aria-label="Secciones">
-  <a href="#inicio" data-sec="inicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"/></svg><span>Inicio</span></a>
-  <a href="#diana" data-sec="diana"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2z"/></svg><span>Diana</span></a>
-  <a href="#sumate" data-sec="sumate" class="tab-cta"><span class="cta-c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span>Súmate</span></a>
-  <?php if ($expectativa): ?>
-  <a href="#viene" data-sec="viene"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v3M5.6 5.6l2.1 2.1M3 12h3M18.4 5.6l-2.1 2.1M21 12h-3"/><circle cx="12" cy="14" r="5"/></svg><span>Muy pronto</span></a>
-  <?php else: ?>
-  <a href="#propuestas" data-sec="propuestas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l2.5 2.5L16 9"/></svg><span>Propuestas</span></a>
-  <?php endif; ?>
-  <button type="button" data-ingresar aria-haspopup="dialog" aria-controls="hojaIngresar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg><span>Ingresar</span></button>
-</nav>
+    <h2 id="join-success-title">¡Gracias por sumarte!</h2>
+    <p id="join-success-description" class="join-success-modal__description">
+        Tu registro se ha completado correctamente. Gracias por tu interés en conocer y acompañar las actividades de la campaña de Diana Montes.
+    </p>
 
-<!-- ==================== FOOTER ==================== -->
-<footer>
-  <div class="wrap">
-    <div class="foot-grid">
-      <div class="foot-logo">
-        <b>Diana Montes</b>
-        <span>Garzón, Huila</span>
-      </div>
-      <div class="foot-col">
-        <b>Conoce más</b><br>
-        <a href="#diana">¿Quién es Diana?</a> · <a href="#mueve">Lo que la mueve</a> · <a href="#sumate">Súmate</a>
-      </div>
-      <div class="foot-col">
-        <b>Contacto</b><br>
-        Garzón, Huila · @dianamontesgarzon
-      </div>
+    <div class="join-success-modal__details">
+        <div class="join-success-modal__field">
+            <span>Nombre del simpatizante</span>
+            <strong id="join-success-name"></strong>
+        </div>
+        <div class="join-success-modal__field">
+            <span>Usuario para iniciar sesión (documento de identidad)</span>
+            <strong id="join-success-user"></strong>
+        </div>
+        <p class="join-success-modal__password-note">
+            Ingresa con la contraseña que acabas de crear. No la compartas.
+        </p>
     </div>
-    <div class="foot-legal">
-      <span>© <?= date('Y') ?> Campaña Diana Montes · Garzón, Huila</span>
-      <span><a href="/privacidad/">Política de privacidad</a> · <a href="/terminos/">Condiciones del servicio</a> · <a href="/eliminar-datos/">Eliminar mis datos</a></span>
-    </div>
-  </div>
-</footer>
 
-<script src="assets/js/validar.js?v=<?= @filemtime(__DIR__ . '/assets/js/validar.js') ?>"></script>
-<script>
-/* ---------- video: autoplay silenciado + botón de sonido ---------- */
-const video = document.getElementById('heroVideo');
-const btnSonido = document.getElementById('btnSonido');
-btnSonido.addEventListener('click', () => {
-  video.muted = !video.muted;
-  if (!video.muted) video.play();
-  btnSonido.textContent = video.muted ? '🔇' : '🔊';
-  btnSonido.setAttribute('aria-label', video.muted ? 'Activar sonido' : 'Silenciar');
-});
-new IntersectionObserver(es => es.forEach(e => {
-  if (e.isIntersecting) video.play().catch(()=>{}); else video.pause();
-}), { threshold:.2 }).observe(video);
+    <a class="join-success-modal__login" href="https://dianamontes.com/mi/">
+        <i class="fas fa-right-to-bracket" aria-hidden="true"></i>
+        Iniciar sesión en mi panel
+    </a>
+    <p class="join-success-modal__help">
+        Guarda tus datos de acceso en un lugar seguro. Recuerda que tu contraseña es personal y no debes compartirla.
+    </p>
+</dialog>
 
-/* ---------- acordeón (solo un panel abierto a la vez) ---------- */
-document.querySelectorAll('.ac-item').forEach(item => {
-  const btn = item.querySelector('.ac-btn');
-  const panel = item.querySelector('.ac-panel');
-  btn.addEventListener('click', () => {
-    const abierto = item.classList.contains('abierto');
-    document.querySelectorAll('.ac-item.abierto').forEach(o => {
-      o.classList.remove('abierto');
-      o.querySelector('.ac-panel').style.maxHeight = null;
-      o.querySelector('.ac-btn').setAttribute('aria-expanded','false');
-    });
-    if (!abierto) {
-      item.classList.add('abierto');
-      panel.style.maxHeight = panel.scrollHeight + 'px';
-      btn.setAttribute('aria-expanded','true');
-    }
-  });
-});
+        
+      </div>
+    </section>
+  </main>
+  
+<?php
+    include 'include/footer.php';
+?>
 
-/* ---------- tabs ---------- */
-document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => {
-  document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('activo'));
-  document.querySelectorAll('.tab-panel').forEach(x => x.classList.remove('activo'));
-  b.classList.add('activo');
-  document.getElementById(b.dataset.tab).classList.add('activo');
-}));
-
-/* ---------- reveal ---------- */
-/* ---------- Ingresar: hoja con las dos entradas (simpatizante / equipo) ---------- */
-(function () {
-  const fondo = document.getElementById('hojaIngresar');
-  const botones = document.querySelectorAll('[data-ingresar]');
-  let ultimo = null;
-  function abrir(e) {
-    ultimo = e.currentTarget;
-    fondo.hidden = false;
-    requestAnimationFrame(() => fondo.classList.add('abierta'));
-    botones.forEach(b => b.setAttribute('aria-expanded', 'true'));
-    document.body.style.overflow = 'hidden';
-    setTimeout(() => fondo.querySelector('.acceso').focus(), 60);
-  }
-  function cerrar() {
-    fondo.classList.remove('abierta');
-    botones.forEach(b => b.setAttribute('aria-expanded', 'false'));
-    document.body.style.overflow = '';
-    setTimeout(() => { fondo.hidden = true; }, 260);
-    if (ultimo) ultimo.focus();
-  }
-  botones.forEach(b => b.addEventListener('click', abrir));
-  fondo.addEventListener('click', e => { if (e.target === fondo || e.target.closest('[data-cerrar-hoja]')) cerrar(); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !fondo.hidden) cerrar(); });
-})();
-
-/* ---------- barra inferior: marca la sección visible ---------- */
-(function () {
-  const enlaces = document.querySelectorAll('.tabbar [data-sec]');
-  const marcar = id => enlaces.forEach(a => a.classList.toggle('activo', a.dataset.sec === id));
-  const secciones = ['diana', 'mueve', 'viene', 'retos', 'propuestas', 'sumate'].map(id => document.getElementById(id)).filter(Boolean);
-  const pestana = { mueve: 'diana', retos: 'diana' };   // secciones sin pestaña propia
-  const vista = new Map();
-  const obs = new IntersectionObserver(es => {
-    es.forEach(e => vista.set(e.target.id, e.isIntersecting ? e.intersectionRatio : 0));
-    let mejor = 'inicio', max = 0;
-    vista.forEach((r, id) => { if (r > max) { max = r; mejor = pestana[id] || id; } });
-    marcar(max > 0.15 ? mejor : 'inicio');
-  }, { threshold: [0, .15, .3, .5, .7] });
-  secciones.forEach(s => obs.observe(s));
-  marcar('inicio');
-})();
-
-const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting){ e.target.classList.add('vis'); io.unobserve(e.target);} }), { threshold:.12 });
-document.querySelectorAll('.rv').forEach(el => io.observe(el));
-
-/* ---------- ubicación aproximada (opcional, con permiso del navegador) ---------- */
-const geo = document.getElementById('f-geo');
-const geoNota = document.getElementById('geoNota');
-geo.addEventListener('change', () => {
-  document.getElementById('f-lat').value = '';
-  document.getElementById('f-lng').value = '';
-  geoNota.textContent = '';
-  if (!geo.checked) return;
-  if (!navigator.geolocation) { geo.checked = false; geoNota.textContent = 'Tu navegador no permite compartir la ubicación.'; return; }
-  geoNota.textContent = 'Obteniendo tu ubicación…';
-  navigator.geolocation.getCurrentPosition(p => {
-    document.getElementById('f-lat').value = p.coords.latitude.toFixed(3);
-    document.getElementById('f-lng').value = p.coords.longitude.toFixed(3);
-    geoNota.textContent = '✓ Ubicación aproximada lista.';
-  }, () => {
-    geo.checked = false;
-    geoNota.textContent = 'No se compartió la ubicación. Puedes registrarte igual.';
-  }, { enableHighAccuracy:false, timeout:10000, maximumAge:600000 });
-});
-
-/* ---------- Súper Promotores: enlace personal, QR y panel ---------- */
-function mostrarPromotor(p) {
-  const base   = location.origin + location.pathname.replace(/[^/]*$/, '');
-  const enlace = base + '?ref=' + encodeURIComponent(p.codigo) + '#sumate';
-  const panel  = base + 'mi/?t=' + encodeURIComponent(p.token);
-  if (p.usuario) {
-    document.getElementById('accesoUsuario').textContent = p.usuario;
-    document.getElementById('accesoUrl').textContent = (location.host + location.pathname.replace(/[^/]*$/, '') + 'mi').replace(/^www\./, '');
-    document.getElementById('accesoBox').hidden = false;
-  }
-
-  document.getElementById('promoLink').textContent = enlace;
-  document.getElementById('promoWa').href = 'https://wa.me/?text=' + encodeURIComponent(
-    '¡Hola! 👋 Me sumé a la red de Diana Montes en Garzón. Súmate tú también, toma menos de un minuto: ' + enlace);
-  document.getElementById('promoPanel').href = panel;
-  document.getElementById('promoCopiar').onclick = function () {
-    navigator.clipboard.writeText(enlace).then(() => {
-      this.textContent = '¡Copiado!';
-      setTimeout(() => this.textContent = '🔗 Copiar enlace', 1600);
-    });
-  };
-  document.getElementById('promoBox').hidden = false;
-
-  // El QR se carga solo aquí, para no hacer más pesada la landing
-  const s = document.createElement('script');
-  s.src = 'assets/vendor/qrcode.js';
-  s.onload = () => {
-    const q = qrcode(0, 'M'); q.addData(enlace); q.make();
-    document.getElementById('promoQr').innerHTML = q.createSvgTag(4, 2);
-  };
-  document.body.appendChild(s);
-}
-
-/* ---------- mostrar u ocultar la clave ---------- */
-document.querySelectorAll('.ver-clave').forEach(b => b.addEventListener('click', () => {
-  const i = b.parentNode.querySelector('input');
-  i.type = i.type === 'password' ? 'text' : 'password';
-  b.textContent = i.type === 'password' ? '👁' : '🙈';
-  b.setAttribute('aria-label', i.type === 'password' ? 'Mostrar clave' : 'Ocultar clave');
-}));
-
-/* ---------- política de datos ---------- */
-const modalPolitica = document.getElementById('modalPolitica');
-document.getElementById('lnkPolitica').addEventListener('click', e => { e.preventDefault(); modalPolitica.classList.add('abierto'); });
-modalPolitica.querySelectorAll('[data-cerrar]').forEach(b => b.addEventListener('click', () => modalPolitica.classList.remove('abierto')));
-modalPolitica.addEventListener('click', e => { if (e.target === modalPolitica) modalPolitica.classList.remove('abierto'); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') modalPolitica.classList.remove('abierto'); });
-
-/* ---------- envío real del formulario a registrar.php ---------- */
-const formReg = document.getElementById('formRegistro');
-const errBox  = document.getElementById('errBox');
-const btnEnviar = document.getElementById('btnEnviar');
-const TEXTO_BTN = btnEnviar.textContent;
-
-function mostrarError(msg) {
-  errBox.textContent = '⚠ ' + msg;
-  errBox.style.display = 'block';
-  errBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-formReg.addEventListener('submit', async function (ev) {
-  ev.preventDefault();
-  errBox.style.display = 'none';
-  if (btnEnviar.disabled) return;                 // evita doble envío
-  if (!window.Validar) { mostrarError('La página no cargó completa. Recárgala e intenta de nuevo.'); return; }
-  if (!Validar.formulario(this)) return;          // los errores quedan debajo de cada campo
-
-  btnEnviar.disabled = true;
-  btnEnviar.innerHTML = '<span class="giro" aria-hidden="true"></span> Enviando…';
-  const control = new AbortController();
-  const espera = setTimeout(() => control.abort(), 25000);
-  try {
-    const r = await fetch('registrar.php', { method: 'POST', body: new FormData(this), signal: control.signal,
-                                             headers: { 'Accept': 'application/json' } });
-    const crudo = await r.text();
-    let data;
-    try { data = JSON.parse(crudo); }
-    catch (e) { throw new Error('respuesta'); }
-    if (data.ok) {
-      this.style.display = 'none';
-      document.getElementById('okTexto').textContent = data.msg;
-      const ok = document.getElementById('formOk');
-      ok.style.display = 'block';
-      if (data.promotor) mostrarPromotor(data.promotor);
-      ok.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else if (!(data.campo && Validar.marcar(this, data.campo, data.msg))) {
-      mostrarError(data.msg || 'No pudimos guardar tu registro. Intenta de nuevo.');
-    }
-  } catch (e) {
-    mostrarError(e.name === 'AbortError'
-      ? 'El servidor tardó demasiado en responder. Revisa tu conexión e intenta de nuevo.'
-      : e.message === 'respuesta'
-        ? 'Tuvimos un problema al guardar tu registro. Intenta de nuevo en unos minutos.'
-        : 'No pudimos conectar con el servidor. Revisa tu conexión a internet e intenta de nuevo.');
-  } finally {
-    clearTimeout(espera);
-    btnEnviar.disabled = false;
-    btnEnviar.textContent = TEXTO_BTN;
-  }
-});
-</script>
-</body>
-</html>

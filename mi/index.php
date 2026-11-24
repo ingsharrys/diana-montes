@@ -10,8 +10,8 @@
  * inc/red.php): Simpatizante, Promotor, Súper Promotor y Embajador.
  */
 define('PORTAL', true);
-require __DIR__ . '/../config.php';
-require __DIR__ . '/../inc/promotores.php';
+require __DIR__ . '/../config/config.php';
+require __DIR__ . '/../config/inc/promotores.php';
 require __DIR__ . '/portal.php';
 
 header('Cache-Control: no-store');
