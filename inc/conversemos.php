@@ -70,21 +70,47 @@ function conv_respuesta(string $palabraNormalizada): ?string
 /**
  * ¿Esta respuesta es al mensaje "Conversemos"? Busca el mensaje citado (botón)
  * o, si escribió a mano, el último que recibió en los 7 días anteriores.
- * Devuelve ['campana_id' => int] o null.
+ * Si tocó un botón de un mensaje que no salió por la cola (por ejemplo,
+ * "Enviar prueba" en Plantillas), también cuenta: solo esta plantilla tiene
+ * botones Sí / No. Devuelve ['campana_id' => int] o null.
  */
-function conv_origen(PDO $db, int $simpId, ?string $contexto): ?array
+function conv_origen(PDO $db, ?int $simpId, ?string $contexto, bool $esBoton = false): ?array
 {
     if ($contexto) {
-        $st = $db->prepare('SELECT clave, plantilla FROM wa_mensajes WHERE wamid = :w AND simpatizante_id = :s LIMIT 1');
-        $st->execute(['w' => $contexto, 's' => $simpId]);
+        $st = $db->prepare('SELECT clave, plantilla FROM wa_mensajes WHERE wamid = :w LIMIT 1');
+        $st->execute(['w' => $contexto]);
         $m = $st->fetch(PDO::FETCH_ASSOC);
         if ($m) return $m['plantilla'] === CONV_PLANTILLA ? ['campana_id' => conv_campana_de_clave($m['clave'])] : null;
     }
+    if ($esBoton) return ['campana_id' => 0];
+    if (!$simpId) return null;
     $st = $db->prepare("SELECT clave FROM wa_mensajes WHERE simpatizante_id = :s AND plantilla = :p
                           AND enviado_at >= NOW() - INTERVAL 7 DAY ORDER BY enviado_at DESC LIMIT 1");
     $st->execute(['s' => $simpId, 'p' => CONV_PLANTILLA]);
     $clave = $st->fetchColumn();
     return $clave === false ? null : ['campana_id' => conv_campana_de_clave((string)$clave)];
+}
+
+/**
+ * Sí / No de un número que no está en la base (por ejemplo, una prueba a un
+ * celular sin registro): con Sí se le invita a registrarse en el formulario Súmate.
+ */
+function conv_responder_sin_registro(PDO $db, string $telefono, string $respuesta): string
+{
+    // Doble toque: si ya escribió hace menos de un minuto, no se repite
+    $st = $db->prepare("SELECT COUNT(*) FROM wa_entrantes WHERE telefono = :t AND recibido_at >= NOW() - INTERVAL 60 SECOND");
+    $st->execute(['t' => $telefono]);
+    if ((int)$st->fetchColumn() > 1) return 'repetido';
+    if (!wa_configurado()) return 'error';
+    if ($respuesta === 'no') return wa_enviar_texto($telefono, CONV_TEXTO_NO)['ok'] ? 'gracias' : 'error';
+    $res = wa_enviar_mensaje($telefono, ['type' => 'interactive', 'interactive' => [
+        'type'   => 'cta_url',
+        'body'   => ['text' => CONV_TEXTO_DATOS],
+        'footer' => ['text' => 'Diana Montes'],
+        'action' => ['name' => 'cta_url', 'parameters' => ['display_text' => 'Dejar mis datos', 'url' => wa_sitio() . '/#sumate']],
+    ]]);
+    if (!$res['ok']) error_log('[conversemos] No se pudo responder a ' . substr($telefono, 0, 3) . '···: ' . $res['codigo'] . ' ' . $res['detalle']);
+    return $res['ok'] ? 'registro' : 'error';
 }
 
 function conv_campana_de_clave(string $clave): int
@@ -126,6 +152,7 @@ function conv_responder(PDO $db, int $simpId, string $telefono, string $respuest
                   WHERE simpatizante_id = :s AND campana_id = :c')
        ->execute(['t' => $token, 'e' => $res['ok'] ? 'enviado' : 'error', 'd' => $res['ok'] ? null : mb_substr((string)$res['detalle'], 0, 255),
                   's' => $simpId, 'c' => $campanaId]);
+    if (!$res['ok']) error_log('[conversemos] No se pudo enviar el enlace a ' . substr($telefono, 0, 3) . '···: ' . $res['codigo'] . ' ' . $res['detalle']);
     return $res['ok'] ? 'enlace' : 'error';
 }
 

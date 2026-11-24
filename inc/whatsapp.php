@@ -495,10 +495,13 @@ function wa_procesar_webhook(PDO $db, array $payload): array
                     $db->prepare('UPDATE simpatizantes SET wa_baja_at = NULL WHERE id = :id')->execute(['id' => $simpId]);
                     $r['altas']++;
                     if (wa_configurado()) wa_enviar_texto($tel, '¡Qué bueno tenerte de vuelta! Volverás a recibir nuestros saludos.');
-                } elseif ($simpId && ($resp = conv_respuesta($palabra)) && conv_listo($db)
-                          && ($origen = conv_origen($db, (int)$simpId, $msg['context']['id'] ?? null))) {
+                } elseif (($resp = conv_respuesta($palabra)) && conv_listo($db)
+                          && ($origen = conv_origen($db, $simpId ? (int)$simpId : null, $msg['context']['id'] ?? null, ($msg['type'] ?? '') === 'button'))) {
                     // Respondió Sí o No al mensaje "Conversemos": con Sí le llega su enlace al chat de datos
-                    $r['conversemos'] = conv_responder($db, (int)$simpId, $tel, $resp, $origen['campana_id']);
+                    // (o, si su número no está registrado, la invitación a registrarse)
+                    $r['conversemos'] = $simpId
+                        ? conv_responder($db, (int)$simpId, $tel, $resp, $origen['campana_id'])
+                        : conv_responder_sin_registro($db, $tel, $resp);
                 }
             }
         }
