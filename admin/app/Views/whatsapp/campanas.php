@@ -58,7 +58,10 @@ $diasCola = $cupo['tope'] ? (int)ceil($cupo['pendientes'] / $cupo['tope']) : 0;
       <td style="text-align:right"><?= $env ? num((int)$c['entregados']) . '<br><span class="muted small">' . $pct((int)$c['entregados'], $env) . ' %</span>' : '—' ?></td>
       <td style="text-align:right"><?= $env ? num((int)$c['leidos']) . '<br><span class="muted small">' . $pct((int)$c['leidos'], $env) . ' %</span>' : '—' ?></td>
       <td style="text-align:right"><?= (int)$c['errores'] ? '<span style="color:var(--bad)">' . num((int)$c['errores']) . '</span>' : '0' ?></td>
-      <td style="text-align:right"><?= num((int)($respuestas[$c['id']] ?? 0)) ?></td>
+      <td style="text-align:right"><?= num((int)($respuestas[$c['id']] ?? 0)) ?>
+        <?php if ($cv = $conversemos[$c['id']] ?? null): ?>
+          <br><span class="small" title="Sí / No / completaron el chat de datos">👍 <?= num((int)$cv['si']) ?> · 👎 <?= num((int)$cv['no']) ?><br>📝 <?= num((int)$cv['datos']) ?> con datos</span>
+        <?php endif; ?></td>
       <?php if ($esDireccion): ?><td>
         <?php if ($c['estado'] === 'programada' || ($c['estado'] === 'enviando' && (int)$c['pendientes'] > 0)): ?>
         <form method="post" action="<?= url('whatsapp/cancelarcampana/' . (int)$c['id']) ?>" onsubmit="return confirm('¿Cancelar este envío? Lo que aún no ha salido ya no se enviará.')">
@@ -71,3 +74,27 @@ $diasCola = $cupo['tope'] ? (int)ceil($cupo['pendientes'] / $cupo['tope']) : 0;
   <p class="muted small nota">Respuestas: mensajes que escribieron quienes recibieron el envío, en los 3 días siguientes. Se leen en el Resumen de WhatsApp.</p>
   <?php endif; ?>
 </section>
+
+<?php if ($conversaciones): ?>
+<section class="card" style="margin-top:16px">
+  <h3>Conversemos: respuestas al "¿Conversamos?" <span class="tag tag-grey small"><?= num(count($conversaciones)) ?></span></h3>
+  <p class="muted small" style="margin-bottom:10px;line-height:1.6">Quienes tocaron <b>Sí</b> recibieron solos su enlace al chat de datos; quienes tocaron <b>No</b>, un agradecimiento.
+    Los datos que confirman en el chat se guardan de una vez en su registro.</p>
+  <div class="tbl-wrap">
+  <table class="cola">
+    <tr><th>Persona</th><th>Respondió</th><th>Enlace</th><th>Datos que confirmó</th><th>Qué sueña para Garzón</th></tr>
+    <?php foreach ($conversaciones as $v): ?>
+    <tr>
+      <td><b><?= e($v['nombre']) ?></b><br><span class="muted small"><?= e($v['telefono']) ?><?= $v['zona'] ? ' · ' . e($v['zona']) : '' ?></span></td>
+      <td><?= $v['respuesta'] === 'si' ? '<span class="tag tag-green small">Sí</span>' : '<span class="tag tag-grey small">No</span>' ?>
+        <br><span class="muted small"><?= e(fecha_co((string)$v['respondio_at'])) ?></span></td>
+      <td class="small"><?php if ($v['respuesta'] !== 'si'): ?>—<?php elseif ($v['enlace_estado'] === 'error'): ?><span style="color:var(--bad)" title="<?= e((string)$v['enlace_error']) ?>">No se pudo enviar</span>
+        <?php else: ?><?= $v['completado_at'] ? '✅ Completó' : ($v['abierto_at'] ? '👀 Lo abrió' : 'Enviado') ?><?php endif; ?></td>
+      <td class="small"><?= e((string)($v['campos'] ?: ($v['completado_at'] ? 'confirmó que todo está bien' : '—'))) ?></td>
+      <td class="small" style="max-width:360px;white-space:pre-line"><?= e((string)($v['sueno'] ?? '')) ?: '<span class="muted">—</span>' ?></td>
+    </tr>
+    <?php endforeach; ?>
+  </table>
+  </div>
+</section>
+<?php endif; ?>

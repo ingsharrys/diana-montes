@@ -196,7 +196,8 @@ class WhatsappController extends Controller
         }
         $extras = ['encabezado' => (string)($_POST['encabezado'] ?? ''), 'pie' => (string)($_POST['pie'] ?? ''), 'botones' => $botones];
 
-        $r = wa_crear_plantilla($db, $nombre, $idioma, $categoria, $cuerpo, $campos, $extras);
+        // Las sugeridas pueden traer un botón con enlace personal ({{1}}), que solo usan los envíos automáticos
+        $r = wa_crear_plantilla($db, $nombre, $idioma, $categoria, $cuerpo, $campos, $extras, (bool)$sugerida);
         if (!$r['ok']) {
             Session::flash('error', $r['msg']);
             Session::set('wa_borrador', ['nombre' => $nombre, 'categoria' => $categoria, 'idioma' => $idioma, 'cuerpo' => $cuerpo, 'campos' => $campos] + $extras);
@@ -309,7 +310,8 @@ class WhatsappController extends Controller
         $datos = $this->comun('campanas', 'WhatsApp · Mensajes masivos');
         $datos['campanasListas'] = $datos['disponible'] && $wa->campanasDisponible();
         if ($datos['campanasListas']) {
-            $datos += ['campanas' => $wa->campanas(), 'respuestas' => $wa->respuestasPorCampana(), 'cupo' => $wa->cupoHoy()];
+            $datos += ['campanas' => $wa->campanas(), 'respuestas' => $wa->respuestasPorCampana(), 'cupo' => $wa->cupoHoy(),
+                       'conversemos' => $wa->conversemosPorCampana(), 'conversaciones' => $wa->conversemosRecientes()];
         }
         $this->vista('whatsapp/campanas', $datos);
     }
