@@ -199,7 +199,7 @@ function conv_por_token(PDO $db, string $token): ?array
 {
     if (!preg_match('/^[a-f0-9]{32}$/', $token) || !conv_listo($db)) return null;
     $conGenero = esquema_tiene($db, 'simpatizantes', 'genero');
-    $st = $db->prepare('SELECT c.id AS conv_id, c.completado_at, c.enlace_at, s.id, s.nombre, s.fecha_nacimiento, s.zona_id, s.direccion, s.email,
+    $st = $db->prepare('SELECT c.id AS conv_id, c.completado_at, c.enlace_at, c.respondio_at, c.campana_id, s.telefono, s.id, s.nombre, s.fecha_nacimiento, s.zona_id, s.direccion, s.email,
                                s.profesion_id, ' . ($conGenero ? 's.genero' : 'NULL AS genero') . ', z.nombre AS zona, p.nombre AS profesion
                         FROM wa_conversemos c
                         JOIN simpatizantes s ON s.id = c.simpatizante_id
@@ -444,4 +444,60 @@ function conv_registrar(PDO $db, array $inv, array $datos): array
     $db->prepare("INSERT INTO auditoria (usuario_id, accion, detalle, ip) VALUES (NULL, 'registro_whatsapp', :d, :ip)")
        ->execute(['d' => 'Doc ' . substr($datos['documento'], 0, 3) . '··· por el chat de WhatsApp', 'ip' => $_SERVER['REMOTE_ADDR'] ?? '']);
     return [true, '', conv_invitacion_a_datos($db, $inv)];
+}
+
+/* ======================= La conversación que ya hubo en WhatsApp ======================= */
+
+/** Hora como la muestra WhatsApp: "2:07 p. m." */
+function conv_hora(string $fecha): string
+{
+    $t = strtotime($fecha);
+    return date('g:i', $t) . ((int)date('G', $t) < 12 ? ' a. m.' : ' p. m.');
+}
+
+/** Lo que la persona respondió por WhatsApp ("Si", "Sí", "si claro"…), o "Sí". */
+function conv_respuesta_escrita(PDO $db, string $telefono): string
+{
+    $st = $db->prepare('SELECT texto FROM wa_entrantes WHERE telefono = :t ORDER BY id DESC LIMIT 10');
+    $st->execute(['t' => $telefono]);
+    foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $x) {
+        if (conv_respuesta(wa_normalizar((string)$x)) === 'si') return mb_substr(trim((string)$x), 0, 60);
+    }
+    return 'Sí';
+}
+
+/**
+ * Los tres mensajes que ya se cruzaron en WhatsApp, para que el chat siga esa
+ * conversación: el "¿Conversamos?" de Diana (con sus botones), el Sí de la
+ * persona y la respuesta con el botón que la trajo aquí.
+ * $modo = 'datos' (ya en la red) o 'registro' (Quiero conocerte).
+ */
+function conv_historial(PDO $db, string $modo, string $telefono, string $respondio, string $enlace, ?int $simpId = null): array
+{
+    // Texto y botones de la plantilla tal como está en Meta (si ya se trajo), si no, el sugerido
+    $st = $db->prepare("SELECT cuerpo, extras FROM wa_plantillas WHERE nombre = :n ORDER BY (estado_meta = 'APPROVED') DESC LIMIT 1");
+    $st->execute(['n' => CONV_PLANTILLA]);
+    $tpl = $st->fetch(PDO::FETCH_ASSOC) ?: [];
+    $botones = array_values(array_map(fn($b) => (string)$b['texto'],
+        array_filter(json_decode((string)($tpl['extras'] ?? ''), true)['botones'] ?? [], fn($b) => ($b['tipo'] ?? '') === 'QUICK_REPLY'))) ?: ['Sí', 'No'];
+    // Hora en que le llegó el mensaje masivo (si salió por la cola)
+    $enviado = null;
+    if ($simpId) {
+        $st = $db->prepare('SELECT enviado_at FROM wa_mensajes WHERE simpatizante_id = :s AND plantilla = :p AND enviado_at <= :r ORDER BY enviado_at DESC LIMIT 1');
+        $st->execute(['s' => $simpId, 'p' => CONV_PLANTILLA, 'r' => $respondio]);
+        $enviado = $st->fetchColumn() ?: null;
+    }
+    $si = conv_respuesta_escrita($db, $telefono);
+    $elegido = 0;
+    foreach ($botones as $i => $b) if (conv_respuesta(wa_normalizar($b)) === 'si') { $elegido = $i; break; }
+    return [
+        'fecha' => date('Y-m-d', strtotime($enviado ?: $respondio)),
+        'mensajes' => [
+            ['lado' => 'entra', 'texto' => (string)($tpl['cuerpo'] ?? '') ?: CONV_TEXTO, 'hora' => conv_hora($enviado ?: $respondio),
+             'botones' => $botones, 'elegido' => $elegido],
+            ['lado' => 'sale', 'texto' => $si, 'hora' => conv_hora($respondio)],
+            ['lado' => 'entra', 'texto' => $modo === 'registro' ? CONV_TEXTO_CONOCERTE : CONV_TEXTO_DATOS, 'hora' => conv_hora($enlace),
+             'enlace' => $modo === 'registro' ? CONV_BOTON_CONOCERTE : CONV_BOTON],
+        ],
+    ];
 }

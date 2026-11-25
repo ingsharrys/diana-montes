@@ -20,6 +20,7 @@ header('Referrer-Policy: no-referrer');
 header('X-Frame-Options: DENY');
 
 $db = Core\Database::conexion();
+date_default_timezone_set((string)wa_cfg('WA_ZONA_HORARIA', 'America/Bogota'));
 
 /* Las llaves viajan en el enlace solo la primera vez: luego quedan en la sesión y se quitan de la barra */
 foreach (['t' => 'conv_t', 'r' => 'conv_r'] as $param => $clave) {
@@ -101,8 +102,24 @@ if ($persona) {
 $L = legal_datos($db);
 $wa = preg_replace('/\D/', '', (string)$L['legal_telefono']);
 if (strlen($wa) === 10) $wa = '57' . $wa;
+// La conversación que ya hubo en WhatsApp: el chat la muestra arriba y sigue desde ahí
+$historial = null;
+try {
+    if ($persona) {
+        $historial = conv_historial($db, 'datos', (string)$persona['telefono'], (string)($persona['respondio_at'] ?: $persona['enlace_at']), (string)$persona['enlace_at'], (int)$persona['id']);
+    } elseif ($invitacion) {
+        $historial = conv_historial($db, 'registro', (string)$invitacion['telefono'], (string)$invitacion['created_at'], (string)$invitacion['created_at']);
+    }
+} catch (Throwable $e) {
+    error_log('[conversemos] historial: ' . $e->getMessage());
+}
+if ($historial) {
+    $f = $historial['fecha'];
+    $historial['dia'] = $f === date('Y-m-d') ? 'Hoy' : ($f === date('Y-m-d', strtotime('-1 day')) ? 'Ayer' : date('d/m/Y', strtotime($f)));
+    $historial['hoy'] = $historial['dia'] === 'Hoy';
+}
 $config = ['csrf' => $_SESSION['conv_csrf'], 'modo' => $modo, 'persona' => $datos, 'whatsapp' => strlen($wa) >= 12 ? "https://wa.me/$wa" : null,
-           'sitio' => wa_sitio()];
+           'sitio' => wa_sitio(), 'historial' => $historial];
 ?>
 <!doctype html>
 <html lang="es">
@@ -208,7 +225,7 @@ form{display:flex;align-items:flex-end;gap:6px;min-width:0}
 </header>
 
 <main id="chat" aria-live="polite">
-  <div class="dia">Hoy</div>
+  <div class="dia" id="dia">Hoy</div>
   <p class="sistema">🔒 Tus datos se guardan de forma segura y solo los usa el equipo de Diana Montes, según la
     <a href="/privacidad/" target="_blank" rel="noopener">política de datos</a> (Ley 1581 de 2012).</p>
 </main>
@@ -433,10 +450,40 @@ async function preguntarLista(campo, lista, placeholder) {
 
 const fechaBonita = v => { const [a, m, d] = v.split('-'); return `${+d} de ${['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][+m - 1]} de ${a}`; };
 
+/** Pinta, sin animación, los mensajes que ya se cruzaron en WhatsApp. */
+function historial() {
+  const h = CFG.historial;
+  if (!h) return;
+  document.getElementById('dia').textContent = h.dia;
+  for (const m of h.mensajes) {
+    if (m.lado === 'sale') {
+      fila('sale', `${formato(m.texto)}<span class="hora">${esc(m.hora)} ${CHECK.replace('class="check"', 'class="check visto"')}</span>`);
+      continue;
+    }
+    fila('entra', `${formato(m.texto)}<span class="hora">${esc(m.hora)}</span>`);
+    if (m.botones || m.enlace) {
+      const c = document.createElement('div'); c.className = 'botones';
+      (m.botones || [m.enlace]).forEach((t, i) => {
+        const b = document.createElement('button'); b.type = 'button'; b.disabled = true;
+        b.innerHTML = m.enlace ? `${esc(t)} ↗` : `↩ ${esc(t)}`;
+        if (m.enlace || i === m.elegido) b.classList.add('elegido');
+        c.appendChild(b);
+      });
+      chat.appendChild(c); ultimo = null;
+    }
+  }
+  if (!h.hoy) {
+    const d = document.createElement('div'); d.className = 'dia'; d.textContent = 'Hoy';
+    chat.appendChild(d); ultimo = null;
+  }
+  bajar();
+}
+
 async function conversar() {
   const atras = document.getElementById('atras');
   atras.href = CFG.whatsapp || '/';
-  await espera(500);
+  historial();
+  await espera(700);
   if (CFG.modo === 'registro') return registro(CFG.persona);
   const p = CFG.persona;
   if (!p) {
@@ -449,16 +496,14 @@ async function conversar() {
   }
 
   let tiene = p.tiene;
-  await bot(`¡Hola, ${p.primer}! 💜`);
   if (p.completado) {
-    await bot('Qué alegría verte otra vez por aquí. Ya tengo tus datos guardados.');
+    await bot(`¡Qué alegría verte otra vez por aquí, ${p.primer}! 💜 Ya tengo tus datos guardados.`);
     const r = await botones(['Actualizar mis datos', 'Así están bien']);
     yo(r).visto();
     if (r === 'Así están bien') return despedida(p, false);
     tiene = { ...tiene, direccion: false, email: false, profesion: false };
   } else {
-    await bot('Qué alegría que estés aquí. Te voy a hacer unas preguntas cortitas para que sigamos en contacto y pueda invitarte personalmente 😊');
-    yo(await botones(['¡Empecemos!'])).visto();
+    await bot(`¡Qué bueno que estés aquí, ${p.primer}! 💜 Son unas preguntas cortitas.`);
   }
 
   // Nombre
@@ -531,11 +576,8 @@ async function preguntarGenero(generos) {
 
 /** Registro de alguien que aún no está en la red ("Quiero conocerte"). */
 async function registro(p) {
-  await bot('¡Hola! 💜 Soy Diana Montes.');
-  await bot('Qué alegría que quieras conocerme. Te hago unas preguntas cortitas para conocerte y poder invitarte personalmente cuando nos reunamos 😊');
-  yo(await botones(['¡Empecemos!'])).visto();
-
-  await bot('¿Cómo te llamas? Escríbeme tu nombre completo ✍️');
+  await bot('¡Qué bueno que estés aquí! 💜 Son unas preguntas cortitas para conocerte.');
+  await bot('Para empezar, ¿cómo te llamas? Escríbeme tu nombre completo ✍️');
   const nombre = await preguntar('nombre', { placeholder: 'Nombres y apellidos' });
   const primer = nombre.split(' ')[0];
   await bot(`¡Mucho gusto, ${primer}! 🤗`);
