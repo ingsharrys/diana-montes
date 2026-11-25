@@ -43,6 +43,27 @@ if (!empty($_GET['ref']) && preg_match('/^[a-zA-Z0-9\-_]{2,30}$/', $_GET['ref'])
         $refLider = promotor_resolver_ref(db(), $refCodigo)['nombre'] ?? '';
     } catch (Throwable $e) { /* silencioso */ }
 }
+
+// Agenda de próximos encuentros públicos (3) y arrays de meses/días para mostrar fechas
+$consulta = db()->prepare(
+    "SELECT id, titulo, categoria, descripcion, fecha_inicio, fecha_fin,
+            lugar, direccion, mapa_url
+       FROM eventos
+      WHERE estado = 'publicado' AND fecha_fin >= :ahora
+      ORDER BY fecha_inicio ASC, id ASC
+      LIMIT 3"
+);
+$consulta->execute(['ahora' => (new DateTimeImmutable('now', new DateTimeZone('America/Bogota')))->format('Y-m-d H:i:s')]);
+$agenda = $consulta->fetchAll(PDO::FETCH_ASSOC);
+$meses = [1=>'ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+$dias = [0=>'DOM',1=>'LUN',2=>'MAR',3=>'MIÉ',4=>'JUE',5=>'VIE',6=>'SÁB'];
+$mesesLargos = [1=>'enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+$diasLargos = [0=>'domingo',1=>'lunes',2=>'martes',3=>'miércoles',4=>'jueves',5=>'viernes',6=>'sábado'];
+$zona = new DateTimeZone('America/Bogota');
+$horaEs = static function (DateTimeImmutable $fecha): string {
+    return $fecha->format('g:i') . ($fecha->format('A') === 'AM' ? ' a. m.' : ' p. m.');
+};
+
 ?>
 
 <?php
@@ -452,13 +473,13 @@ include 'include/navbar.php';
               </div>
         
               <div class="conv-social-links">
-                <a href="https://web.facebook.com/DianaLMontes" target="_black">
+                <a href="https://web.facebook.com/DianaLMontes" target="_blank" rel="noopener noreferrer">
                     <span class="conv-social-btn">
                       <i class="fab fa-facebook-f" aria-hidden="true"></i>
                       Facebook
                     </span>
                 </a>
-                <a href="https://www.instagram.com/dianamontescabrera" target="_black">
+                <a href="https://www.instagram.com/dianamontescabrera" target="_blank" rel="noopener noreferrer">
                     <span class="conv-social-btn">
                       <i class="fab fa-instagram" aria-hidden="true"></i>
                       Instagram
@@ -480,63 +501,124 @@ include 'include/navbar.php';
               </div>
             </div>
             <p class="conv-description">Consulta los espacios programados para conversar, compartir experiencias y escuchar diferentes puntos de vista sobre nuestro municipio.</p>
-            <!-- EVENTO DE EJEMPLO: reemplazar por información confirmada -->
-            <div class="conv-event">
-              <div class="conv-event-main">
-                <!-- FECHA -->
-                <div class="conv-event-date" aria-label="21 de noviembre de 2026">
-                  <span class="conv-event-month">NOV</span>
-                  <strong>21</strong>
-                  <span class="conv-event-day">SÁB</span>
-                </div>
-                <!-- INFORMACIÓN -->
-                <div class="conv-event-content">
-                  <span class="conv-event-category">ENCUENTRO COMUNITARIO</span>
-                  <h4>Un café para conversar sobre Garzón</h4>
-                  <p>Un espacio para compartir historias, experiencias e inquietudes sobre nuestro municipio.</p>
-                </div>
-              </div>
-              <div class="conv-event-meta">
-                <div class="conv-event-meta-item">
-                  <i class="fas fa-calendar" aria-hidden="true"></i>
-                  <span>
-                    <time datetime="2026-11-21">
-                      Sábado, 21 de noviembre de 2026
-                    </time>
-                  </span>
-                </div>
-                <div class="conv-event-meta-item">
-                  <i class="fas fa-clock" aria-hidden="true"></i>
-                  <span>4:00 p. m. – 5:30 p. m.</span>
-                </div>
-                <div class="conv-event-meta-item">
-                  <i class="fas fa-location-dot" aria-hidden="true"></i>
-                  <span>Salón comunitario, Garzón, Huila | </span>
-                  <a class="conv-ver-mapa" href="#">Ver en el mapa <i class="fa-solid fa-street-view"></i></a>
-                </div>
-              </div>
-              <!-- ACCIÓN -->
-              <div class="conv-event-actions">
 
-                <button
-                    type="button"
-                    class="conv-event-btn btn-asistir"
-                    data-evento-id="encuentro-2026-11-21"
-                    data-evento-titulo="Un café para conversar sobre Garzón"
-                    aria-haspopup="dialog"
-                    aria-controls="modal-asistencia"
-                >
-                    Asistir
-                    <i class="fas fa-calendar-check" aria-hidden="true"></i>
-                </button>
-            
-            </div>
-            </div>
-            <p class="conv-event-disclaimer">
-              <i class="fas fa-circle-info" aria-hidden="true"></i>
-              Debes confirmar su asistencia para participar en los espacios de conversación
-            </p>
+            <?php if (!$agenda): ?>
+              <div class="conv-event-empty">
+                <i class="fas fa-calendar-xmark" aria-hidden="true"></i>
+                <h4>Próximos encuentros por confirmar</h4>
+                <p>Pronto compartiremos nuevas fechas y lugares de conversación.</p>
+              </div>
+            <?php else: ?>
+
+              <div class="agenda-carousel" id="agenda-carousel"
+                role="region"
+                aria-roledescription="carrusel"
+                aria-label="Próximos encuentros">
+
+                <!-- NAVEGACIÓN -->
+                <div class="agenda-carousel-nav">
+
+                    <span class="agenda-carousel-counter"
+                          id="agenda-carousel-counter"
+                          aria-live="polite">
+                        1 de <?= count($agenda) ?>
+                    </span>
+
+                    <div class="agenda-carousel-arrows">
+
+                        <button type="button"
+                                class="agenda-carousel-arrow"
+                                id="agenda-prev"
+                                aria-label="Encuentro anterior"
+                                aria-controls="agenda-carousel-track">
+                            <i class="fas fa-chevron-left" aria-hidden="true"></i>
+                        </button>
+
+                        <button type="button"
+                                class="agenda-carousel-arrow"
+                                id="agenda-next"
+                                aria-label="Encuentro siguiente"
+                                aria-controls="agenda-carousel-track">
+                            <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                        </button>
+
+                    </div>
+                </div>
+
+                <!-- CONTENEDOR DESLIZABLE -->
+                <div class="agenda-carousel-track"
+                    id="agenda-carousel-track"
+                    tabindex="0"
+                    aria-label="Desliza para ver los encuentros">
+              <?php foreach ($agenda as $indice => $ev):
+                  $inicio = new DateTimeImmutable($ev['fecha_inicio'], $zona);
+                  $fin = new DateTimeImmutable($ev['fecha_fin'], $zona);
+                  $diaSemana = (int) $inicio->format('w');
+                  $mes = (int) $inicio->format('n');
+                  $fechaCompleta = $diasLargos[$diaSemana] . ', ' . $inicio->format('j') .
+                      ' de ' . $mesesLargos[$mes] . ' de ' . $inicio->format('Y');
+                  $horario = $horaEs($inicio) . ' – ' . $horaEs($fin);
+                  if ($inicio->format('Y-m-d') !== $fin->format('Y-m-d')) {
+                      $horario = $inicio->format('d/m/Y') . ' ' . $horaEs($inicio) . ' – ' .
+                          $fin->format('d/m/Y') . ' ' . $horaEs($fin);
+                  }
+              ?>
+                <div class="conv-event agenda-carousel-slide" role="group" aria-roledescription="diapositiva" aria-label="Encuentro <?= $indice + 1 ?> de <?= count($agenda) ?>">
+                  <div class="conv-event-main">
+                    <div class="conv-event-date" aria-label="<?= e($fechaCompleta) ?>">
+                      <span class="conv-event-month"><?= e($meses[$mes]) ?></span>
+                      <strong><?= e($inicio->format('d')) ?></strong>
+                      <span class="conv-event-day"><?= e($dias[$diaSemana]) ?></span>
+                    </div>
+                    <div class="conv-event-content">
+                      <span class="conv-event-category"><?= e(mb_strtoupper($ev['categoria'], 'UTF-8')) ?></span>
+                      <h4><?= e($ev['titulo']) ?></h4>
+                      <p><?= nl2br(e($ev['descripcion'])) ?></p>
+                    </div>
+                  </div>
+                  <div class="conv-event-meta">
+                    <div class="conv-event-meta-item">
+                      <i class="fas fa-calendar" aria-hidden="true"></i>
+                      <span><time datetime="<?= e($inicio->format('Y-m-d')) ?>"><?= e(ucfirst($fechaCompleta)) ?></time></span>
+                    </div>
+                    <div class="conv-event-meta-item">
+                      <i class="fas fa-clock" aria-hidden="true"></i><span><?= e($horario) ?></span>
+                    </div>
+                    <div class="conv-event-meta-item">
+                      <i class="fas fa-location-dot" aria-hidden="true"></i>
+                      <span><?= e($ev['lugar']) ?><?= $ev['direccion'] ? ', ' . e($ev['direccion']) : '' ?>, Garzón, Huila</span>
+                      <?php if ($ev['mapa_url']): ?>
+                        <a class="conv-ver-mapa" href="<?= e($ev['mapa_url']) ?>" target="_blank" rel="noopener noreferrer">Ver mapa <i class="fas fa-street-view" aria-hidden="true"></i></a>
+                      <?php endif; ?>
+                    </div>
+                  </div>
+                  <div class="conv-event-actions">
+                    <button type="button" class="conv-event-btn btn-asistir"
+                            data-evento-id="<?= (int) $ev['id'] ?>"
+                            data-evento-titulo="<?= e($ev['titulo']) ?>"
+                            aria-haspopup="dialog" aria-controls="modal-asistencia">
+                      Asistir <i class="fas fa-calendar-check" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                </div>
+              <?php endforeach; ?>
+                  </div> <!-- agenda-carousel-track -->
+
+                <!-- INDICADORES -->
+                <div class="agenda-carousel-dots"
+                    id="agenda-carousel-dots"
+                    aria-label="Seleccionar encuentro">
+                </div>
+
+            </div> <!-- agenda-carousel -->
+
+              <p class="conv-event-disclaimer">
+                <i class="fas fa-circle-info" aria-hidden="true"></i>
+                Inscríbete para registrar tu interés en asistir. La confirmación dependerá de la organización del evento.
+              </p>
+            <?php endif; ?>
           </article>
+
         
         </div>
 
@@ -548,121 +630,99 @@ include 'include/navbar.php';
          MODAL DE ASISTENCIA A ENCUENTROS
     =========================================== -->
     
-    <dialog id="modal-asistencia" class="asistencia-modal" aria-labelledby="asistencia-titulo" aria-describedby="asistencia-descripcion">
-    
-        <!-- ENCABEZADO -->
-        <div class="asistencia-modal-header">
-    
-            <div class="asistencia-modal-icon">
-                <i class="fas fa-calendar-check" aria-hidden="true"></i>
-            </div>
-    
-            <button type="button" class="asistencia-modal-close" id="cerrar-modal-asistencia" aria-label="Cerrar formulario">
-                <i class="fas fa-xmark" aria-hidden="true"></i>
-            </button>
-    
-        </div>
-    
-        <!-- TÍTULO -->
-        <div class="asistencia-modal-heading">
-            <span class="asistencia-modal-eyebrow">AGENDA DE ENCUENTROS</span>
-            <h2 id="asistencia-titulo">Confirma tu asistencia</h2>
-            <p id="asistencia-descripcion">Completa tus datos para registrar tu interés en asistir al encuentro.</p>
-        </div>
-    
-        <!-- EVENTO SELECCIONADO -->
-        <div class="asistencia-evento-info">
-            <span>ENCUENTRO SELECCIONADO</span>
-            <strong id="asistencia-evento-nombre"></strong>
-        </div>
-    
-        <!-- FORMULARIO -->
-        <form id="form-asistencia" action="./procesar_asistencia.php" method="POST">
-    
-            <input type="hidden" name="evento_id" id="asistencia-evento-id">
-    
-            <!-- NOMBRE -->
-            <div class="asistencia-field">
-    
-                <label for="asistencia-nombre">
-                    Nombre completo <span>*</span>
-                </label>
-    
-                <div class="asistencia-input">
-                    <i class="fas fa-user" aria-hidden="true"></i>
-                    <input type="text" id="asistencia-nombre"name="nombre" placeholder="Escribe tu nombre completo" autocomplete="name" maxlength="100" required>
-                </div>
-    
-            </div>
-    
-            <!-- CORREO -->
-            <div class="asistencia-field">
-    
-                <label for="asistencia-correo">
-                    Correo electrónico <span>*</span>
-                </label>
-    
-                <div class="asistencia-input">
-                    <i class="fas fa-envelope" aria-hidden="true"></i>
-    
-                    <input type="email" id="asistencia-correo" name="correo" placeholder="ejemplo@correo.com" autocomplete="email" maxlength="254" required>
-                </div>
-    
-            </div>
-    
-            <!-- CELULAR -->
-            <div class="asistencia-field">
-    
-                <label for="asistencia-celular">
-                    Número de celular <span>*</span>
-                </label>
-    
-                <div class="asistencia-input">
-                    <i class="fas fa-phone" aria-hidden="true"></i>
-    
-                    <input type="tel" id="asistencia-celular" name="celular" placeholder="300 123 4567" autocomplete="tel" inputmode="tel" maxlength="20" required>
-                </div>
-    
-            </div>
-    
-            <!-- AUTORIZACIÓN DE DATOS -->
-            <label class="asistencia-privacy">
-    
-                <input type="checkbox" name="autorizacion_datos" value="1" required>
-    
-                <span>
-                    Autorizo el tratamiento de mis datos
-                    personales para gestionar mi inscripción
-                    y comunicarme información relacionada
-                    con este encuentro.
-                </span>
-    
-            </label>
-    
-            <!-- ACCIONES -->
-            <div class="asistencia-modal-actions">
-    
-                <button
-                    type="submit"
-                    class="asistencia-submit"
-                >
-                    <i class="fas fa-calendar-check"
-                       aria-hidden="true"></i>
-    
-                    Confirmar Asistencia
-                </button>
-    
-            </div>
-    
-            <p class="asistencia-note">
-                <i class="fas fa-lock" aria-hidden="true"></i>
-                Tus datos se utilizarán para gestionar
-                este encuentro.
-            </p>
-    
-        </form>
-    
-    </dialog>
+    <dialog id="modal-asistencia" class="asistencia-modal"
+        aria-labelledby="asistencia-titulo"
+        aria-describedby="asistencia-descripcion">
+  <div class="asistencia-modal-header">
+    <div class="asistencia-modal-icon">
+      <i class="fas fa-calendar-check" aria-hidden="true"></i>
+    </div>
+    <button type="button" class="asistencia-modal-close"
+            id="cerrar-modal-asistencia" aria-label="Cerrar formulario">
+      <i class="fas fa-xmark" aria-hidden="true"></i>
+    </button>
+  </div>
+
+  <div class="asistencia-modal-heading">
+    <span class="asistencia-modal-eyebrow">AGENDA DE ENCUENTROS</span>
+    <h2 id="asistencia-titulo">Registra tu asistencia</h2>
+    <p id="asistencia-descripcion">Completa tus datos para registrar tu interés en asistir al encuentro.</p>
+  </div>
+
+  <div class="asistencia-evento-info">
+    <span>ENCUENTRO SELECCIONADO</span>
+    <strong id="asistencia-evento-nombre"></strong>
+  </div>
+
+  <form id="form-asistencia" action="./api/registrar_asistencia.php" method="POST">
+    <input type="hidden" name="evento_id" id="asistencia-evento-id">
+    <input type="hidden" name="csrf_token"
+           value="<?= htmlspecialchars((string)($_SESSION['csrf_token'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+
+    <div class="asistencia-field">
+      <label for="asistencia-nombre">Nombre completo <span>*</span></label>
+      <div class="asistencia-input">
+        <i class="fas fa-user" aria-hidden="true"></i>
+        <input type="text" id="asistencia-nombre" name="nombre"
+               placeholder="Escribe tu nombre completo" autocomplete="name"
+               maxlength="120" required>
+      </div>
+    </div>
+
+    <div class="asistencia-field">
+      <label for="asistencia-correo">Correo electrónico <span>*</span></label>
+      <div class="asistencia-input">
+        <i class="fas fa-envelope" aria-hidden="true"></i>
+        <input type="email" id="asistencia-correo" name="correo"
+               placeholder="ejemplo@correo.com" autocomplete="email"
+               maxlength="254" required>
+      </div>
+    </div>
+
+    <div class="asistencia-field">
+      <label for="asistencia-celular">Número de celular <span>*</span></label>
+      <div class="asistencia-input">
+        <i class="fas fa-phone" aria-hidden="true"></i>
+        <input type="tel" id="asistencia-celular" name="celular"
+               placeholder="300 123 4567" autocomplete="tel"
+               inputmode="tel" maxlength="20" required>
+      </div>
+    </div>
+
+    <label class="asistencia-privacy">
+      <input type="checkbox" name="autorizacion_datos" value="1" required>
+      <span>Autorizo el tratamiento de mis datos para gestionar mi inscripción
+        y las comunicaciones relacionadas únicamente con este encuentro, según la
+        <a href="https://dianamontes.com/privacidad/" target="_blank" rel="noopener noreferrer">política de privacidad</a>.
+      </span>
+    </label>
+
+    <div class="asistencia-hp" aria-hidden="true">
+      <label>Tu sitio web <input name="pagina_web" type="text" tabindex="-1" autocomplete="off"></label>
+    </div>
+
+    <div class="asistencia-modal-actions">
+      <button type="submit" class="asistencia-submit">
+        <i class="fas fa-calendar-check" aria-hidden="true"></i>
+        Registrar mi asistencia
+      </button>
+    </div>
+
+    <p id="asistencia-feedback" class="asistencia-feedback" role="alert" hidden></p>
+    <p class="asistencia-note"><i class="fas fa-lock" aria-hidden="true"></i>
+      Tus datos se utilizarán para gestionar este encuentro.</p>
+  </form>
+
+ <div id="asistencia-exito" class="asistencia-exito" role="status" hidden>
+  <i class="fas fa-circle-check" aria-hidden="true"></i>
+  <h3>¡Inscripción recibida!</h3>
+  <p id="asistencia-exito-texto"></p>
+  <p class="muted">Esto registra tu interés; la organización confirmará los detalles.</p>
+  <button type="button" class="asistencia-submit"
+          onclick="document.getElementById('modal-asistencia').close()">Cerrar</button>
+</div>
+</dialog>
+
 
 
     <!-- 9. SÚMATE A LA RED -->

@@ -63,6 +63,10 @@
     <script src="./js/historias.js?cache=<?php echo rand(10,100); ?>" defer></script>
     <!-- simpatizante -->
     <script src="./js/simpatizante.js?cache=<?php echo rand(10,100); ?>" defer></script>
+    <!-- eventos -->
+    <script src="./js/eventos.js?cache=<?php echo rand(10,100); ?>" defer></script>
+    <!-- asistencia -->
+    <script src="./js/asistencias.js?cache=<?php echo rand(10,100); ?>" defer></script>
     <!-- jQuery -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <!-- Select2 -->

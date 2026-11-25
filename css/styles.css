@@ -859,6 +859,195 @@ a.conv-contact-item:hover .conv-arrow {
    AGENDA DE ENCUENTROS
 ============================================ */
 
+
+/* ==========================================
+   CARRUSEL AGENDA DE ENCUENTROS
+========================================== */
+
+/* Evitar desbordamientos dentro del grid */
+.conv-grid > *,
+.conv-card--agenda {
+    min-width: 0;
+}
+
+.agenda-carousel {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* NAVEGACIÓN */
+.agenda-carousel-nav {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
+    margin-bottom: 15px;
+}
+
+.agenda-carousel-counter {
+    font-family: "Poppins", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: #777;
+}
+
+.agenda-carousel-arrows {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.agenda-carousel-arrow {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    width: 38px;
+    height: 38px;
+
+    border: 1px solid #EBD9E1;
+    border-radius: 50%;
+
+    background: #FFFFFF;
+    color: #B42D69;
+
+    font-size: 13px;
+    cursor: pointer;
+
+    transition: all 0.25s ease;
+}
+
+.agenda-carousel-arrow:hover:not(:disabled) {
+    background: #B42D69;
+    color: #FFFFFF;
+    border-color: #B42D69;
+}
+
+.agenda-carousel-arrow:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* CONTENEDOR DESLIZABLE */
+.agenda-carousel-track {
+    display: flex;
+    gap: 12px;
+
+    width: 100%;
+    min-width: 0;
+
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    overscroll-behavior-x: contain;
+
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.agenda-carousel-track::-webkit-scrollbar {
+    display: none;
+}
+
+/* CADA EVENTO OCUPA UNA DIAPOSITIVA */
+.agenda-carousel-track .agenda-carousel-slide {
+    flex: 0 0 100%;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+
+    margin: 0;
+}
+
+/* Evitar que textos largos deformen el carrusel */
+.agenda-carousel-slide .conv-event-content {
+    min-width: 0;
+}
+
+.agenda-carousel-slide .conv-event-meta-item {
+    flex-wrap: wrap;
+}
+
+/* INDICADORES */
+.agenda-carousel-dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.agenda-carousel-dot {
+    width: 9px;
+    height: 9px;
+    padding: 0;
+
+    border: none;
+    border-radius: 20px;
+
+    background: #D8C4CD;
+
+    cursor: pointer;
+    transition: width .25s ease,
+                background .25s ease;
+}
+
+.agenda-carousel-dot.is-active {
+    width: 26px;
+    background: #B42D69;
+}
+
+.agenda-carousel-arrow:focus-visible,
+.agenda-carousel-dot:focus-visible {
+    outline: 2px solid #B42D69;
+    outline-offset: 3px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 575px) {
+
+    .agenda-carousel-nav {
+        margin-bottom: 12px;
+    }
+
+    .agenda-carousel-arrow {
+        width: 35px;
+        height: 35px;
+    }
+
+    .agenda-carousel-track {
+        gap: 10px;
+    }
+
+    .agenda-carousel-dots {
+        margin-top: 15px;
+    }
+
+}
+
+/* ACCESIBILIDAD */
+@media (prefers-reduced-motion: reduce) {
+
+    .agenda-carousel-track {
+        scroll-behavior: auto;
+    }
+
+    .agenda-carousel-arrow,
+    .agenda-carousel-dot {
+        transition: none;
+    }
+
+}
+
+
 .conv-card--agenda {
     display: flex;
     flex-direction: column;
@@ -1247,6 +1436,42 @@ a.conv-contact-item:hover .conv-arrow {
     font-size: 11px;
     line-height: 1.7;
 }
+
+.asistencia-modal [hidden] { display: none !important; }
+.asistencia-feedback {
+    margin: 16px 0 0;
+    padding: 12px 14px;
+    border-radius: 9px;
+    font-size: 13px;
+    line-height: 1.6;
+}
+.asistencia-feedback.is-error {
+    color: #8B234E;
+    background: #FCE9F0;
+    border: 1px solid #E6AAC4;
+}
+.asistencia-exito {
+    text-align: center;
+    padding: 20px 6px 5px;
+    color: #1F2328;
+    font-family: Poppins, sans-serif;
+}
+.asistencia-exito > i { color: #B42D69; font-size: 42px; }
+.asistencia-exito h3 { margin: 14px 0 10px; font-size: 22px; }
+.asistencia-exito p { line-height: 1.7; font-size: 13px; }
+.asistencia-exito .asistencia-submit { margin-top: 16px; }
+.asistencia-hp {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
 
 /* BOTÓN */
 
