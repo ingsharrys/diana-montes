@@ -1,16 +1,17 @@
 <?php
 /**
- * /conversemos/?t=LLAVE — Chat para confirmar los datos de contacto.
+ * /conversemos/ — Chat con aspecto de WhatsApp. Dos modos:
  *
- * Llega por WhatsApp cuando la persona responde "Sí" al mensaje masivo
- * "¿Conversamos?" (ver inc/conversemos.php). Se ve como una conversación:
- * Diana pregunta uno a uno solo los datos que faltan y cada respuesta se
- * guarda al momento en el registro de la persona.
+ * ?t=LLAVE  Confirmar datos: llega a quien ya está en la red y respondió "Sí"
+ *           al mensaje "¿Conversamos?". Pregunta solo lo que falta.
+ * ?r=LLAVE  Registro ("Quiero conocerte"): llega a un celular que aún no está
+ *           en la red. Su número ya viene del enlace; se le pregunta el resto,
+ *           se pide la autorización de datos y se crea el registro.
  *
- * GET  -> la página. POST (JSON) -> guarda una respuesta: {campo, valor, csrf}.
+ * Cada respuesta se revisa en el servidor y, si hay un error, Diana lo explica
+ * en el chat. GET -> la página. POST (JSON) -> {campo, valor, csrf}.
  */
-require __DIR__ . '/../config.php';
-require __DIR__ . '/../inc/promotores.php';
+require __DIR__ . '/../admin/bootstrap.php';   // misma configuración del admin (base de datos y WhatsApp)
 
 session_start();
 header('Cache-Control: no-store');
@@ -18,50 +19,90 @@ header('X-Robots-Tag: noindex, nofollow');
 header('Referrer-Policy: no-referrer');
 header('X-Frame-Options: DENY');
 
-$db = db();
+$db = Core\Database::conexion();
 
-/* La llave viaja en el enlace solo la primera vez: luego queda en la sesión y se quita de la barra */
-if (is_string($_GET['t'] ?? null) && preg_match('/^[a-f0-9]{32}$/', $_GET['t'])) $_SESSION['conv_t'] = $_GET['t'];
+/* Las llaves viajan en el enlace solo la primera vez: luego quedan en la sesión y se quitan de la barra */
+foreach (['t' => 'conv_t', 'r' => 'conv_r'] as $param => $clave) {
+    if (is_string($_GET[$param] ?? null) && preg_match('/^[a-f0-9]{32}$/', $_GET[$param])) {
+        $_SESSION[$clave] = $_GET[$param];
+        if ($param === 't') unset($_SESSION['conv_r']); else unset($_SESSION['conv_t'], $_SESSION['conv_reg']);
+    }
+}
+$invitacion = !empty($_SESSION['conv_r']) ? conv_por_invitacion($db, (string)$_SESSION['conv_r']) : null;
+// Si el celular ya está en la red (o acaba de registrarse), sigue con su chat de datos
+if ($invitacion && ($t = conv_invitacion_a_datos($db, $invitacion))) {
+    $_SESSION['conv_t'] = $t;
+    unset($_SESSION['conv_r']);
+    $invitacion = null;
+}
 $token = (string)($_SESSION['conv_t'] ?? '');
 $persona = $token !== '' ? conv_por_token($db, $token) : null;
+
+/** Lo que el chat necesita para preguntar: datos de la persona y las listas. */
+function conv_paquete(PDO $db, ?array $persona): array
+{
+    $d = $persona ? conv_datos_chat($persona) : [];
+    $d['zonas'] = array_map(fn($z) => [(int)$z['id'], $z['nombre'], zona_grupo_etiqueta($z)], zonas_listar($db));
+    $d['profesiones'] = array_map(fn($p) => [(int)$p['id'], $p['nombre']],
+        $db->query("SELECT id, nombre FROM profesiones ORDER BY (nombre = 'Otra'), nombre")->fetchAll(PDO::FETCH_ASSOC));
+    $d['generos'] = !$persona || $persona['pide_genero'] ? GENEROS : [];
+    return $d;
+}
 
 /* ---------- POST: guardar una respuesta ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json; charset=utf-8');
     $in = json_decode((string)file_get_contents('php://input'), true) ?: [];
-    $responder = function (bool $ok, string $msg = '', int $http = 200) {
+    $responder = function (bool $ok, string $msg = '', int $http = 200, array $extra = []) {
         http_response_code($http);
-        echo json_encode(['ok' => $ok, 'msg' => $msg], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['ok' => $ok, 'msg' => $msg] + $extra, JSON_UNESCAPED_UNICODE);
         exit;
     };
-    if (!$persona) $responder(false, 'Este enlace ya no está activo. Responde "Sí" a mi mensaje en WhatsApp y te envío uno nuevo.', 403);
+    if (!$persona && !$invitacion) $responder(false, 'Este enlace ya no está activo. Responde "Sí" a mi mensaje en WhatsApp y te envío uno nuevo.', 403);
     if (!hash_equals((string)($_SESSION['conv_csrf'] ?? ''), (string)($in['csrf'] ?? ''))) $responder(false, 'La página estuvo abierta mucho tiempo. Recárgala, por favor.', 403);
     $_SESSION['conv_n'] = ($_SESSION['conv_n'] ?? 0) + 1;
-    if ($_SESSION['conv_n'] > 120) $responder(false, 'Recibí muchas respuestas seguidas. Intenta de nuevo más tarde.', 429);
+    if ($_SESSION['conv_n'] > 150) $responder(false, 'Recibí muchas respuestas seguidas. Intenta de nuevo más tarde.', 429);
+    $campo = (string)($in['campo'] ?? '');
+    $valor = is_scalar($in['valor'] ?? null) ? (string)$in['valor'] : '';
     try {
-        [$ok, $msg] = conv_guardar($db, $persona, (string)($in['campo'] ?? ''), is_scalar($in['valor'] ?? null) ? (string)$in['valor'] : '');
+        if ($persona) {
+            [$ok, $msg] = conv_guardar($db, $persona, $campo, $valor);
+            $responder($ok, $msg);
+        }
+        // Registro: cada respuesta se revisa y queda en la sesión hasta la autorización
+        $reg = $_SESSION['conv_reg'] ?? [];
+        if ($campo === 'registrar') {
+            [$ok, $msg, $t] = conv_registrar($db, $invitacion, $reg);
+            if (!$ok) $responder(false, $msg);
+            $_SESSION['conv_t'] = $t;
+            unset($_SESSION['conv_r'], $_SESSION['conv_reg']);
+            $responder(true, $msg, 200, ['persona' => conv_paquete($db, conv_por_token($db, $t))]);
+        }
+        $r = conv_registro_campo($db, $campo, $valor, $reg);
+        $_SESSION['conv_reg'] = $reg;
+        $responder($r[0], (string)$r[1], 200, isset($r[2]) ? ['fin' => $r[2]] : []);
     } catch (Throwable $e) {
         error_log('[conversemos] ' . $e->getMessage());
         $responder(false, 'No pude guardar eso ahora 😕 Intenta de nuevo en un momento.', 500);
     }
-    $responder($ok, $msg);
 }
 
 /* ---------- GET: la página ---------- */
 if (empty($_SESSION['conv_csrf'])) $_SESSION['conv_csrf'] = bin2hex(random_bytes(16));
+$modo = $persona ? 'datos' : ($invitacion ? 'registro' : null);
 $datos = null;
 if ($persona) {
     $db->prepare('UPDATE wa_conversemos SET abierto_at = NOW() WHERE id = :id AND abierto_at IS NULL')->execute(['id' => $persona['conv_id']]);
-    $datos = conv_datos_chat($persona);
-    $datos['zonas'] = array_map(fn($z) => [(int)$z['id'], $z['nombre'], zona_grupo_etiqueta($z)], zonas_listar($db));
-    $datos['profesiones'] = array_map(fn($p) => [(int)$p['id'], $p['nombre']],
-        $db->query("SELECT id, nombre FROM profesiones ORDER BY (nombre = 'Otra'), nombre")->fetchAll(PDO::FETCH_ASSOC));
-    $datos['generos'] = $persona['pide_genero'] ? GENEROS : [];
+    $datos = conv_paquete($db, $persona);
+} elseif ($invitacion) {
+    $db->prepare('UPDATE wa_invitaciones SET abierto_at = NOW() WHERE id = :id AND abierto_at IS NULL')->execute(['id' => $invitacion['id']]);
+    $datos = conv_paquete($db, null) + ['pide_clave' => esquema_tiene($db, 'simpatizantes', 'clave_hash')];
 }
 $L = legal_datos($db);
 $wa = preg_replace('/\D/', '', (string)$L['legal_telefono']);
 if (strlen($wa) === 10) $wa = '57' . $wa;
-$config = ['csrf' => $_SESSION['conv_csrf'], 'persona' => $datos, 'whatsapp' => strlen($wa) >= 12 ? "https://wa.me/$wa" : null];
+$config = ['csrf' => $_SESSION['conv_csrf'], 'modo' => $modo, 'persona' => $datos, 'whatsapp' => strlen($wa) >= 12 ? "https://wa.me/$wa" : null,
+           'sitio' => wa_sitio()];
 ?>
 <!doctype html>
 <html lang="es">
@@ -76,27 +117,31 @@ $config = ['csrf' => $_SESSION['conv_csrf'], 'persona' => $datos, 'whatsapp' => 
 <style>
 :root{
   --barra:#008069; --barra-txt:#fff; --fondo:#EFEAE2; --patron:rgba(0,0,0,.045);
+  --doodle:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22180%22 height=%22180%22 viewBox=%220 0 180 180%22 fill=%22none%22 stroke=%22rgba%280,0,0,0.07%29%22 stroke-width=%221.6%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M28 38c-7-6-12-9-12-14a6 6 0 0 1 12-2 6 6 0 0 1 12 2c0 5-5 8-12 14z%22/%3E%3Cpath d=%22M120 18l3.5 7 7.5 1-5.5 5.3 1.3 7.5-6.8-3.6-6.8 3.6 1.3-7.5-5.5-5.3 7.5-1z%22/%3E%3Cpath d=%22M70 70h28a6 6 0 0 1 6 6v14a6 6 0 0 1-6 6H82l-8 7v-7h-4a6 6 0 0 1-6-6V76a6 6 0 0 1 6-6z%22/%3E%3Cpath d=%22M150 80v20a5 5 0 1 1-3-4.6V84l14-4v16a5 5 0 1 1-3-4.6%22/%3E%3Cpath d=%22M22 120h22v10a11 11 0 0 1-22 0zM44 123h4a4 4 0 0 1 0 8h-4M28 112c0-3 3-3 3-6M36 112c0-3 3-3 3-6%22/%3E%3Ccircle cx=%22112%22 cy=%22140%22 r=%227%22/%3E%3Cpath d=%22M112 125v4M112 151v4M97 140h4M123 140h4M101 129l3 3M120 148l3 3M123 129l-3 3M104 148l-3 3%22/%3E%3Cpath d=%22M160 150c-14 0-22-8-22-20 12 0 22 6 22 20zM160 150l-14-14%22/%3E%3Cpath d=%22M60 160l6-6M66 160l-6-6%22/%3E%3Ccircle cx=%22160%22 cy=%2240%22 r=%223%22/%3E%3Ccircle cx=%2280%22 cy=%2230%22 r=%222%22/%3E%3C/svg%3E");
   --entra:#fff; --sale:#D9FDD3; --txt:#111B21; --suave:#667781; --acento:#00A884; --enlace:#027EB5;
   --chip:#fff; --chip-txt:#008069; --aviso:#FFEECD; --aviso-txt:#54656F; --compositor:#F0F2F5; --campo:#fff; --visto:#53BDEB;
   --sombra:0 1px .5px rgba(11,20,26,.13);
 }
 @media (prefers-color-scheme: dark){:root{
   --barra:#202C33; --barra-txt:#E9EDEF; --fondo:#0B141A; --patron:rgba(255,255,255,.03);
+  --doodle:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22180%22 height=%22180%22 viewBox=%220 0 180 180%22 fill=%22none%22 stroke=%22rgba%28255,255,255,0.045%29%22 stroke-width=%221.6%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M28 38c-7-6-12-9-12-14a6 6 0 0 1 12-2 6 6 0 0 1 12 2c0 5-5 8-12 14z%22/%3E%3Cpath d=%22M120 18l3.5 7 7.5 1-5.5 5.3 1.3 7.5-6.8-3.6-6.8 3.6 1.3-7.5-5.5-5.3 7.5-1z%22/%3E%3Cpath d=%22M70 70h28a6 6 0 0 1 6 6v14a6 6 0 0 1-6 6H82l-8 7v-7h-4a6 6 0 0 1-6-6V76a6 6 0 0 1 6-6z%22/%3E%3Cpath d=%22M150 80v20a5 5 0 1 1-3-4.6V84l14-4v16a5 5 0 1 1-3-4.6%22/%3E%3Cpath d=%22M22 120h22v10a11 11 0 0 1-22 0zM44 123h4a4 4 0 0 1 0 8h-4M28 112c0-3 3-3 3-6M36 112c0-3 3-3 3-6%22/%3E%3Ccircle cx=%22112%22 cy=%22140%22 r=%227%22/%3E%3Cpath d=%22M112 125v4M112 151v4M97 140h4M123 140h4M101 129l3 3M120 148l3 3M123 129l-3 3M104 148l-3 3%22/%3E%3Cpath d=%22M160 150c-14 0-22-8-22-20 12 0 22 6 22 20zM160 150l-14-14%22/%3E%3Cpath d=%22M60 160l6-6M66 160l-6-6%22/%3E%3Ccircle cx=%22160%22 cy=%2240%22 r=%223%22/%3E%3Ccircle cx=%2280%22 cy=%2230%22 r=%222%22/%3E%3C/svg%3E");
   --entra:#202C33; --sale:#005C4B; --txt:#E9EDEF; --suave:#8696A0; --acento:#00A884; --enlace:#53BDEB;
   --chip:#202C33; --chip-txt:#00A884; --aviso:#182229; --aviso-txt:#FFD279; --compositor:#202C33; --campo:#2A3942;
 }}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--txt);background:var(--fondo);
-  display:flex;flex-direction:column;height:100dvh;max-width:760px;margin:0 auto;overflow:hidden}
+  display:flex;flex-direction:column;height:100dvh;max-width:760px;margin:0 auto;overflow:hidden;overflow-x:hidden}
 header{background:var(--barra);color:var(--barra-txt);display:flex;align-items:center;gap:10px;padding:8px 12px;padding-top:max(8px,env(safe-area-inset-top));flex:none}
 header img{width:40px;height:40px;border-radius:50%;object-fit:cover}
+header .atras{color:inherit;display:grid;place-items:center;margin-right:-6px}
+header .iconos{margin-left:auto;display:flex;gap:22px;padding-right:4px}
+header svg{width:23px;height:23px;display:block}
 header b{display:block;font-size:16px;font-weight:600}
 header small{display:block;font-size:12.5px;opacity:.85;min-height:16px}
 #chat{flex:1;overflow-y:auto;padding:10px 4% 14px;scroll-behavior:smooth;
   background-color:var(--fondo);
-  background-image:radial-gradient(var(--patron) 1.2px,transparent 1.3px),radial-gradient(var(--patron) 1.2px,transparent 1.3px);
-  background-size:26px 26px;background-position:0 0,13px 13px}
+  background-image:var(--doodle);background-size:180px 180px}
 .dia{align-self:center;text-align:center;margin:6px auto 10px;background:var(--entra);color:var(--suave);font-size:12.5px;padding:5px 12px;border-radius:8px;box-shadow:var(--sombra);width:max-content}
 .sistema{background:var(--aviso);color:var(--aviso-txt);font-size:12.5px;text-align:center;padding:6px 12px;border-radius:8px;margin:0 auto 12px;max-width:92%;box-shadow:var(--sombra);line-height:1.45}
 .sistema a{color:inherit;font-weight:600}
@@ -127,14 +172,19 @@ header small{display:block;font-size:12.5px;opacity:.85;min-height:16px}
 .aparece{animation:ap .18s ease-out}
 @keyframes ap{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 footer{flex:none;background:var(--compositor);padding:6px 8px;padding-bottom:max(6px,env(safe-area-inset-bottom));position:relative}
-form{display:flex;align-items:flex-end;gap:6px}
-.campo{flex:1;background:var(--campo);border-radius:22px;display:flex;align-items:center;min-height:44px;padding:0 14px}
+form{display:flex;align-items:flex-end;gap:6px;min-width:0}
+.campo{flex:1;min-width:0;background:var(--campo);border-radius:22px;display:flex;align-items:center;min-height:44px;padding:0 14px}
 .campo input,.campo textarea{flex:1;border:0;outline:0;background:transparent;color:var(--txt);font:inherit;font-size:16px;padding:10px 0;resize:none;max-height:120px;min-width:0}
 .campo input::placeholder,.campo textarea::placeholder{color:var(--suave)}
 .campo input[type=date]{color-scheme:light dark}
 .enviar{width:44px;height:44px;border-radius:50%;border:0;background:var(--acento);color:#fff;display:grid;place-items:center;cursor:pointer;flex:none}
-.enviar:disabled{opacity:.45;cursor:default}
+.enviar:disabled{cursor:default}
 .enviar svg{width:22px;height:22px}
+.enviar .ico-env,.enviar.listo .ico-mic{display:none}
+.enviar.listo .ico-env{display:block}
+.mas{width:30px;height:44px;display:grid;place-items:center;color:var(--suave);flex:none}
+.mas svg,.campo .emoji{width:24px;height:24px}
+.campo .emoji{color:var(--suave);margin-right:10px;flex:none}
 .sugerencias{position:absolute;left:8px;right:60px;bottom:100%;margin-bottom:6px;background:var(--entra);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.18);
   max-height:min(48vh,300px);overflow-y:auto;display:none}
 .sugerencias.ver{display:block}
@@ -147,9 +197,14 @@ form{display:flex;align-items:flex-end;gap:6px}
 </head>
 <body>
 <header>
+  <a class="atras" id="atras" href="#" aria-label="Volver"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 4l1.4 1.4L7.8 11H20v2H7.8l5.6 5.6L12 20l-8-8z"/></svg></a>
   <img src="/img/diana-avatar.jpg" alt="" width="40" height="40">
   <div><b>Diana Montes</b>
     <small id="estado">en línea</small></div>
+  <div class="iconos" aria-hidden="true">
+    <svg viewBox="0 0 24 24"><path fill="currentColor" d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11z"/></svg>
+    <svg viewBox="0 0 24 24"><path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg>
+  </div>
 </header>
 
 <main id="chat" aria-live="polite">
@@ -161,9 +216,11 @@ form{display:flex;align-items:flex-end;gap:6px}
 <footer id="pie">
   <div class="sugerencias" id="sugerencias" role="listbox"></div>
   <form id="compositor" autocomplete="off" novalidate>
-    <div class="campo"><input id="entrada" placeholder="Elige una opción ☝️" disabled aria-label="Tu respuesta"></div>
+    <span class="mas" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg></span>
+    <div class="campo"><svg class="emoji" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm-3.5-9A1.5 1.5 0 1 0 8.5 8a1.5 1.5 0 0 0 0 3zm7 0A1.5 1.5 0 1 0 15.5 8a1.5 1.5 0 0 0 0 3zM12 17.5c2.3 0 4.3-1.5 5-3.5H7c.7 2 2.7 3.5 5 3.5z"/></svg><input id="entrada" placeholder="Elige una opción ☝️" disabled aria-label="Tu respuesta"></div>
     <button class="enviar" id="enviar" type="submit" disabled aria-label="Enviar">
-      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M3.4 20.4l17.45-7.48a1 1 0 0 0 0-1.84L3.4 3.6a.99.99 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z"/></svg>
+      <svg class="ico-mic" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 0 0-7 0v6A3.5 3.5 0 0 0 12 15zm6-3.5a6 6 0 0 1-12 0H4.5a7.5 7.5 0 0 0 6.75 7.46V22h1.5v-3.04a7.5 7.5 0 0 0 6.75-7.46z"/></svg>
+      <svg class="ico-env" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3.4 20.4l17.45-7.48a1 1 0 0 0 0-1.84L3.4 3.6a.99.99 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z"/></svg>
     </button>
   </form>
 </footer>
@@ -239,7 +296,7 @@ function botones(opciones) {
 function bloquear(texto) {
   cambiarEntrada('input');
   entrada.disabled = true; entrada.value = ''; entrada.placeholder = texto;
-  btnEnviar.disabled = true;
+  btnEnviar.disabled = true; btnEnviar.classList.remove('listo');
   sug.classList.remove('ver');
 }
 
@@ -269,12 +326,13 @@ function escribir(op = {}) {
     }
     cambiarEntrada(op.tipo === 'largo' ? 'textarea' : 'input');
     if (entrada.tagName === 'INPUT') {
-      entrada.type = op.tipo === 'date' ? 'date' : (op.tipo === 'email' ? 'email' : 'text');
-      entrada.inputMode = op.tipo === 'email' ? 'email' : 'text';
+      entrada.type = { date: 'date', email: 'email', clave: 'password' }[op.tipo] || 'text';
+      entrada.inputMode = { email: 'email', numero: 'numeric' }[op.tipo] || 'text';
+      entrada.autocomplete = op.tipo === 'clave' ? 'new-password' : 'off';
       if (op.tipo === 'date') { entrada.max = new Date().toISOString().slice(0, 10); entrada.min = '1915-01-01'; }
     }
     entrada.disabled = false; entrada.value = op.valor || ''; entrada.placeholder = op.placeholder || 'Escribe aquí…';
-    const actualizar = () => btnEnviar.disabled = entrada.value.trim() === '';
+    const actualizar = () => { const v = entrada.value.trim() !== ''; btnEnviar.disabled = !v; btnEnviar.classList.toggle('listo', v); };
     entrada.addEventListener('input', actualizar); actualizar();
     setTimeout(() => entrada.focus({ preventScroll: true }), 50);
     const enviar = ev => {
@@ -376,15 +434,16 @@ async function preguntarLista(campo, lista, placeholder) {
 const fechaBonita = v => { const [a, m, d] = v.split('-'); return `${+d} de ${['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][+m - 1]} de ${a}`; };
 
 async function conversar() {
-  const p = CFG.persona;
+  const atras = document.getElementById('atras');
+  atras.href = CFG.whatsapp || '/';
   await espera(500);
+  if (CFG.modo === 'registro') return registro(CFG.persona);
+  const p = CFG.persona;
   if (!p) {
     await bot('¡Hola! 💜');
     await bot('Este enlace ya no está activo o no es válido 😕');
     await bot('Responde *Sí* a mi mensaje en WhatsApp y te envío uno nuevo. Y si aún no haces parte de la red, puedes sumarte aquí:');
-    const c = document.createElement('div'); c.className = 'botones aparece';
-    c.innerHTML = '<a href="/#sumate">💜 Quiero sumarme</a>';
-    chat.appendChild(c); bajar();
+    enlace('💜 Quiero sumarme', '/#sumate');
     document.getElementById('pie').classList.add('oculto');
     return;
   }
@@ -431,47 +490,114 @@ async function conversar() {
     await bot('¿En qué barrio o vereda vives? Escribe el nombre y elígelo de la lista 👇');
     await preguntarLista('zona', p.zonas, 'Escribe tu barrio o vereda…');
   }
-
-  // Dirección
-  if (!tiene.direccion) {
-    await bot('¿Me compartes tu dirección? 🏡 Así puedo invitarte personalmente cuando esté por tu sector.');
-    await preguntar('direccion', { placeholder: 'Ej. Calle 5 # 8-20, casa azul', saltar: 'Prefiero no decirla' });
-  }
-
-  // Profesión u oficio
   if (!tiene.profesion) {
     await bot('¿A qué te dedicas? 💼');
     await preguntarLista('profesion', p.profesiones, 'Escribe tu profesión u oficio…');
   }
+  if (!tiene.genero && Object.keys(p.generos).length) await preguntarGenero(p.generos);
+  return completar(p, tiene);
+}
 
-  // Género
-  if (!tiene.genero && Object.keys(p.generos).length) {
-    await bot('¿Cómo te identificas?');
-    const etiquetas = Object.values(p.generos);
-    for (;;) {
-      const g = await botones(etiquetas);
-      const clave = Object.keys(p.generos).find(k => p.generos[k] === g);
-      const m = yo(g);
-      const res = await guardar('genero', clave);
-      if (res.ok) { m.visto(); break; }
-      await bot(res.msg);
-    }
+/** Últimas preguntas (dirección, correo y qué sueña) y despedida: las usan los dos modos. */
+async function completar(p, tiene) {
+  if (!tiene.direccion) {
+    await bot('¿Me compartes tu dirección? 🏡 Así puedo invitarte personalmente cuando esté por tu sector.');
+    await preguntar('direccion', { placeholder: 'Ej. Calle 5 # 8-20, casa azul', saltar: 'Prefiero no decirla' });
   }
-
-  // Correo
   if (!tiene.email) {
     await bot('¿Tienes correo electrónico? 📧 Es opcional.');
     await preguntar('email', { tipo: 'email', placeholder: 'tucorreo@gmail.com', saltar: 'No tengo' });
   }
-
-  // Lo más importante
   await bot('Y ahora lo más importante para mí 💜');
   await bot('Cuéntame, ¿cómo estás y qué sueñas para Garzón?');
   const s = await preguntar('sueno', { tipo: 'largo', placeholder: 'Escríbeme lo que quieras…', saltar: 'Ahora no' });
   if (s !== null) await bot('Gracias por contármelo. Lo voy a leer con mucho cariño 🙏');
-
   await guardar('fin', '');
   return despedida(p, true);
+}
+
+async function preguntarGenero(generos) {
+  await bot('¿Cómo te identificas?');
+  const etiquetas = Object.values(generos);
+  for (;;) {
+    const g = await botones(etiquetas);
+    const clave = Object.keys(generos).find(k => generos[k] === g);
+    const m = yo(g);
+    const res = await guardar('genero', clave);
+    if (res.ok) { m.visto(); return; }
+    await bot(res.msg);
+  }
+}
+
+/** Registro de alguien que aún no está en la red ("Quiero conocerte"). */
+async function registro(p) {
+  await bot('¡Hola! 💜 Soy Diana Montes.');
+  await bot('Qué alegría que quieras conocerme. Te hago unas preguntas cortitas para conocerte y poder invitarte personalmente cuando nos reunamos 😊');
+  yo(await botones(['¡Empecemos!'])).visto();
+
+  await bot('¿Cómo te llamas? Escríbeme tu nombre completo ✍️');
+  const nombre = await preguntar('nombre', { placeholder: 'Nombres y apellidos' });
+  const primer = nombre.split(' ')[0];
+  await bot(`¡Mucho gusto, ${primer}! 🤗`);
+
+  await bot('¿Cuál es tu número de cédula? Lo necesito para tu registro en la red.');
+  for (;;) {
+    const v = await escribir({ tipo: 'numero', placeholder: 'Solo números, sin puntos' });
+    const m = yo(v);
+    const r = await guardar('documento', v);
+    if (r.ok) { m.visto(); break; }
+    await bot(r.msg);
+    if (r.fin === 'registrado') return terminarSinGuardar();
+  }
+
+  await bot('¿Cuándo es tu cumpleaños? 🎂 Me encantaría saludarte ese día.');
+  await preguntar('cumple', { tipo: 'date', placeholder: 'Fecha de nacimiento' }, fechaBonita);
+  await bot('¡Anotado! 🎉');
+
+  await preguntarGenero(p.generos);
+
+  await bot('¿En qué barrio o vereda vives? Escribe el nombre y elígelo de la lista 👇');
+  await preguntarLista('zona', p.zonas, 'Escribe tu barrio o vereda…');
+
+  await bot('¿A qué te dedicas? 💼');
+  await preguntarLista('profesion', p.profesiones, 'Escribe tu profesión u oficio…');
+
+  if (p.pide_clave) {
+    await bot('Ahora crea una clave 🔑 Con tu cédula y esa clave entras a tu panel en la página de Diana.');
+    await preguntar('clave', { tipo: 'clave', placeholder: 'Mínimo 6 caracteres' }, v => '•'.repeat(Math.min(v.length, 12)));
+  }
+
+  await bot('Para guardar tus datos necesito tu autorización 🔒 Los usamos solo para mantenernos en contacto contigo y nunca los compartimos.');
+  enlace('📄 Ver la política de datos', '/privacidad/', true);
+  await bot('¿Me autorizas a guardar tus datos? (Ley 1581 de 2012)');
+  const a = await botones(['Sí, autorizo', 'No autorizo']);
+  yo(a).visto();
+  if (a === 'No autorizo') {
+    await bot('Entiendo 💜 Sin tu autorización no puedo guardar tus datos.');
+    await bot('Si cambias de opinión, abre otra vez el enlace que te envié por WhatsApp. Un abrazo, Diana.');
+    return terminarSinGuardar();
+  }
+  const r = await guardar('registrar', 'si');
+  if (!r.ok) { await bot(r.msg); return terminarSinGuardar(); }
+  const persona = r.persona;
+  if (r.msg === 'ya') {
+    await bot(`¡${primer}, ya haces parte de la red! 💜`);
+  } else {
+    await bot(`¡Listo, ${primer}! Ya haces parte de la red 💜`);
+    await bot(`Con tu cédula y tu clave puedes entrar a tu panel en *${CFG.sitio.replace(/^https?:\/\//, '')}/mi* 🙌`);
+  }
+  return completar({ ...persona, primer }, persona.tiene);
+}
+
+function terminarSinGuardar() {
+  document.getElementById('pie').classList.add('oculto');
+}
+
+/** Botón con enlace debajo del último mensaje. */
+function enlace(texto, url, nuevaPestana = false) {
+  const c = document.createElement('div'); c.className = 'botones aparece';
+  c.innerHTML = `<a href="${esc(url)}"${nuevaPestana ? ' target="_blank" rel="noopener"' : ''}>${esc(texto)}</a>`;
+  chat.appendChild(c); ultimo = null; bajar();
 }
 
 async function despedida(p, guardado) {
@@ -479,11 +605,7 @@ async function despedida(p, guardado) {
   await bot('Pronto te escribo para invitarte a nuestro próximo encuentro. Me haría muy feliz verte 💜');
   await bot('Un abrazo,\n*Diana Montes*');
   document.getElementById('pie').classList.add('oculto');
-  if (CFG.whatsapp) {
-    const c = document.createElement('div'); c.className = 'botones aparece';
-    c.innerHTML = `<a href="${esc(CFG.whatsapp)}">💬 Volver a WhatsApp</a>`;
-    chat.appendChild(c); bajar();
-  }
+  if (CFG.whatsapp) enlace('💬 Volver a WhatsApp', CFG.whatsapp);
 }
 
 conversar();
