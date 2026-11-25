@@ -32,6 +32,12 @@ const CONV_TEXTO_DATOS = "Ay, qué alegría 💜\n\n"
     . "¿Me confirmas algunos daticos tuyos para seguir en contacto y poder invitarte personalmente cuando nos reunamos?\n\n"
     . "Me haría muy feliz verte.";
 
+const CONV_TEXTO_CONOCERTE = "Ay, qué alegría 💜\n\n"
+    . "Gracias por este espacio. Me encanta que sigamos cerquita y que pronto podamos encontrarnos y conversar.\n\n"
+    . "¿Me cuentas un poquito de ti para seguir en contacto y poder invitarte personalmente cuando nos reunamos?\n\n"
+    . "Me haría muy feliz verte.";
+const CONV_BOTON_CONOCERTE = 'Quiero conocerte';   // máximo 20 caracteres
+
 const CONV_TEXTO_NO = "Gracias por responderme, de verdad 💜 Respeto mucho tu tiempo. Aquí estaré si algún día quieres conversar. Un abrazo, Diana.";
 
 /** Respuestas escritas a mano que cuentan como Sí o No (ya normalizadas, sin tildes). */
@@ -103,11 +109,13 @@ function conv_responder_sin_registro(PDO $db, string $telefono, string $respuest
     if ((int)$st->fetchColumn() > 1) return 'repetido';
     if (!wa_configurado()) return 'error';
     if ($respuesta === 'no') return wa_enviar_texto($telefono, CONV_TEXTO_NO)['ok'] ? 'gracias' : 'error';
+    // Enlace personal al chat de registro: su celular ya queda asociado (no se le pregunta)
+    $url = conv_invitacion_listo($db) ? wa_sitio() . '/conversemos/?r=' . conv_invitacion($db, $telefono) : wa_sitio() . '/#sumate';
     $res = wa_enviar_mensaje($telefono, ['type' => 'interactive', 'interactive' => [
         'type'   => 'cta_url',
-        'body'   => ['text' => CONV_TEXTO_DATOS],
+        'body'   => ['text' => CONV_TEXTO_CONOCERTE],
         'footer' => ['text' => 'Diana Montes'],
-        'action' => ['name' => 'cta_url', 'parameters' => ['display_text' => 'Dejar mis datos', 'url' => wa_sitio() . '/#sumate']],
+        'action' => ['name' => 'cta_url', 'parameters' => ['display_text' => CONV_BOTON_CONOCERTE, 'url' => $url]],
     ]]);
     if (!$res['ok']) error_log('[conversemos] No se pudo responder a ' . substr($telefono, 0, 3) . '···: ' . $res['codigo'] . ' ' . $res['detalle']);
     return $res['ok'] ? 'registro' : 'error';
@@ -299,4 +307,141 @@ function conv_marcar(PDO $db, int $convId, string $col): void
     $lista = array_filter(explode(', ', (string)$st->fetchColumn()));
     if (!in_array($nombres[$col] ?? $col, $lista, true)) $lista[] = $nombres[$col] ?? $col;
     $db->prepare('UPDATE wa_conversemos SET campos = :c WHERE id = :id')->execute(['c' => implode(', ', $lista), 'id' => $convId]);
+}
+
+/* ======================= Registro por el chat (números que aún no están en la red) ======================= */
+
+function conv_invitacion_listo(PDO $db): bool
+{
+    return esquema_tiene($db, 'wa_invitaciones');
+}
+
+/** Llave del chat de registro para un celular (reutiliza la vigente si ya tiene una). */
+function conv_invitacion(PDO $db, string $telefono): string
+{
+    $st = $db->prepare('SELECT token FROM wa_invitaciones WHERE telefono = :t AND simpatizante_id IS NULL
+                          AND created_at >= NOW() - INTERVAL ' . CONV_DIAS_ENLACE . ' DAY ORDER BY id DESC LIMIT 1');
+    $st->execute(['t' => $telefono]);
+    if ($t = $st->fetchColumn()) return (string)$t;
+    $t = bin2hex(random_bytes(16));
+    $db->prepare('INSERT INTO wa_invitaciones (token, telefono) VALUES (:k, :t)')->execute(['k' => $t, 't' => $telefono]);
+    return $t;
+}
+
+/** Invitación vigente por su llave; null si no existe o venció. */
+function conv_por_invitacion(PDO $db, string $token): ?array
+{
+    if (!preg_match('/^[a-f0-9]{32}$/', $token) || !conv_invitacion_listo($db)) return null;
+    $st = $db->prepare('SELECT * FROM wa_invitaciones WHERE token = :k AND created_at >= NOW() - INTERVAL ' . CONV_DIAS_ENLACE . ' DAY');
+    $st->execute(['k' => $token]);
+    return $st->fetch(PDO::FETCH_ASSOC) ?: null;
+}
+
+/**
+ * Si el celular de la invitación ya está en la red (se registró luego por otro medio,
+ * o terminó el registro por el chat), devuelve la llave de su chat de datos.
+ */
+function conv_invitacion_a_datos(PDO $db, array $inv): ?string
+{
+    $st = $db->prepare('SELECT id FROM simpatizantes WHERE telefono = :t LIMIT 1');
+    $st->execute(['t' => $inv['telefono']]);
+    $simp = $st->fetchColumn();
+    if (!$simp) return null;
+    $fila = conv_fila($db, (int)$simp, 0);
+    $token = ($fila['token'] ?? null) ?: bin2hex(random_bytes(16));
+    $db->prepare("INSERT INTO wa_conversemos (simpatizante_id, campana_id, token, respuesta, respondio_at, enlace_at, enlace_estado)
+                  VALUES (:s, 0, :k, 'si', NOW(), NOW(), 'enviado')
+                  ON DUPLICATE KEY UPDATE token = VALUES(token), enlace_at = NOW()")
+       ->execute(['s' => $simp, 'k' => $token]);
+    return $token;
+}
+
+/**
+ * Revisa una respuesta del registro y la guarda en $datos (la sesión) ya limpia.
+ * Devuelve [ok, mensaje]. Con documento repetido: [false, mensaje, 'registrado'].
+ */
+function conv_registro_campo(PDO $db, string $campo, string $valor, array &$datos): array
+{
+    $valor = trim($valor);
+    switch ($campo) {
+        case 'nombre':
+            $n = normalizar_nombre($valor);
+            if ($e = error_nombre_persona($n)) return [false, $e];
+            $datos['nombre'] = $n;
+            return [true, $n];
+        case 'documento':
+            $d = normalizar_documento($valor);
+            if ($e = error_documento($d)) return [false, $e];
+            $st = $db->prepare('SELECT 1 FROM simpatizantes WHERE documento = :d LIMIT 1');
+            $st->execute(['d' => $d]);
+            if ($st->fetchColumn()) return [false, '¡Esa cédula ya está registrada en la red! 💜 Gracias por acompañarnos. Si te registraste con otro celular, entra a tu panel en ' . wa_sitio() . '/mi', 'registrado'];
+            $datos['documento'] = $d;
+            return [true, $d];
+        case 'cumple':
+            if ($e = simpatizante_error_nacimiento($valor)) return [false, $e];
+            $datos['fecha_nacimiento'] = $valor;
+            return [true, $valor];
+        case 'genero':
+            if (!isset(GENEROS[$valor])) return [false, 'Elige una de las opciones.'];
+            $datos['genero'] = $valor;
+            return [true, GENEROS[$valor]];
+        case 'zona':
+        case 'profesion':
+            $tabla = $campo === 'zona' ? 'zonas' : 'profesiones';
+            $st = $db->prepare("SELECT nombre FROM $tabla WHERE id = :id");
+            $st->execute(['id' => (int)$valor]);
+            if (!($nom = $st->fetchColumn())) return [false, $campo === 'zona' ? 'Elige tu barrio o vereda de la lista.' : 'Elige tu profesión u oficio de la lista.'];
+            $datos[$campo === 'zona' ? 'zona_id' : 'profesion_id'] = (int)$valor;
+            return [true, $nom];
+        case 'clave':
+            if ($e = error_clave($valor, (string)($datos['documento'] ?? ''))) return [false, $e];
+            $datos['clave_hash'] = password_hash($valor, PASSWORD_DEFAULT);
+            return [true, ''];
+    }
+    return [false, 'Pregunta no válida.'];
+}
+
+/** Líder de quien se registra por el chat: el de la red directa de Diana. */
+function conv_lider_raiz(PDO $db): ?int
+{
+    if (defined('LIDER_ID_REGISTRO')) return (int)LIDER_ID_REGISTRO;
+    $st = $db->prepare('SELECT id FROM usuarios WHERE codigo_ref = :r AND activo = 1 LIMIT 1');
+    $st->execute(['r' => defined('LIDER_RAIZ_REF') ? LIDER_RAIZ_REF : 'diana']);
+    if ($id = $st->fetchColumn()) return (int)$id;
+    $id = $db->query("SELECT id FROM usuarios WHERE rol = 'direccion' AND activo = 1 ORDER BY id LIMIT 1")->fetchColumn();
+    return $id ? (int)$id : null;
+}
+
+/**
+ * Crea el registro con lo respondido en el chat (ya autorizado el tratamiento de datos).
+ * Devuelve [ok, mensaje, llave del chat de datos].
+ */
+function conv_registrar(PDO $db, array $inv, array $datos): array
+{
+    foreach (['nombre', 'documento', 'fecha_nacimiento', 'genero', 'zona_id', 'profesion_id'] as $c) {
+        if (empty($datos[$c])) return [false, 'Nos faltó un dato. Recarga la página para empezar de nuevo.', null];
+    }
+    if (esquema_tiene($db, 'simpatizantes', 'clave_hash') && empty($datos['clave_hash'])) return [false, 'Nos faltó tu clave. Recarga la página para empezar de nuevo.', null];
+    if (simpatizante_duplicado($db, $datos['documento'], $inv['telefono'])) {
+        $token = conv_invitacion_a_datos($db, $inv);
+        return $token ? [true, 'ya', $token] : [false, '¡Esa cédula ya está registrada en la red! 💜', null];
+    }
+    $lider = conv_lider_raiz($db);
+    if (!$lider) return [false, 'El registro no está disponible en este momento. Intenta más tarde.', null];
+    try {
+        $nuevo = simpatizante_insertar($db, [
+            'nombre' => $datos['nombre'], 'documento' => $datos['documento'], 'telefono' => $inv['telefono'],
+            'fecha_nacimiento' => $datos['fecha_nacimiento'], 'genero' => $datos['genero'],
+            'zona_id' => $datos['zona_id'], 'profesion_id' => $datos['profesion_id'],
+            'nivel' => 'simpatizante', 'lider_id' => $lider, 'referido_por' => null,
+            'clave_hash' => $datos['clave_hash'] ?? null, 'origen' => 'whatsapp',
+        ]);
+    } catch (PDOException $e) {
+        if (es_error_duplicado($e)) return [false, 'Ese documento o celular ya está registrado en la red.', null];
+        throw $e;
+    }
+    $db->prepare('UPDATE wa_invitaciones SET simpatizante_id = :s, registrado_at = NOW() WHERE id = :id')->execute(['s' => $nuevo['id'], 'id' => $inv['id']]);
+    $db->prepare("INSERT INTO auditoria (usuario_id, accion, detalle, ip) VALUES (NULL, 'registro_whatsapp', :d, :ip)")
+       ->execute(['d' => 'Doc ' . substr($datos['documento'], 0, 3) . '··· por el chat de WhatsApp', 'ip' => $_SERVER['REMOTE_ADDR'] ?? '']);
+    return [true, '', conv_invitacion_a_datos($db, $inv)];
 }

@@ -392,6 +392,19 @@ function esquema_pasos(): array
               KEY idx_conv_campana (campana_id, respuesta)
             ) DEFAULT CHARSET=utf8mb4", 'respuestas Sí / No y chat de datos ("Conversemos")'],
 
+        // ---------- Registro por el chat: enlace personal para celulares que aún no están en la red ----------
+        ['wa_invitaciones', null, "CREATE TABLE IF NOT EXISTS wa_invitaciones (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              token CHAR(32) NOT NULL,
+              telefono VARCHAR(10) NOT NULL,
+              abierto_at DATETIME NULL,
+              simpatizante_id INT NULL,
+              registrado_at DATETIME NULL,
+              created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              UNIQUE KEY uq_inv_token (token),
+              KEY idx_inv_tel (telefono)
+            ) DEFAULT CHARSET=utf8mb4", 'registro por el chat de WhatsApp ("Quiero conocerte")'],
+
         // ---------- Historias ciudadanas: relatos de la gente, con autorización de datos y de publicación ----------
         ['historias_ciudadanas', null, "CREATE TABLE IF NOT EXISTS historias_ciudadanas (
               id INT AUTO_INCREMENT PRIMARY KEY,
