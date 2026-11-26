@@ -471,3 +471,50 @@ function initModalAsistencia() {
 
 }
 
+
+/* ==========================================
+   PROTECCIÓN ANTIBOTS PARA FORMULARIOS
+========================================== */
+
+(function () {
+
+    const formularios = {
+        "join-form": "web",
+        "story-form": "sitio_web",
+        "form-asistencia": "pagina_web"
+    };
+
+    document.addEventListener("submit", function (event) {
+
+        const form = event.target;
+
+        if (!(form instanceof HTMLFormElement)) {
+            return;
+        }
+
+        // Identificar el campo trampa correspondiente
+        const nombreCampo = formularios[form.id];
+
+        if (!nombreCampo) {
+            return;
+        }
+
+        const campoTrampa = form.elements.namedItem(nombreCampo);
+
+        if (
+            campoTrampa &&
+            typeof campoTrampa.value === "string" &&
+            campoTrampa.value.trim() !== ""
+        ) {
+
+            // Posible bot: cancelar completamente el envío
+            event.preventDefault();
+            event.stopImmediatePropagation();
+
+            return;
+        }
+
+    }, true);
+
+})();
+

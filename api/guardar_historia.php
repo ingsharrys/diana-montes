@@ -57,6 +57,14 @@ $barrio = valorPostHistoria('barrio_id');
 $consentimiento = !empty($_POST['datos']);
 $publicar = !empty($_POST['publicar']) ? 1 : 0;
 
+if (valorPostHistoria('sitio_web') !== '') {
+    responderHistoria(
+        422,
+        false,
+        'No fue posible validar el envío.'
+    );
+}
+
 // Normalizar texto sin eliminar los saltos de línea del relato.
 $nombre = preg_replace('/\s+/u', ' ', $nombre);
 $mensaje = preg_replace('/\r\n?/', "\n", $mensaje);

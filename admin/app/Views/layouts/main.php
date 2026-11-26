@@ -21,6 +21,7 @@ $menu = [
     ['datos',               'candado',   'Datos personales', ['direccion']],
     ['historias',           'historias', 'Historias',     ['direccion']],
     ['eventos',             'eventos',   'Eventos',       ['direccion']],
+    ['videos',              'videos',    'Videos',        ['direccion']],
 ];
 // Pestañas del centro de mando (las tres vistas de inteligencia de la red)
 $pestanas = ['dashboard' => 'Vista rápida', 'territorio' => 'Territorio', 'red' => 'Red de contactos', 'mapa' => 'Mapa'];
@@ -33,6 +34,10 @@ $enMando  = isset($pestanas[$seccion]);
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= e($titulo ?? '') ?> · <?= APP_NAME ?></title>
+<!-- Favicon -->
+<link rel="icon" href="../assets/logo/icono-diana.png" type="image/x-icon">
+<link rel="icon" href="../assets/logo/icono-diana.png" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/logo/icono-diana.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="<?= asset('assets/css/app.css') ?>">

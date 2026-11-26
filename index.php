@@ -64,6 +64,24 @@ $horaEs = static function (DateTimeImmutable $fecha): string {
     return $fecha->format('g:i') . ($fecha->format('A') === 'AM' ? ' a. m.' : ' p. m.');
 };
 
+// Videos públicos de Diana Montes, con tema, título, plataforma y fuente
+
+$temasVideoPublico = [
+    'cercania' => 'Cercanía humana',
+    'pertenencia' => 'Pertenencia',
+    'responsabilidad' => 'Responsabilidad',
+    'perseverancia' => 'Perseverancia',
+    'autonomia' => 'Autonomía',
+];
+
+$videosPublicos = db()->query(
+    "SELECT id, titulo, tema, plataforma, fuente, formato, poster
+       FROM videos_editoriales
+      WHERE estado = 'publicado'
+      ORDER BY orden ASC, id DESC"
+)->fetchAll(PDO::FETCH_ASSOC);
+
+
 ?>
 
 <?php
@@ -171,96 +189,44 @@ include 'include/navbar.php';
         </div>
         <p class="sr-only" aria-live="polite" id="filter-status"></p>
 
-        <ul class="video-grid">
-            <li class="video-card" data-theme="cercania">
+        <?php if (!$videosPublicos): ?>
+          <p class="form-proto" role="status">Próximamente compartiremos nuevas historias y reflexiones.</p>
+        <?php else: ?>
+          <ul class="video-grid">
+            <?php foreach ($videosPublicos as $indice => $video):
+                $tema = (string) $video['tema'];
+                $titulo = (string) $video['titulo'];
+                $plataforma = (string) $video['plataforma'];
+                $fuente = (string) $video['fuente'];
+                $formato = $video['formato'] === 'vertical' ? 'vertical' : 'horizontal';
+                $poster = (string) $video['poster'];
+                if (!preg_match('~\A\./assets/videos/poster/[a-zA-Z0-9_.-]+\z~', $poster)) {
+                    $poster = './assets/videos/poster/foto-pendiente.jpg';
+                }
+            ?>
+              <li class="video-card" data-theme="<?= e($tema) ?>">
                 <div class="video-cover">
-                    <img src="./assets/videos/poster/foto-portada.jpg" alt="Diana Montes">
-                    <span class="video-num" aria-hidden="true">01</span>
+                  <img src="<?= e($poster) ?>" alt="Portada del video: <?= e($titulo) ?>" loading="lazy">
+                  <span class="video-num" aria-hidden="true"><?= e(str_pad((string) ($indice + 1), 2, '0', STR_PAD_LEFT)) ?></span>
                 </div>
                 <div class="video-body">
-                    <p class="video-theme">Cercanía humana</p>
-                    <h3 class="video-title">Colombia tiene una deuda con las amas de casa</h3>
-                    <button type="button" class="btn-play" data-video="colombia tiene una deuda con las amas de casa" data-video-src="./assets/videos/diana.mp4">
-                        <i class="fas fa-play" aria-hidden="true"></i>Reproducir <span class="sr-only">: colombia tiene una deuda con las amas de casa</span>
-                    </button>
+                  <p class="video-theme"><?= e($temasVideoPublico[$tema] ?? $tema) ?></p>
+                  <h3 class="video-title"><?= e($titulo) ?></h3>
+                  <button type="button" class="btn-play"
+                          data-video="<?= e($titulo) ?>"
+                          data-video-format="<?= e($formato) ?>"
+                          <?php if ($plataforma === 'mp4'): ?>data-video-src="<?= e($fuente) ?>"<?php endif; ?>
+                          <?php if ($plataforma === 'facebook'): ?>data-facebook-url="<?= e($fuente) ?>"<?php endif; ?>
+                          <?php if ($plataforma === 'youtube'): ?>data-youtube-id="<?= e($fuente) ?>"<?php endif; ?>
+                          <?php if ($plataforma === 'vimeo'): ?>data-vimeo-id="<?= e($fuente) ?>"<?php endif; ?>>
+                    <i class="fas fa-play" aria-hidden="true"></i>
+                    Reproducir <span class="sr-only">: <?= e($titulo) ?></span>
+                  </button>
                 </div>
-            </li>
-            
-            <li class="video-card" data-theme="pertenencia">
-                <div class="video-cover">
-                    <img src="./assets/videos/poster/poster-2.jpg" alt="Portada del video de Diana Montes" >
-                    <span class="video-num" aria-hidden="true">02</span>
-                </div>
-                <div class="video-body">
-                    <p class="video-theme">Cercanía humana</p>
-                    <h3 class="video-title">
-                        Nuestro amigo Alvarin tiene una hermosa historia
-                    </h3>
-                    <button type="button" class="btn-play" data-video="Nuestro amigo Alvarin tiene una hermosa historia" data-facebook-url="https://web.facebook.com/reel/951550417820442" data-video-format="vertical">
-                        <i class="fas fa-play" aria-hidden="true"></i>Reproducir <span class="sr-only">: Nuestro amigo Alvarin tiene una hermosa historia</span>
-                    </button>
-                    <!-- boton para youtube
-                    <button class="btn-play" data-video="Historia de Diana" data-youtube-id="ID_DEL_VIDEO"> <i class="fas fa-play"></i> Reproducir</button>
-                    -->
-                </div>
-            </li>
-            
-            <li class="video-card" data-theme="responsabilidad">
-                <div class="video-cover">
-                    <img src="./assets/videos/poster/poster-3.jpg" alt="Portada del video de Diana Montes" >
-                    <span class="video-num" aria-hidden="true">03</span>
-                </div>
-                <div class="video-body">
-                    <p class="video-theme">Cercanía humana</p>
-                    <h3 class="video-title">
-                        ¡El progreso de Garzón no puede significar el cierre de nuestros negocios!
-                    </h3>
-                    <button type="button" class="btn-play" data-video="¡El progreso de Garzón no puede significar el cierre de nuestros negocios!" data-facebook-url="https://web.facebook.com/reel/2218553275365190" data-video-format="vertical">
-                        <i class="fas fa-play" aria-hidden="true"></i>Reproducir <span class="sr-only">: ¡El progreso de Garzón no puede significar el cierre de nuestros negocios!</span>
-                    </button>
-                </div>
-            </li>
-
-            <li class="video-card" data-theme="responsabilidad">
-                <div class="video-cover">
-                    <img src="./assets/videos/poster/foto-pendiente.jpg" alt="Diana Montes">
-                    <span class="video-num" aria-hidden="true">04</span>
-                </div>
-                <div class="video-body">
-                    <p class="video-theme">Responsabilidad</p>
-                    <h3 class="video-title">La palabra vale oro</h3>
-                    <button type="button" class="btn-play" data-video="La palabra vale oro" data-video-src="./assets/videos/diana.mp4">
-                        <i class="fas fa-play" aria-hidden="true"></i>Reproducir <span class="sr-only">: La palabra vale oro</span>
-                    </button>
-                </div>
-            </li>
-            <li class="video-card" data-theme="perseverancia">
-                <div class="video-cover">
-                    <img src="./assets/videos/poster/foto-pendiente.jpg" alt="Diana Montes">
-                    <span class="video-num" aria-hidden="true">05</span>
-                </div>
-                <div class="video-body">
-                    <p class="video-theme">Perseverancia</p>
-                    <h3 class="video-title">Estudiar también fue un esfuerzo</h3>
-                    <button type="button" class="btn-play" data-video="Estudiar también fue un esfuerzo" data-video-src="./assets/videos/diana.mp4">
-                        <i class="fas fa-play" aria-hidden="true"></i>Reproducir <span class="sr-only">: Estudiar también fue un esfuerzo</span>
-                    </button>
-                </div>
-            </li>
-            <li class="video-card" data-theme="autonomia">
-                <div class="video-cover">
-                    <img src="./assets/videos/poster/foto-pendiente.jpg" alt="Diana Montes">
-                    <span class="video-num" aria-hidden="true">06</span>
-                </div>
-                <div class="video-body">
-                    <p class="video-theme">Autonomía</p>
-                    <h3 class="video-title">Mi independencia tiene una razón</h3>
-                    <button type="button" class="btn-play" data-video="Mi independencia tiene una razón" data-video-src="./assets/videos/diana.mp4">
-                        <i class="fas fa-play" aria-hidden="true"></i>Reproducir <span class="sr-only">: Mi independencia tiene una razón</span>
-                    </button>
-                </div>
-            </li>
-        </ul>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        <?php endif; ?>
         <p class="toast" id="video-toast" role="status" aria-live="polite" hidden></p>
       </div>
     </section>
@@ -339,6 +305,12 @@ include 'include/navbar.php';
           <div class="check">
             <input id="f-publicar" name="publicar" value="1" type="checkbox" />
             <label for="f-publicar">Autorizo la publicación de mi historia en este sitio web.<span class="opt">(opcional)</span></label>
+          </div>
+
+          <!-- Honeypot -->
+          <div class="antibot-trampa" aria-hidden="true">
+              <label for="hp-historia">Sitio web</label>
+              <input type="text" id="hp-historia" name="sitio_web" autocomplete="off" tabindex="-1">
           </div>
 
           <button class="btn btn-primary btn-block" type="submit">Compartir mi historia</button>
@@ -697,8 +669,10 @@ include 'include/navbar.php';
       </span>
     </label>
 
-    <div class="asistencia-hp" aria-hidden="true">
-      <label>Tu sitio web <input name="pagina_web" type="text" tabindex="-1" autocomplete="off"></label>
+    <!-- Honeypot -->
+    <div class="antibot-trampa" aria-hidden="true">
+        <label for="hp-asistencia">Sitio web</label>
+        <input type="text" id="hp-asistencia" name="pagina_web" autocomplete="off" tabindex="-1">
     </div>
 
     <div class="asistencia-modal-actions">
@@ -873,6 +847,12 @@ include 'include/navbar.php';
             <label for="j-datos">Autorizo el tratamiento de mis datos personales para gestionar mi registro y recibir información política de la campaña de Diana Montes, de acuerdo con <a href="https://dianamontes.com/privacidad/">la política de privacidad</a></label>
           </div>
           <p class="field-error" id="je-datos" hidden>Debes autorizar el tratamiento de datos para continuar.</p>
+
+          <!-- Honeypot -->
+          <div class="antibot-trampa" aria-hidden="true">
+              <label for="hp-simpatizante">Sitio web</label>
+              <input type="text" id="hp-simpatizante" name="web" autocomplete="off" tabindex="-1">
+          </div>
 
           <button class="btn btn-primary btn-block join-submit" type="submit">Completar registro</button>
           <p class="form-status" id="join-status" role="status" aria-live="polite"></p>

@@ -127,6 +127,27 @@ $clave = $_POST['clave'] ?? '';
 $consentimiento = in_array(campoRegistro('datos'), ['on', '1'], true);
 $ref = campoRegistro('ref');                 // Opcional: ?ref=...
 
+// ==========================================
+// HONEYPOT - PROTECCIÓN ANTIBOTS
+// ==========================================
+
+$trampa = $_POST['web'] ?? '';
+
+if (!is_string($trampa) || trim($trampa) !== '') {
+
+    http_response_code(422);
+
+    header('Content-Type: application/json; charset=utf-8');
+
+    echo json_encode([
+        'ok' => false,
+        'message' => 'No fue posible procesar la solicitud.',
+        'msg' => 'No fue posible procesar la solicitud.'
+    ], JSON_UNESCAPED_UNICODE);
+
+    exit;
+}
+
 $generos = [
     'Femenino' => 'mujer',
     'Masculino' => 'hombre',

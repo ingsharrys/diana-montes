@@ -1472,6 +1472,23 @@ a.conv-contact-item:hover .conv-arrow {
     border: 0 !important;
 }
 
+/* =========================================
+   PROTECCIÓN ANTIBOTS - HONEYPOT
+========================================= */
+
+.antibot-trampa {
+    position: absolute !important;
+    left: -9999px !important;
+    top: -9999px !important;
+
+    width: 1px !important;
+    height: 1px !important;
+
+    overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
 
 /* BOTÓN */
 
