@@ -99,7 +99,7 @@ class EventosController extends Controller
         $estado = (string) ($_POST['estado'] ?? '');
         try {
             (new Evento())->cambiarEstado($id, $estado);
-            Auditoria::registrar('evento_estado', 'Encuentro #' . $id . ' → ' . $estado);
+            Auditoria::registrar('evento_estado', 'Encuentro #' . $id . ' -> ' . $estado);
             Session::flash('ok', 'Encuentro #' . $id . ': ' . (Evento::ESTADOS[$estado] ?? $estado) . '.');
         } catch (DomainException $e) {
             Session::flash('error', $e->getMessage());

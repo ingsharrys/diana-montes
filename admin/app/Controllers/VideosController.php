@@ -99,7 +99,7 @@ class VideosController extends Controller
         $estado = $this->valor('estado');
         try {
             (new Video())->cambiarEstado($id, $estado);
-            Auditoria::registrar('video_estado', 'Video #' . $id . ' → ' . $estado);
+            Auditoria::registrar('video_estado', 'Video #' . $id . ' -> ' . $estado);
             Session::flash('ok', 'Video #' . $id . ': ' . (Video::ESTADOS[$estado] ?? $estado) . '.');
         } catch (DomainException $e) {
             Session::flash('error', $e->getMessage());
