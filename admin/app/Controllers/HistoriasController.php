@@ -77,7 +77,7 @@ class HistoriasController extends Controller
         $estado = (string)($_POST['estado'] ?? '');
         try {
             (new Historia())->cambiarEstado($id, $estado);
-            Auditoria::registrar('historia_estado', 'Historia #' . $id . ' → ' . $estado);
+            Auditoria::registrar('historia_estado', 'Historia #' . $id . ' -> ' . $estado);
             Session::flash('ok', 'Historia #' . $id . ': ' . mb_strtolower(Historia::ESTADOS[$estado]) . '.');
         } catch (DomainException $e) {
             Session::flash('error', $e->getMessage());
