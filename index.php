@@ -304,7 +304,7 @@ include 'include/navbar.php';
 
           <div class="check">
             <input id="f-publicar" name="publicar" value="1" type="checkbox" />
-            <label for="f-publicar">Autorizo la publicación de mi historia en este sitio web.<span class="opt">(opcional)</span></label>
+            <label for="f-publicar">Autorizo voluntariamente la publicación de mi historia y mi nombre en este sitio web. <span class="opt">(opcional)</span></label>
           </div>
 
           <!-- Honeypot -->
@@ -317,6 +317,8 @@ include 'include/navbar.php';
           <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
         </form>
       </div>
+      <!-- HISTORIAS CIUDADANAS APROBADAS -->
+      <?php require __DIR__ . '/include/historias_publicadas.php'; ?>
     </section>
 
     <!-- 7. HABLEMOS DE GARZÓN -->

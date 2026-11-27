@@ -373,7 +373,7 @@ img { max-width: 100%; display: block; }
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 2px;
-    color: #B42D69;
+    color: var(--frambuesa);
 }
 
 .video-modal__heading h2 {
@@ -399,7 +399,7 @@ img { max-width: 100%; display: block; }
     border-radius: 50%;
 
     background: rgba(180, 45, 105, 0.1);
-    color: #B42D69;
+    color: var(--frambuesa);
 
     font-size: 20px;
     cursor: pointer;
@@ -410,13 +410,13 @@ img { max-width: 100%; display: block; }
 }
 
 .video-modal__close:hover {
-    background: #B42D69;
+    background: var(--frambuesa);
     color: #FFFFFF;
     transform: rotate(90deg);
 }
 
 .video-modal__close:focus-visible {
-    outline: 2px solid #B42D69;
+    outline: 2px solid var(--frambuesa);
     outline-offset: 3px;
 }
 
@@ -445,7 +445,7 @@ img { max-width: 100%; display: block; }
     align-items: center;
     gap: 9px;
     margin-top: 16px;
-    color: #B42D69;
+    color: var(--frambuesa);
     font-family: "Poppins", sans-serif;
     font-size: 13px;
     font-weight: 600;
@@ -458,7 +458,7 @@ img { max-width: 100%; display: block; }
 }
 
 .video-modal__external:focus-visible {
-    outline: 2px solid #B42D69;
+    outline: 2px solid var(--frambuesa);
     outline-offset: 3px;
 }
 
@@ -509,7 +509,7 @@ img { max-width: 100%; display: block; }
     display: block;
     margin-bottom: 18px;
     font-size: 36px;
-    color: #B42D69;
+    color: var(--frambuesa);
 }
 
 /* Responsive */
@@ -612,7 +612,7 @@ img { max-width: 100%; display: block; }
 .form-status.is-success {
     margin-top: 18px;
     padding: 16px;
-    border-left: 3px solid #B42D69;
+    border-left: 3px solid var(--frambuesa);
     border-radius: 8px;
     background: #FCF3F7;
     color: #1F2328;
@@ -624,6 +624,169 @@ img { max-width: 100%; display: block; }
     margin-top: 15px;
     color: #A62450;
     font-size: 13px;
+}
+
+
+/* ==========================================
+   HISTORIAS CIUDADANAS PUBLICADAS
+========================================== */
+
+.historias-publicadas {
+    margin-top: 85px;
+}
+
+.historias-publicadas-head {
+    max-width: 780px;
+    margin-bottom: 35px;
+}
+
+.historias-publicadas-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 22px;
+}
+
+/* TARJETA */
+
+.historia-publica-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 28px;
+    background: #FFFFFF;
+    border: 1px solid var(--grafito);
+    border-radius: 18px;
+    box-shadow: 0 8px 28px rgba(31,35,40,0.04);
+    transition: transform .25s ease,
+                box-shadow .25s ease;
+}
+
+.historia-publica-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 36px rgba(31,35,40,0.09);
+    border: 1px solid var(--frambuesa);
+}
+
+.historia-publica-icon {
+    color: var(--frambuesa);
+    font-size: 25px;
+    margin-bottom: 18px;
+}
+
+.historia-publica-label {
+    color: var(--frambuesa);
+    font-family: 'Poppins', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    margin-bottom: 14px;
+}
+
+.historia-publica-contenido {
+    flex: 1;
+    min-width: 0;
+}
+
+.historia-publica-resumen {
+    color: #1F2328;
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.9;
+    overflow-wrap: anywhere;
+    margin: 0 0 20px;
+}
+
+/* DESPLEGAR HISTORIA */
+
+.historia-publica-detalle summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--frambuesa);
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+}
+
+.historia-publica-detalle summary::-webkit-details-marker {
+    display: none;
+}
+
+.historia-publica-detalle summary i {
+    transition: transform .2s ease;
+}
+
+.historia-publica-detalle[open] summary i {
+    transform: rotate(90deg);
+}
+
+.historia-publica-texto {
+    margin: 16px 0 0;
+    padding-top: 16px;
+    border-top: 1px solid #EEE4E8;
+    color: #555;
+    font-size: 13px;
+    line-height: 1.9;
+    overflow-wrap: anywhere;
+}
+
+.historia-publica-detalle summary:focus-visible {
+    outline: 2px solid var(--frambuesa);
+    outline-offset: 4px;
+}
+
+/* PIE DE TARJETA */
+
+.historia-publica-footer {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid #F0EAED;
+    color: #777;
+    font-size: 11px;
+}
+
+.historia-publica-footer i {
+    color: var(--frambuesa);
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 991px) {
+    .historias-publicadas-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .historias-publicadas {
+        margin-top: 55px;
+    }
+
+    .historias-publicadas-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .historia-publica-card {
+        padding: 22px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .historia-publica-card,
+    .historia-publica-detalle summary i {
+        transition: none;
+    }
+
+    .historia-publica-card:hover {
+        transform: none;
+    }
 }
 
 /* ---------- Topics ---------- */
@@ -690,14 +853,14 @@ img { max-width: 100%; display: block; }
     justify-content: center;
     align-items: center;
     background: #F9E8EF;
-    color: #B42D69;
+    color: var(--frambuesa);
     border-radius: 14px;
     font-size: 21px;
 }
 
 .conv-eyebrow {
     display: block;
-    color: #B42D69;
+    color: var(--frambuesa);
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 1.3px;
@@ -753,7 +916,7 @@ a.conv-contact-item:hover {
     justify-content: center;
     border-radius: 12px;
     background: #FCF3F7;
-    color: #B42D69;
+    color: var(--frambuesa);
     font-size: 18px;
 }
 
@@ -778,7 +941,7 @@ a.conv-contact-item:hover {
 }
 
 .conv-arrow {
-    color: #B42D69;
+    color: var(--frambuesa);
     font-size: 13px;
     transition: transform 0.25s ease;
 }
@@ -834,7 +997,7 @@ a.conv-contact-item:hover .conv-arrow {
     border: 1px solid #EBD9E1;
     border-radius: 9px;
     background: #FFFFFF;
-    color: #B42D69;
+    color: var(--frambuesa);
     text-decoration: none;
     font-size: 12px;
     font-weight: 600;
@@ -842,9 +1005,9 @@ a.conv-contact-item:hover .conv-arrow {
 }
 
 .conv-social-btn:hover {
-    background: #B42D69;
+    background: var(--frambuesa);
     color: #FFFFFF;
-    border-color: #B42D69;
+    border-color: var(--frambuesa);
 }
 
 .conv-ver-mapa {
@@ -910,7 +1073,7 @@ a.conv-contact-item:hover .conv-arrow {
     border-radius: 50%;
 
     background: #FFFFFF;
-    color: #B42D69;
+    color: var(--frambuesa);
 
     font-size: 13px;
     cursor: pointer;
@@ -919,9 +1082,9 @@ a.conv-contact-item:hover .conv-arrow {
 }
 
 .agenda-carousel-arrow:hover:not(:disabled) {
-    background: #B42D69;
+    background: var(--frambuesa);
     color: #FFFFFF;
-    border-color: #B42D69;
+    border-color: var(--frambuesa);
 }
 
 .agenda-carousel-arrow:disabled {
@@ -1002,12 +1165,12 @@ a.conv-contact-item:hover .conv-arrow {
 
 .agenda-carousel-dot.is-active {
     width: 26px;
-    background: #B42D69;
+    background: var(--frambuesa);
 }
 
 .agenda-carousel-arrow:focus-visible,
 .agenda-carousel-dot:focus-visible {
-    outline: 2px solid #B42D69;
+    outline: 2px solid var(--frambuesa);
     outline-offset: 3px;
 }
 
@@ -1079,7 +1242,7 @@ a.conv-contact-item:hover .conv-arrow {
     padding: 12px;
 
     border-radius: 12px;
-    background: #B42D69;
+    background: var(--frambuesa);
     color: #FFFFFF;
     text-align: center;
 }
@@ -1111,7 +1274,7 @@ a.conv-contact-item:hover .conv-arrow {
 .conv-event-category {
     display: inline-block;
     margin-bottom: 9px;
-    color: #B42D69;
+    color: var(--frambuesa);
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 1px;
@@ -1154,7 +1317,7 @@ a.conv-contact-item:hover .conv-arrow {
 .conv-event-meta-item i {
     width: 17px;
     margin-top: 3px;
-    color: #B42D69;
+    color: var(--frambuesa);
     text-align: center;
     flex-shrink: 0;
 }
@@ -1171,7 +1334,7 @@ a.conv-contact-item:hover .conv-arrow {
     gap: 12px;
     padding: 13px 21px;
     border-radius: 9px;
-    background: #B42D69;
+    background: var(--frambuesa);
     color: #FFFFFF;
     font-size: 12px;
     font-weight: 600;
@@ -1201,13 +1364,13 @@ a.conv-contact-item:hover .conv-arrow {
 }
 
 .conv-event-disclaimer i {
-    color: #B42D69;
+    color: var(--frambuesa);
     margin-top: 3px;
 }
 
 /* ACCESIBILIDAD */
 .conv-grid a:focus-visible {
-    outline: 2px solid #B42D69;
+    outline: 2px solid var(--frambuesa);
     outline-offset: 3px;
 }
 
@@ -1221,7 +1384,7 @@ a.conv-contact-item:hover .conv-arrow {
 .conv-event-empty i {
     display: block;
     margin-bottom: 18px;
-    color: #B42D69;
+    color: var(--frambuesa);
     font-size: 36px;
 }
 
@@ -1281,7 +1444,7 @@ a.conv-contact-item:hover .conv-arrow {
     height: 54px;
     border-radius: 14px;
     background: #F8E4ED;
-    color: #B42D69;
+    color: var(--frambuesa);
     font-size: 22px;
 }
 
@@ -1294,14 +1457,14 @@ a.conv-contact-item:hover .conv-arrow {
     border: none;
     border-radius: 50%;
     background: #F3E9ED;
-    color: #B42D69;
+    color: var(--frambuesa);
     font-size: 18px;
     cursor: pointer;
     transition: all .25s ease;
 }
 
 .asistencia-modal-close:hover {
-    background: #B42D69;
+    background: var(--frambuesa);
     color: #FFFFFF;
 }
 
@@ -1310,7 +1473,7 @@ a.conv-contact-item:hover .conv-arrow {
 .asistencia-modal-eyebrow {
     display: block;
     margin-bottom: 8px;
-    color: #B42D69;
+    color: var(--frambuesa);
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 1.4px;
@@ -1344,7 +1507,7 @@ a.conv-contact-item:hover .conv-arrow {
 }
 
 .asistencia-evento-info span {
-    color: #B42D69;
+    color: var(--frambuesa);
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 1px;
@@ -1371,7 +1534,7 @@ a.conv-contact-item:hover .conv-arrow {
 }
 
 .asistencia-field label span {
-    color: #B42D69;
+    color: var(--frambuesa);
 }
 
 .asistencia-input {
@@ -1383,7 +1546,7 @@ a.conv-contact-item:hover .conv-arrow {
     left: 15px;
     top: 50%;
     transform: translateY(-50%);
-    color: #B42D69;
+    color: var(--frambuesa);
     font-size: 15px;
     pointer-events: none;
 }
@@ -1405,7 +1568,7 @@ a.conv-contact-item:hover .conv-arrow {
 }
 
 .asistencia-input input:focus {
-    border-color: #B42D69;
+    border-color: var(--frambuesa);
     box-shadow: 0 0 0 3px rgba(180,45,105,0.10);
 }
 
@@ -1428,7 +1591,7 @@ a.conv-contact-item:hover .conv-arrow {
     height: 16px;
     flex-shrink: 0;
     margin-top: 3px;
-    accent-color: #B42D69;
+    accent-color: var(--frambuesa);
 }
 
 .asistencia-privacy span {
@@ -1456,7 +1619,7 @@ a.conv-contact-item:hover .conv-arrow {
     color: #1F2328;
     font-family: Poppins, sans-serif;
 }
-.asistencia-exito > i { color: #B42D69; font-size: 42px; }
+.asistencia-exito > i { color: var(--frambuesa); font-size: 42px; }
 .asistencia-exito h3 { margin: 14px 0 10px; font-size: 22px; }
 .asistencia-exito p { line-height: 1.7; font-size: 13px; }
 .asistencia-exito .asistencia-submit { margin-top: 16px; }
@@ -1507,7 +1670,7 @@ a.conv-contact-item:hover .conv-arrow {
     padding: 15px;
     border: none;
     border-radius: 10px;
-    background: #B42D69;
+    background: var(--frambuesa);
     color: #FFFFFF;
     font-family: 'Poppins', sans-serif;
     font-size: 13px;
@@ -1535,7 +1698,7 @@ a.conv-contact-item:hover .conv-arrow {
 
 .asistencia-modal button:focus-visible,
 .asistencia-modal input:focus-visible {
-    outline: 2px solid #B42D69;
+    outline: 2px solid var(--frambuesa);
     outline-offset: 3px;
 }
 
@@ -2022,7 +2185,7 @@ a.conv-contact-item:hover .conv-arrow {
 .select2-selection--single,
 .jfield .select2-container--default.select2-container--open
 .select2-selection--single {
-    border-color: #B42D69;
+    border-color: var(--frambuesa);
     box-shadow: 0 0 0 3px rgba(180, 45, 105, 0.12);
     outline: none;
 }
@@ -2030,7 +2193,7 @@ a.conv-contact-item:hover .conv-arrow {
 /* Lista desplegable */
 .select2-dropdown {
     background: #FFFFFF;
-    border: 1px solid #B42D69;
+    border: 1px solid var(--frambuesa);
     border-radius: 8px;
     overflow: hidden;
     box-shadow: 0 8px 25px rgba(31, 35, 40, 0.10);
@@ -2051,7 +2214,7 @@ a.conv-contact-item:hover .conv-arrow {
 .select2-container--default
 .select2-search--dropdown
 .select2-search__field:focus {
-    border-color: #B42D69;
+    border-color: var(--frambuesa);
 }
 
 /* Opciones */
@@ -2065,7 +2228,7 @@ a.conv-contact-item:hover .conv-arrow {
 /* Opción resaltada */
 .select2-container--default
 .select2-results__option--highlighted[aria-selected] {
-    background: #B42D69;
+    background: var(--frambuesa);
     color: #FFFFFF;
 }
 
@@ -2080,7 +2243,7 @@ a.conv-contact-item:hover .conv-arrow {
 .select2-container--default
 .select2-selection--single
 .select2-selection__clear {
-    color: #B42D69;
+    color: var(--frambuesa);
     font-size: 19px;
     margin-right: 10px;
 }
